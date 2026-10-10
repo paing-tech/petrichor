@@ -3,9 +3,9 @@ import { z } from "zod";
 // Shared by the client form and the server actions; keep free of server-only imports.
 
 export const LIMITS = {
-  songTitle: 100,
-  artistName: 100,
-  songUrl: 500,
+  // Catalog titles like "Song (feat. …) [Remastered 2009]" can run long.
+  songTitle: 200,
+  artistName: 200,
   lyricsExcerpt: 150,
   message: 220,
   senderName: 40,
@@ -23,16 +23,6 @@ export type PhotoContentType = keyof typeof PHOTO_TYPES;
 
 export const CARD_ID_PATTERN = /^P-[0-9A-HJKMNP-TV-Z]{26}$/;
 
-const SONG_URL_HOSTS = [
-  "open.spotify.com",
-  "spotify.link",
-  "youtube.com",
-  "www.youtube.com",
-  "m.youtube.com",
-  "music.youtube.com",
-  "youtu.be",
-];
-
 const requiredText = (label: string, max: number) =>
   z
     .string()
@@ -48,25 +38,9 @@ const optionalText = (label: string, max: number) =>
     .max(max, `${label} must be ${max} characters or fewer`)
     .transform((v) => v || null);
 
-const songUrl = z
-  .string()
-  .trim()
-  .max(LIMITS.songUrl, "Song link is too long")
-  .refine((value) => {
-    if (!value) return true;
-    try {
-      const url = new URL(value);
-      return url.protocol === "https:" && SONG_URL_HOSTS.includes(url.hostname);
-    } catch {
-      return false;
-    }
-  }, "Use a Spotify or YouTube link (https://…)")
-  .transform((v) => v || null);
-
 export const cardFieldsSchema = z.object({
   songTitle: requiredText("Song title", LIMITS.songTitle),
   artistName: requiredText("Artist name", LIMITS.artistName),
-  songUrl,
   lyricsExcerpt: optionalText("Lyrics", LIMITS.lyricsExcerpt),
   message: optionalText("Message", LIMITS.message),
   senderName: optionalText("Your name", LIMITS.senderName),
@@ -79,11 +53,20 @@ export type CardFieldErrors = Partial<Record<keyof CardFieldsInput, string>>;
 export const PHOTO_KEY_PATTERN =
   /^uploads\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp)$/;
 
+// The song picked from search. Only IDs are accepted; the server builds the
+// Apple Music URL itself so a client can't smuggle in an arbitrary link.
+const appleMusicTrackSchema = z.object({
+  storefront: z.string().regex(/^[a-z]{2}$/),
+  collectionId: z.string().regex(/^\d{1,15}$/),
+  trackId: z.string().regex(/^\d{1,15}$/),
+});
+
 export const createCardSchema = cardFieldsSchema.extend({
   photoKey: z
     .string()
     .regex(PHOTO_KEY_PATTERN, "Invalid photo reference")
     .nullable(),
+  appleMusic: appleMusicTrackSchema.nullable(),
 });
 
 export type CreateCardInput = z.input<typeof createCardSchema>;

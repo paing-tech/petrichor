@@ -8,6 +8,20 @@
       "when": 1791579160898,
       "tag": "0000_create_cards",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791638802513,
+      "tag": "0001_add_apple_music_url",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791638808998,
+      "tag": "0002_drop_song_url",
+      "breakpoints": true
     }
   ]
 }

@@ -5,13 +5,16 @@ import Link from "next/link";
 import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, SparklesIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createCard, requestPhotoUpload } from "@/app/create/actions";
+import { AppleMusicEmbed } from "@/components/apple-music-embed";
 import { CollectibleCard } from "@/components/collectible-card";
 import { PhotoField } from "@/components/create/photo-field";
+import { SelectedSong, SongSearch } from "@/components/create/song-search";
 import { ShareActions } from "@/components/share-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { buildAppleMusicUrl, type SongSearchResult } from "@/lib/apple-music";
 import { cn } from "@/lib/utils";
 import {
   cardFieldsSchema,
@@ -33,21 +36,28 @@ type Photo = {
 
 type Step = "edit" | "review" | "done";
 
+/** "search" picks from the Apple Music catalog; "manual" is the fallback for songs it doesn't have. */
+type SongMode = "search" | "manual";
+
+const SONG_SEARCH_ID = "song-search";
+
 const EMPTY_VALUES: FormValues = {
   songTitle: "",
   artistName: "",
-  songUrl: "",
   lyricsExcerpt: "",
   message: "",
   senderName: "",
 };
 
-const FIELD_ORDER: FieldName[] = ["songTitle", "artistName", "songUrl", "lyricsExcerpt", "message", "senderName"];
+const FIELD_ORDER: FieldName[] = ["songTitle", "artistName", "lyricsExcerpt", "message", "senderName"];
 
 export function CreateCardFlow() {
   const [values, setValues] = useState<FormValues>(EMPTY_VALUES);
   const [errors, setErrors] = useState<CardFieldErrors>({});
   const [validateLive, setValidateLive] = useState(false);
+  const [song, setSong] = useState<SongSearchResult | null>(null);
+  const [songMode, setSongMode] = useState<SongMode>("search");
+  const [focusSearch, setFocusSearch] = useState(false);
   const [photo, setPhoto] = useState<Photo | null>(null);
   const [photoError, setPhotoError] = useState<string>();
   const [step, setStep] = useState<Step>("edit");
@@ -75,6 +85,24 @@ export function CreateCardFlow() {
     };
   }
 
+  function setSongFields(songTitle: string, artistName: string) {
+    const next = { ...values, songTitle, artistName };
+    setValues(next);
+    if (validateLive) validate(next);
+  }
+
+  function handleSongSelect(selected: SongSearchResult) {
+    setSong(selected);
+    setSongFields(selected.title, selected.artist);
+  }
+
+  function changeSong(mode: SongMode) {
+    setSong(null);
+    setSongMode(mode);
+    setFocusSearch(mode === "search");
+    setSongFields("", "");
+  }
+
   function handlePhotoSelect(file: File) {
     const error = validatePhotoFile(file);
     setPhotoError(error ?? undefined);
@@ -90,7 +118,8 @@ export function CreateCardFlow() {
       const nextErrors = fieldErrors(result.error);
       setErrors(nextErrors);
       const first = FIELD_ORDER.find((f) => nextErrors[f]);
-      if (first) document.getElementById(first)?.focus();
+      const isSongField = first === "songTitle" || first === "artistName";
+      if (first) document.getElementById(isSongField && songMode === "search" ? SONG_SEARCH_ID : first)?.focus();
       return;
     }
     setErrors({});
@@ -130,7 +159,10 @@ export function CreateCardFlow() {
       }
 
       setStatus("Saving card…");
-      const result = await createCard({ ...values, photoKey });
+      const appleMusic = song
+        ? { storefront: song.storefront, collectionId: song.collectionId, trackId: song.trackId }
+        : null;
+      const result = await createCard({ ...values, photoKey, appleMusic });
       setStatus(null);
 
       if (!result.ok) {
@@ -155,6 +187,9 @@ export function CreateCardFlow() {
     setValues(EMPTY_VALUES);
     setErrors({});
     setValidateLive(false);
+    setSong(null);
+    setSongMode("search");
+    setFocusSearch(false);
     setPhoto(null);
     setPhotoError(undefined);
     setCardId(null);
@@ -184,6 +219,7 @@ export function CreateCardFlow() {
           </p>
         </div>
         <CollectibleCard card={previewCard} spinning />
+        {song && <AppleMusicEmbed url={buildAppleMusicUrl(song)} title={song.title} />}
         <ShareActions path={`/c/${cardId}`} title={`${previewCard.songTitle} — a Petrichor card`} showUrl />
         <div className="flex w-full gap-2">
           <Button asChild variant="outline" size="lg" className="h-10 flex-1">
@@ -250,23 +286,30 @@ export function CreateCardFlow() {
           </p>
         </div>
 
-        <fieldset className="grid gap-5 sm:grid-cols-2">
-          <legend className="sr-only">Song</legend>
-          <TextField name="songTitle" label="Song title" required value={values.songTitle} error={errors.songTitle} onChange={handleChange("songTitle")} placeholder="Here Comes the Sun" />
-          <TextField name="artistName" label="Artist" required value={values.artistName} error={errors.artistName} onChange={handleChange("artistName")} placeholder="The Beatles" />
-          <TextField
-            name="songUrl"
-            label="Song link"
-            type="url"
-            inputMode="url"
-            value={values.songUrl}
-            error={errors.songUrl}
-            onChange={handleChange("songUrl")}
-            placeholder="https://open.spotify.com/track/…"
-            hint="Spotify or YouTube"
-            className="sm:col-span-2"
+        {songMode === "manual" ? (
+          <fieldset className="grid gap-5 sm:grid-cols-2">
+            <legend className="sr-only">Song</legend>
+            <TextField name="songTitle" label="Song title" required value={values.songTitle} error={errors.songTitle} onChange={handleChange("songTitle")} placeholder="Here Comes the Sun" />
+            <TextField name="artistName" label="Artist" required value={values.artistName} error={errors.artistName} onChange={handleChange("artistName")} placeholder="The Beatles" />
+            <button
+              type="button"
+              onClick={() => changeSong("search")}
+              className="text-muted-foreground hover:text-foreground -mt-2 justify-self-start text-xs underline underline-offset-2 sm:col-span-2"
+            >
+              Search Apple Music instead
+            </button>
+          </fieldset>
+        ) : song ? (
+          <SelectedSong song={song} onChange={() => changeSong("search")} />
+        ) : (
+          <SongSearch
+            inputId={SONG_SEARCH_ID}
+            autoFocus={focusSearch}
+            error={errors.songTitle || errors.artistName ? "Search for a song and pick it from the list." : undefined}
+            onSelect={handleSongSelect}
+            onEnterManually={() => changeSong("manual")}
           />
-        </fieldset>
+        )}
 
         <PhotoField
           previewUrl={photo?.previewUrl ?? null}
@@ -299,8 +342,6 @@ type TextFieldProps = {
   required?: boolean;
   multiline?: boolean;
   rows?: number;
-  type?: string;
-  inputMode?: "url" | "text";
   placeholder?: string;
   hint?: string;
   className?: string;

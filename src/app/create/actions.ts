@@ -1,5 +1,6 @@
 "use server";
 
+import { buildAppleMusicUrl } from "@/lib/apple-music";
 import { insertCard } from "@/lib/cards";
 import { createPhotoUploadUrl, getPhotoPublicUrl, verifyUploadedPhoto } from "@/lib/storage";
 import {
@@ -43,7 +44,7 @@ export async function createCard(input: CreateCardInput): Promise<ActionResult<{
     return { ok: false, error: "Please fix the highlighted fields.", fieldErrors: fieldErrors(parsed.error) };
   }
 
-  const { photoKey, ...fields } = parsed.data;
+  const { photoKey, appleMusic, ...fields } = parsed.data;
 
   try {
     if (photoKey && !(await verifyUploadedPhoto(photoKey))) {
@@ -57,6 +58,7 @@ export async function createCard(input: CreateCardInput): Promise<ActionResult<{
     const cardId = await insertCard({
       ...fields,
       photoUrl: photoKey ? getPhotoPublicUrl(photoKey) : null,
+      appleMusicUrl: appleMusic ? buildAppleMusicUrl(appleMusic) : null,
     });
     return { ok: true, cardId };
   } catch (error) {

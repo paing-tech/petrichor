@@ -1,11 +1,13 @@
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { HeadphonesIcon } from "lucide-react";
+import { ExternalLinkIcon } from "lucide-react";
+import { AppleMusicEmbed } from "@/components/apple-music-embed";
 import { CollectibleCard } from "@/components/collectible-card";
 import { ShareActions } from "@/components/share-actions";
 import { Button } from "@/components/ui/button";
+import { appleMusicSearchUrl, spotifySearchUrl } from "@/lib/apple-music";
 import { getCardByCardId } from "@/lib/cards";
 import { CARD_ID_PATTERN } from "@/lib/validation";
 
@@ -50,8 +52,6 @@ async function CardView({ params }: Pick<PageProps<"/c/[cardId]">, "params">) {
   const card = await findCard(params);
   if (!card) notFound();
 
-  const platform = card.songUrl ? songPlatform(card.songUrl) : null;
-
   return (
     <>
       <div className="text-center">
@@ -71,13 +71,13 @@ async function CardView({ params }: Pick<PageProps<"/c/[cardId]">, "params">) {
       <CollectibleCard card={card} spinning className="max-w-[420px]" />
 
       <div className="flex w-full flex-col gap-3">
-        {card.songUrl && (
-          <Button asChild size="lg" variant="outline" className="bg-background h-11">
-            <a href={card.songUrl} target="_blank" rel="noopener noreferrer">
-              <HeadphonesIcon /> Listen on {platform}
-            </a>
-          </Button>
-        )}
+        {card.appleMusicUrl && <AppleMusicEmbed url={card.appleMusicUrl} title={card.songTitle} />}
+        <div className="flex gap-2">
+          {!card.appleMusicUrl && (
+            <ListenLink href={appleMusicSearchUrl(card.songTitle, card.artistName)}>Find on Apple Music</ListenLink>
+          )}
+          <ListenLink href={spotifySearchUrl(card.songTitle, card.artistName)}>Find on Spotify</ListenLink>
+        </div>
         <ShareActions path={`/c/${card.cardId}`} title={`${card.songTitle} — a Petrichor card`} />
         <Button asChild variant="link" className="text-muted-foreground">
           <Link href="/create">Make your own card</Link>
@@ -87,8 +87,14 @@ async function CardView({ params }: Pick<PageProps<"/c/[cardId]">, "params">) {
   );
 }
 
-function songPlatform(url: string) {
-  return new URL(url).hostname.includes("spotify") ? "Spotify" : "YouTube";
+function ListenLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Button asChild size="lg" variant="outline" className="bg-background h-10 flex-1">
+      <a href={href} target="_blank" rel="noopener noreferrer">
+        {children} <ExternalLinkIcon />
+      </a>
+    </Button>
+  );
 }
 
 function CardSkeleton() {

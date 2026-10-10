@@ -54,7 +54,7 @@ Open http://localhost:3000.
 
 **Create → Preview → Save → Share → View**
 
-1. `/create` validates the form against the same Zod schemas the server uses ([src/lib/validation.ts](src/lib/validation.ts)) and shows a live `CollectibleCard` preview.
+1. `/create` starts with a song search (see [Song search](#song-search)), then validates the form against the same Zod schemas the server uses ([src/lib/validation.ts](src/lib/validation.ts)) and shows a live `CollectibleCard` preview.
 2. **Preview card** opens a review step. Nothing is uploaded or saved until the sender clicks **Create card**.
 3. On confirm, if there is a photo:
    - The `requestPhotoUpload` server action checks the file's type and size, then returns a presigned R2 `PUT` URL that expires in 5 minutes. The URL signs `Content-Type` and `Content-Length`, so R2 rejects any other type or size.
@@ -62,9 +62,22 @@ Open http://localhost:3000.
 4. The `createCard` server action:
    - re-validates every field;
    - reads the uploaded object's size and first bytes to confirm it is really a JPEG, PNG or WebP of 5 MB or less, and deletes it otherwise;
+   - builds the Apple Music link from the selected song's IDs;
    - generates the card ID and inserts the row.
 5. The sender gets a shareable link to `/c/{cardId}`.
-6. `/c/[cardId]` serves a prerendered shell and streams the card in. Cards are immutable, so lookups are cached indefinitely (`"use cache"` + `cacheLife("max")`). Card pages are marked `noindex`.
+6. `/c/[cardId]` serves a prerendered shell and streams the card in, followed by Apple Music's embedded player and a "Find on Spotify" link. Cards are immutable, so lookups are cached indefinitely (`"use cache"` + `cacheLife("max")`). Card pages are marked `noindex`.
+
+### Song search
+
+Senders search instead of typing the title and artist ([src/components/create/song-search.tsx](src/components/create/song-search.tsx)):
+
+- **Source:** Apple's [iTunes Search API](https://performance-partners.apple.com/search-api). It needs no key and allows browser requests from any origin, so it's called straight from the visitor's browser. Its limit of about 20 requests/minute is per IP, so each visitor has their own allowance. Searches are debounced and cached per query.
+- **Catalog country:** taken from the browser's locale, with the US catalog as the fallback.
+- **Choosing a song** fills in the title and artist and shows Apple Music's official embedded player, which plays a 30-second preview.
+- **Songs not in the catalog:** "Enter it manually" falls back to plain text fields. Those cards get "Find on Apple Music / Spotify" search links instead of a player.
+- **What's stored:** only the track and album IDs are sent to the server. The server builds the canonical `https://music.apple.com/{storefront}/album/{albumId}?i={trackId}` URL itself, so a client can't inject an arbitrary link into the player.
+- **No album artwork on cards:** cards are Petrichor collectibles, so artwork is never stored or put on a card. It appears only as thumbnails in the search results and inside Apple's own player.
+- **Why there's no Spotify player:** Spotify's Web API locks down new apps (5-user development mode, no preview clips), and the public song.link conversion API has been shut down. Cards link to a Spotify search instead.
 
 ### Card IDs
 
@@ -95,4 +108,4 @@ Every measurement is written in canvas pixels and converted with container-query
 
 - **Orphaned photos:** a photo uploaded for a card that then fails to save stays in R2. Add an R2 lifecycle rule or a cleanup job.
 - **No rate limiting** on card creation or upload URLs. Add it before a public launch (for example with Upstash or Cloudflare).
-- **No moderation or reporting** for shared content.
+- **No moderation or reporting** for shared content. Card lookups are cached indefinitely, so a moderation tool that deletes a card must also call ``revalidateTag(`card:${cardId}`)``.

@@ -88,7 +88,7 @@ Senders search instead of typing the title and artist ([src/components/create/so
 
 [src/components/collectible-card.tsx](src/components/collectible-card.tsx) is designed on a 390 × 520 canvas:
 
-- **Top:** a 390 × 293 photo that fades into white, with the PETRICHOR wordmark in the fade and the optional location on the right.
+- **Top:** a 390 × 293 photo that fades into the card color, with a faint PETRICHOR wordmark at the exact center of the card (drawn in the card color, so it shows only where the photo differs from it) and the optional location on the right.
 - **Middle:** the handwritten message, with the sender's signature right-aligned beneath it.
 - **Bottom:** song title, artist, lyrics, "1 of 1" with the creation date (UTC), and the card ID.
 

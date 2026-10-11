@@ -35,6 +35,7 @@ const u = (px: number) => `calc(var(--u) * ${px})`;
 
 const PHOTO_HEIGHT = 293;
 const SIDE_PADDING = 42;
+const WORDMARK_OPACITY = 0.9;
 
 // Long titles step down in size so the layout stays fixed: titles up to 26
 // characters take one line and leave the message three; longer titles wrap to
@@ -82,17 +83,21 @@ export function CollectibleCard({ card, className }: CollectibleCardProps) {
       >
         <CardPhoto photoUrl={card.photoUrl} crop={card.photoCrop} alt={`Photo for ${card.songTitle}`} fadeColor={cardColor} />
 
-        {/* Wordmark sits in the fade at the bottom of the photo. The left padding
-            offsets the trailing letter-spacing so the word is optically centred. */}
+        {/* Wordmark at the exact center of the card, in the card's own color, so it
+            shows only faintly against the photo behind it. Centering:
+            - horizontal: the left padding offsets the trailing letter-spacing;
+            - vertical: text-box trims the line to the capitals, so the letters
+              themselves (not the line box) are centered. */}
         <p
           aria-hidden
-          className="font-outfit absolute inset-x-0 text-center font-medium text-white/90"
+          className="font-outfit absolute inset-x-0 top-1/2 -translate-y-1/2 text-center leading-none font-medium"
           style={{
-            top: u(274),
+            textBox: "trim-both cap alphabetic",
+            color: cardColor,
+            opacity: WORDMARK_OPACITY,
             fontSize: u(8.5),
             letterSpacing: "0.42em",
             paddingLeft: "0.42em",
-            textShadow: "0 0 6px rgba(0,0,0,0.18)",
           }}
         >
           PETRICHOR

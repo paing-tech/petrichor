@@ -13,6 +13,7 @@ export const cards = pgTable("cards", {
   location: text("location"),
   // The sender's IANA time zone, so the printed date matches their calendar day.
   timeZone: text("time_zone"),
+  cardColor: text("card_color").notNull().default("#ffffff"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

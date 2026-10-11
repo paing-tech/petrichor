@@ -1,0 +1,1 @@
+ALTER TABLE "cards" ADD COLUMN "card_color" text DEFAULT '#ffffff' NOT NULL;

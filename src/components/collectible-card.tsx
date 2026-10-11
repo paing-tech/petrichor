@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { cardInk, DEFAULT_CARD_COLOR, hexToRgb } from "@/lib/card-color";
 import { cn } from "@/lib/utils";
 
 export type CollectibleCardData = {
@@ -14,6 +15,8 @@ export type CollectibleCardData = {
   createdAt?: Date | string | null;
   /** IANA time zone the date is printed in; defaults to UTC. */
   timeZone?: string | null;
+  /** Base color as #rrggbb; defaults to white. Text switches to white on dark colors. */
+  cardColor?: string | null;
 };
 
 type CollectibleCardProps = {
@@ -54,15 +57,27 @@ export function formatCardDate(date: Date | string, timeZone?: string | null) {
 
 export function CollectibleCard({ card, className }: CollectibleCardProps) {
   const title = titleLayout(card.songTitle);
+  const cardColor = card.cardColor ?? DEFAULT_CARD_COLOR;
+  const ink = cardInk(cardColor);
 
   return (
     <div className={cn("@container relative aspect-3/4 w-full max-w-[390px]", className)}>
       <article
         aria-label={`${card.songTitle} by ${card.artistName}`}
-        className="absolute inset-0 overflow-hidden bg-white text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.06),0_12px_40px_-12px_rgba(40,30,20,0.35)] ring-1 ring-black/5"
-        style={{ "--u": `calc(100cqw / ${BASE_WIDTH})`, borderRadius: u(18) } as CSSProperties}
+        className="absolute inset-0 overflow-hidden text-(--ink) shadow-[0_1px_2px_rgba(0,0,0,0.06),0_12px_40px_-12px_rgba(40,30,20,0.35)] ring-1 ring-black/5"
+        style={
+          {
+            "--u": `calc(100cqw / ${BASE_WIDTH})`,
+            "--ink": ink.ink,
+            "--ink-soft": ink.soft,
+            "--ink-muted": ink.muted,
+            "--ink-faint": ink.faint,
+            backgroundColor: cardColor,
+            borderRadius: u(18),
+          } as CSSProperties
+        }
       >
-        <CardPhoto photoUrl={card.photoUrl} alt={`Photo for ${card.songTitle}`} />
+        <CardPhoto photoUrl={card.photoUrl} alt={`Photo for ${card.songTitle}`} fadeColor={cardColor} />
 
         {/* Wordmark sits in the fade at the bottom of the photo. The left padding
             offsets the trailing letter-spacing so the word is optically centred. */}
@@ -82,7 +97,7 @@ export function CollectibleCard({ card, className }: CollectibleCardProps) {
 
         {card.location && (
           <p
-            className="font-outfit absolute truncate text-right text-neutral-900"
+            className="font-outfit absolute truncate text-right"
             style={{ top: u(291), right: u(SIDE_PADDING), maxWidth: u(160), fontSize: u(8) }}
           >
             {card.location}
@@ -98,7 +113,7 @@ export function CollectibleCard({ card, className }: CollectibleCardProps) {
             {card.message && (
               <p
                 className={cn(
-                  "font-hand min-h-0 overflow-hidden font-light whitespace-pre-line text-neutral-900",
+                  "font-hand min-h-0 overflow-hidden font-light whitespace-pre-line",
                   title.messageLines === 3 ? "line-clamp-3" : "line-clamp-2",
                 )}
                 style={{ fontSize: u(15), lineHeight: 1.36 }}
@@ -108,7 +123,7 @@ export function CollectibleCard({ card, className }: CollectibleCardProps) {
             )}
             {card.senderName && (
               <p
-                className="font-garamond shrink-0 truncate text-right text-neutral-900 italic"
+                className="font-garamond shrink-0 truncate text-right italic"
                 style={{ fontSize: u(18), lineHeight: 1.2, marginTop: u(8) }}
               >
                 {card.senderName}
@@ -120,22 +135,22 @@ export function CollectibleCard({ card, className }: CollectibleCardProps) {
 
           <div className="shrink-0">
             <h2
-              className="line-clamp-2 font-serif text-neutral-950"
+              className="line-clamp-2 font-serif"
               style={{ fontSize: u(title.fontSize), lineHeight: 1.06, letterSpacing: "-0.01em" }}
             >
               {card.songTitle}
             </h2>
-            <p className="font-outfit line-clamp-1 text-neutral-500" style={{ fontSize: u(11.5), marginTop: u(5) }}>
+            <p className="font-outfit line-clamp-1 text-(--ink-muted)" style={{ fontSize: u(11.5), marginTop: u(5) }}>
               {card.artistName}
             </p>
             <div className="flex items-end justify-between" style={{ gap: u(16), marginTop: u(6) }}>
               <p
-                className="font-garamond line-clamp-2 min-w-0 flex-1 whitespace-pre-line text-neutral-800 italic"
+                className="font-garamond line-clamp-2 min-w-0 flex-1 whitespace-pre-line text-(--ink-soft) italic"
                 style={{ fontSize: u(12.5), lineHeight: 1.25 }}
               >
                 {card.lyricsExcerpt}
               </p>
-              <div className="font-outfit shrink-0 text-right text-neutral-900" style={{ fontSize: u(8) }}>
+              <div className="font-outfit shrink-0 text-right" style={{ fontSize: u(8) }}>
                 <p className="font-medium">1 of 1</p>
                 {card.createdAt && <p style={{ marginTop: u(5) }}>{formatCardDate(card.createdAt, card.timeZone)}</p>}
               </div>
@@ -144,7 +159,7 @@ export function CollectibleCard({ card, className }: CollectibleCardProps) {
         </div>
 
         <p
-          className="font-outfit absolute inset-x-0 text-center text-neutral-300"
+          className="font-outfit absolute inset-x-0 text-center text-(--ink-faint)"
           style={{ bottom: u(10), fontSize: u(7.5), letterSpacing: "0.04em" }}
         >
           {card.cardId ?? "P-··························"}
@@ -154,7 +169,8 @@ export function CollectibleCard({ card, className }: CollectibleCardProps) {
   );
 }
 
-function CardPhoto({ photoUrl, alt }: { photoUrl?: string | null; alt: string }) {
+function CardPhoto({ photoUrl, alt, fadeColor }: { photoUrl?: string | null; alt: string; fadeColor: string }) {
+  const rgb = hexToRgb(fadeColor).join(", ");
   return (
     <div className="absolute inset-x-0 top-0" style={{ height: u(PHOTO_HEIGHT) }}>
       {photoUrl ? (
@@ -171,13 +187,12 @@ function CardPhoto({ photoUrl, alt }: { photoUrl?: string | null; alt: string })
           }}
         />
       )}
-      {/* Fade the bottom of the photo into the white card body. */}
+      {/* Fade the bottom of the photo into the card's base color. */}
       <div
         aria-hidden
         className="absolute inset-0"
         style={{
-          background:
-            "linear-gradient(to bottom, rgba(255,255,255,0) 66%, rgba(255,255,255,0.45) 85%, rgba(255,255,255,0.85) 96%, #fff 100%)",
+          background: `linear-gradient(to bottom, rgba(${rgb}, 0) 66%, rgba(${rgb}, 0.45) 85%, rgba(${rgb}, 0.85) 96%, rgb(${rgb}) 100%)`,
         }}
       />
     </div>

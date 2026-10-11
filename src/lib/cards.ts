@@ -26,6 +26,7 @@ export async function getCardByCardId(cardId: string): Promise<PublicCard | null
       senderName: cards.senderName,
       location: cards.location,
       timeZone: cards.timeZone,
+      cardColor: cards.cardColor,
       createdAt: cards.createdAt,
     })
     .from(cards)
@@ -37,7 +38,12 @@ export async function getCardByCardId(cardId: string): Promise<PublicCard | null
 const MAX_ID_ATTEMPTS = 3;
 
 export async function insertCard(
-  fields: CardFields & { photoUrl: string | null; appleMusicUrl: string | null; timeZone: string | null },
+  fields: CardFields & {
+    photoUrl: string | null;
+    appleMusicUrl: string | null;
+    timeZone: string | null;
+    cardColor: string;
+  },
 ) {
   // A 128-bit collision is practically impossible, but retrying keeps the unique
   // constraint from ever surfacing to a user as a failed save.

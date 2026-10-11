@@ -36,6 +36,13 @@
       "when": 1791756388707,
       "tag": "0004_add_time_zone",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791758164930,
+      "tag": "0005_add_card_color",
+      "breakpoints": true
     }
   ]
 }

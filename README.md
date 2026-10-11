@@ -93,6 +93,8 @@ Senders search instead of typing the title and artist ([src/components/create/so
 
 Every measurement is written in canvas pixels and converted with container-query units, so the card scales to any width with the same layout. Titles up to 26 characters take one line, at 31px or 26px, and leave the message three lines. Longer titles wrap to two 21px lines, and the message gets two. Text never overflows the card.
 
+**Card color.** Senders pick the card's base color: White (the default), Black, up to four colors from their photo, or any color from the native picker. Photo colors are taken in the browser ([src/lib/photo-palette.ts](src/lib/photo-palette.ts)): the photo is downscaled to 64 × 64, pixels are grouped into similar colors, and the most common distinct ones are kept, skipping near-white and near-black. The photo's bottom fade blends into the chosen color. Text is white on dark colors and near-black on light ones, whichever contrasts more ([src/lib/card-color.ts](src/lib/card-color.ts)). The color is stored as `#rrggbb` in `card_color`.
+
 | Typeface | Used for |
 | --- | --- |
 | Instrument Serif | Song title |

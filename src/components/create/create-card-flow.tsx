@@ -1,12 +1,21 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore, useTransition, type ChangeEvent, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import Link from "next/link";
 import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, SparklesIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createCard, requestPhotoUpload } from "@/app/create/actions";
 import { AppleMusicEmbed } from "@/components/apple-music-embed";
 import { CollectibleCard } from "@/components/collectible-card";
+import { ColorField } from "@/components/create/color-field";
 import { PhotoField } from "@/components/create/photo-field";
 import { SelectedSong, SongSearch } from "@/components/create/song-search";
 import { ShareActions } from "@/components/share-actions";
@@ -15,6 +24,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { buildAppleMusicUrl, type SongSearchResult } from "@/lib/apple-music";
+import { DEFAULT_CARD_COLOR } from "@/lib/card-color";
+import { extractPalette } from "@/lib/photo-palette";
 import { cn } from "@/lib/utils";
 import {
   cardFieldsSchema,
@@ -71,6 +82,10 @@ export function CreateCardFlow() {
   const [focusSearch, setFocusSearch] = useState(false);
   const [photo, setPhoto] = useState<Photo | null>(null);
   const [photoError, setPhotoError] = useState<string>();
+  const [photoColors, setPhotoColors] = useState<string[]>([]);
+  const [cardColor, setCardColor] = useState(DEFAULT_CARD_COLOR);
+  // The most recently picked file, so a slow palette extraction for an older photo is ignored.
+  const latestPhotoFile = useRef<File | null>(null);
   const [step, setStep] = useState<Step>("edit");
   const [cardId, setCardId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -120,6 +135,22 @@ export function CreateCardFlow() {
     setPhotoError(error ?? undefined);
     if (error) return;
     setPhoto({ file, previewUrl: URL.createObjectURL(file) });
+    setPhotoColors([]);
+    latestPhotoFile.current = file;
+    extractPalette(file)
+      .then((colors) => {
+        if (latestPhotoFile.current === file) setPhotoColors(colors);
+      })
+      .catch(() => {
+        // Colors are a nice-to-have; the presets and custom picker still work.
+      });
+  }
+
+  function removePhoto() {
+    latestPhotoFile.current = null;
+    setPhoto(null);
+    setPhotoError(undefined);
+    setPhotoColors([]);
   }
 
   function handlePreview(e: FormEvent<HTMLFormElement>) {
@@ -175,12 +206,12 @@ export function CreateCardFlow() {
         ? { storefront: song.storefront, collectionId: song.collectionId, trackId: song.trackId }
         : null;
       const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? null;
-      const result = await createCard({ ...values, photoKey, appleMusic, timeZone });
+      const result = await createCard({ ...values, photoKey, appleMusic, timeZone, cardColor });
       setStatus(null);
 
       if (!result.ok) {
         if (result.code === "photo_invalid") {
-          setPhoto(null);
+          removePhoto();
           setPhotoError(result.error);
           goTo("edit");
         } else if (result.fieldErrors) {
@@ -203,8 +234,8 @@ export function CreateCardFlow() {
     setSong(null);
     setSongMode("search");
     setFocusSearch(false);
-    setPhoto(null);
-    setPhotoError(undefined);
+    removePhoto();
+    setCardColor(DEFAULT_CARD_COLOR);
     setCardId(null);
     goTo("edit");
   }
@@ -218,6 +249,7 @@ export function CreateCardFlow() {
     senderName: values.senderName.trim(),
     location: values.location.trim(),
     createdAt: today,
+    cardColor,
     cardId,
   };
 
@@ -331,11 +363,10 @@ export function CreateCardFlow() {
           fileName={photo?.file.name ?? null}
           error={photoError}
           onSelect={handlePhotoSelect}
-          onRemove={() => {
-            setPhoto(null);
-            setPhotoError(undefined);
-          }}
+          onRemove={removePhoto}
         />
+
+        <ColorField value={cardColor} photoColors={photoColors} onChange={setCardColor} />
 
         <TextField name="lyricsExcerpt" label="Lyrics excerpt" multiline rows={2} value={values.lyricsExcerpt} error={errors.lyricsExcerpt} onChange={handleChange("lyricsExcerpt")} placeholder="The line that says it best" />
         <TextField name="message" label="Personal message" multiline rows={4} value={values.message} error={errors.message} onChange={handleChange("message")} placeholder="Why this song reminds you of them" />

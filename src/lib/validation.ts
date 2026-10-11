@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CARD_COLOR_PATTERN } from "@/lib/card-color";
 
 // Shared by the client form and the server actions; keep free of server-only imports.
 
@@ -80,6 +81,10 @@ export const createCardSchema = cardFieldsSchema.extend({
     .nullable(),
   appleMusic: appleMusicTrackSchema.nullable(),
   timeZone: z.string().max(64).refine(isValidTimeZone, "Invalid time zone").nullable(),
+  cardColor: z
+    .string()
+    .transform((v) => v.toLowerCase())
+    .pipe(z.string().regex(CARD_COLOR_PATTERN, "Card color must be a hex color like #1a2b3c")),
 });
 
 export type CreateCardInput = z.input<typeof createCardSchema>;

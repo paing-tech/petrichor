@@ -16,6 +16,7 @@ import { createCard, requestPhotoUpload } from "@/app/create/actions";
 import { AppleMusicEmbed } from "@/components/apple-music-embed";
 import { CollectibleCard } from "@/components/collectible-card";
 import { ColorField } from "@/components/create/color-field";
+import { PhotoCropper } from "@/components/create/photo-cropper";
 import { PhotoField } from "@/components/create/photo-field";
 import { SelectedSong, SongSearch } from "@/components/create/song-search";
 import { ShareActions } from "@/components/share-actions";
@@ -25,6 +26,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { buildAppleMusicUrl, type SongSearchResult } from "@/lib/apple-music";
 import { DEFAULT_CARD_COLOR } from "@/lib/card-color";
+import { cropFromView, DEFAULT_PHOTO_VIEW, exportCroppedPhoto, readImageSize, type PhotoView } from "@/lib/photo-crop";
 import { extractPalette } from "@/lib/photo-palette";
 import { cn } from "@/lib/utils";
 import {
@@ -41,7 +43,11 @@ type FormValues = Record<FieldName, string>;
 type Photo = {
   file: File;
   previewUrl: string;
-  /** Set once the file is in storage, so a failed save can retry without re-uploading. */
+  width: number;
+  height: number;
+  /** How the sender framed the photo; only this area is uploaded. */
+  view: PhotoView;
+  /** Set once the cropped photo is in storage, so a failed save can retry without re-uploading. */
   uploadedKey?: string;
 };
 
@@ -130,13 +136,28 @@ export function CreateCardFlow() {
     setSongFields("", "");
   }
 
-  function handlePhotoSelect(file: File) {
+  async function handlePhotoSelect(file: File) {
     const error = validatePhotoFile(file);
     setPhotoError(error ?? undefined);
     if (error) return;
-    setPhoto({ file, previewUrl: URL.createObjectURL(file) });
-    setPhotoColors([]);
+
     latestPhotoFile.current = file;
+    setPhotoColors([]);
+    const previewUrl = URL.createObjectURL(file);
+    let size: { width: number; height: number };
+    try {
+      size = await readImageSize(previewUrl);
+    } catch {
+      URL.revokeObjectURL(previewUrl);
+      setPhotoError("This image couldn't be opened. Try a different photo.");
+      return;
+    }
+    if (latestPhotoFile.current !== file) {
+      URL.revokeObjectURL(previewUrl);
+      return;
+    }
+    setPhoto({ file, previewUrl, ...size, view: DEFAULT_PHOTO_VIEW });
+
     extractPalette(file)
       .then((colors) => {
         if (latestPhotoFile.current === file) setPhotoColors(colors);
@@ -144,6 +165,11 @@ export function CreateCardFlow() {
       .catch(() => {
         // Colors are a nice-to-have; the presets and custom picker still work.
       });
+  }
+
+  function setPhotoView(view: PhotoView) {
+    // A new framing means a new image, so any earlier upload no longer matches.
+    setPhoto((p) => (p ? { ...p, view, uploadedKey: undefined } : p));
   }
 
   function removePhoto() {
@@ -180,7 +206,15 @@ export function CreateCardFlow() {
 
       if (photo && !photoKey) {
         setStatus("Uploading photo…");
-        const upload = await requestPhotoUpload({ contentType: photo.file.type, size: photo.file.size });
+        let image: Blob;
+        try {
+          image = await exportCroppedPhoto(photo.previewUrl, cropFromView(photo.width, photo.height, photo.view));
+        } catch {
+          setStatus(null);
+          toast.error("We couldn't prepare your photo. Try choosing it again.");
+          return;
+        }
+        const upload = await requestPhotoUpload({ contentType: image.type, size: image.size });
         if (!upload.ok) {
           setStatus(null);
           toast.error(upload.error);
@@ -188,8 +222,8 @@ export function CreateCardFlow() {
         }
         const response = await fetch(upload.uploadUrl, {
           method: "PUT",
-          body: photo.file,
-          headers: { "Content-Type": photo.file.type },
+          body: image,
+          headers: { "Content-Type": image.type },
         }).catch(() => null);
         if (!response?.ok) {
           setStatus(null);
@@ -197,8 +231,8 @@ export function CreateCardFlow() {
           return;
         }
         photoKey = upload.key;
-        const uploadedFile = photo.file;
-        setPhoto((p) => (p?.file === uploadedFile ? { ...p, uploadedKey: upload.key } : p));
+        const uploaded = photo;
+        setPhoto((p) => (p?.file === uploaded.file && p.view === uploaded.view ? { ...p, uploadedKey: upload.key } : p));
       }
 
       setStatus("Saving card…");
@@ -244,6 +278,7 @@ export function CreateCardFlow() {
     songTitle: values.songTitle.trim() || "Song title",
     artistName: values.artistName.trim() || "Artist",
     photoUrl: photo?.previewUrl,
+    photoCrop: photo ? cropFromView(photo.width, photo.height, photo.view) : null,
     lyricsExcerpt: values.lyricsExcerpt.trim(),
     message: values.message.trim(),
     senderName: values.senderName.trim(),
@@ -364,7 +399,17 @@ export function CreateCardFlow() {
           error={photoError}
           onSelect={handlePhotoSelect}
           onRemove={removePhoto}
-        />
+        >
+          {photo && (
+            <PhotoCropper
+              src={photo.previewUrl}
+              imageWidth={photo.width}
+              imageHeight={photo.height}
+              view={photo.view}
+              onChange={setPhotoView}
+            />
+          )}
+        </PhotoField>
 
         <ColorField value={cardColor} photoColors={photoColors} onChange={setCardColor} />
 

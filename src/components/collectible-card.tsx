@@ -1,11 +1,14 @@
 import type { CSSProperties } from "react";
 import { cardInk, DEFAULT_CARD_COLOR, hexToRgb } from "@/lib/card-color";
+import { cropImageStyle, type PhotoCrop } from "@/lib/photo-crop";
 import { cn } from "@/lib/utils";
 
 export type CollectibleCardData = {
   songTitle: string;
   artistName: string;
   photoUrl?: string | null;
+  /** Preview only: shows part of an uncropped photo. Saved cards store the already-cropped image. */
+  photoCrop?: PhotoCrop | null;
   lyricsExcerpt?: string | null;
   message?: string | null;
   senderName?: string | null;
@@ -77,7 +80,7 @@ export function CollectibleCard({ card, className }: CollectibleCardProps) {
           } as CSSProperties
         }
       >
-        <CardPhoto photoUrl={card.photoUrl} alt={`Photo for ${card.songTitle}`} fadeColor={cardColor} />
+        <CardPhoto photoUrl={card.photoUrl} crop={card.photoCrop} alt={`Photo for ${card.songTitle}`} fadeColor={cardColor} />
 
         {/* Wordmark sits in the fade at the bottom of the photo. The left padding
             offsets the trailing letter-spacing so the word is optically centred. */}
@@ -169,14 +172,26 @@ export function CollectibleCard({ card, className }: CollectibleCardProps) {
   );
 }
 
-function CardPhoto({ photoUrl, alt, fadeColor }: { photoUrl?: string | null; alt: string; fadeColor: string }) {
+type CardPhotoProps = {
+  photoUrl?: string | null;
+  crop?: PhotoCrop | null;
+  alt: string;
+  fadeColor: string;
+};
+
+function CardPhoto({ photoUrl, crop, alt, fadeColor }: CardPhotoProps) {
   const rgb = hexToRgb(fadeColor).join(", ");
   return (
-    <div className="absolute inset-x-0 top-0" style={{ height: u(PHOTO_HEIGHT) }}>
+    <div className="absolute inset-x-0 top-0 overflow-hidden" style={{ height: u(PHOTO_HEIGHT) }}>
       {photoUrl ? (
         // A plain <img> handles both remote R2 URLs and local blob: previews.
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={photoUrl} alt={alt} className="size-full object-cover" />
+        <img
+          src={photoUrl}
+          alt={alt}
+          className={crop ? undefined : "size-full object-cover"}
+          style={crop ? cropImageStyle(crop) : undefined}
+        />
       ) : (
         <div
           aria-hidden

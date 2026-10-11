@@ -57,6 +57,7 @@ Open http://localhost:3000.
 1. `/create` starts with a song search (see [Song search](#song-search)), then validates the form against the same Zod schemas the server uses ([src/lib/validation.ts](src/lib/validation.ts)) and shows a live `CollectibleCard` preview.
 2. **Preview card** opens a review step. Nothing is uploaded or saved until the sender clicks **Create card**.
 3. On confirm, if there is a photo:
+   - The browser crops it to exactly what the sender framed in the photo editor ([src/lib/photo-crop.ts](src/lib/photo-crop.ts)). The editor supports drag, zoom from 1× to 3×, pinch and arrow keys. The crop is exported as a JPEG at most 1170px wide (3× the card's photo area, never enlarged), which also strips EXIF metadata such as GPS location.
    - The `requestPhotoUpload` server action checks the file's type and size, then returns a presigned R2 `PUT` URL that expires in 5 minutes. The URL signs `Content-Type` and `Content-Length`, so R2 rejects any other type or size.
    - The browser uploads the photo straight to R2. This avoids serverless request-size limits.
 4. The `createCard` server action:

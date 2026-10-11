@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import { Cormorant_Garamond, Geist, Geist_Mono, Instrument_Serif, Kalam, Outfit } from "next/font/google";
 import Link from "next/link";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
@@ -21,6 +21,26 @@ const instrumentSerif = Instrument_Serif({
   style: ["normal", "italic"],
 });
 
+// Card typefaces: Kalam for the handwritten message, Cormorant Garamond for
+// lyrics and the signature, Outfit for the small print.
+const kalam = Kalam({
+  variable: "--font-kalam",
+  subsets: ["latin"],
+  weight: "300",
+});
+
+const cormorant = Cormorant_Garamond({
+  variable: "--font-cormorant",
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  style: "italic",
+});
+
+const outfit = Outfit({
+  variable: "--font-outfit-family",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
   title: {
     default: "Petrichor — music memory cards",
@@ -33,7 +53,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} ${kalam.variable} ${cormorant.variable} ${outfit.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5 sm:px-6">

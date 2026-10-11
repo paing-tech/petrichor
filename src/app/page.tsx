@@ -7,8 +7,10 @@ const SAMPLE_CARD = {
   songTitle: "Here Comes the Sun",
   artistName: "The Beatles",
   lyricsExcerpt: "Little darling, it's been a long, cold, lonely winter",
-  message: "For the first warm morning after all that rain. Thank you for staying with me through it.",
+  message: "For the first warm morning after all that rain.",
   senderName: "Mai",
+  location: "Singapore",
+  createdAt: "2026-10-10",
   cardId: "P-1F8K2QZ7M4XW9C3T6RBNJD5HVA",
 };
 
@@ -30,7 +32,7 @@ export default function Home() {
           </Link>
         </Button>
       </div>
-      <CollectibleCard card={SAMPLE_CARD} spinning className="mx-auto max-w-[340px] sm:max-w-[400px]" />
+      <CollectibleCard card={SAMPLE_CARD} className="mx-auto max-w-[340px] sm:max-w-[400px]" />
     </div>
   );
 }

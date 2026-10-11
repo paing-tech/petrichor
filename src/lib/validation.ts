@@ -2,13 +2,15 @@ import { z } from "zod";
 
 // Shared by the client form and the server actions; keep free of server-only imports.
 
+// Message and lyrics limits are sized so the text fits the card without truncation.
 export const LIMITS = {
   // Catalog titles like "Song (feat. …) [Remastered 2009]" can run long.
   songTitle: 200,
   artistName: 200,
-  lyricsExcerpt: 150,
-  message: 220,
+  lyricsExcerpt: 100,
+  message: 120,
   senderName: 40,
+  location: 40,
 } as const;
 
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -44,6 +46,7 @@ export const cardFieldsSchema = z.object({
   lyricsExcerpt: optionalText("Lyrics", LIMITS.lyricsExcerpt),
   message: optionalText("Message", LIMITS.message),
   senderName: optionalText("Your name", LIMITS.senderName),
+  location: optionalText("Location", LIMITS.location),
 });
 
 export type CardFieldsInput = z.input<typeof cardFieldsSchema>;
@@ -61,12 +64,22 @@ const appleMusicTrackSchema = z.object({
   trackId: z.string().regex(/^\d{1,15}$/),
 });
 
+function isValidTimeZone(timeZone: string) {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export const createCardSchema = cardFieldsSchema.extend({
   photoKey: z
     .string()
     .regex(PHOTO_KEY_PATTERN, "Invalid photo reference")
     .nullable(),
   appleMusic: appleMusicTrackSchema.nullable(),
+  timeZone: z.string().max(64).refine(isValidTimeZone, "Invalid time zone").nullable(),
 });
 
 export type CreateCardInput = z.input<typeof createCardSchema>;

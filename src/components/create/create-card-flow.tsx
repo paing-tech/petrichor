@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, useSyncExternalStore, useTransition, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, SparklesIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -47,9 +47,20 @@ const EMPTY_VALUES: FormValues = {
   lyricsExcerpt: "",
   message: "",
   senderName: "",
+  location: "",
 };
 
-const FIELD_ORDER: FieldName[] = ["songTitle", "artistName", "lyricsExcerpt", "message", "senderName"];
+const FIELD_ORDER: FieldName[] = ["songTitle", "artistName", "lyricsExcerpt", "message", "senderName", "location"];
+
+const subscribeNoop = () => () => {};
+
+/**
+ * The sender's local date (YYYY-MM-DD) for the preview, read only in the browser
+ * so the static prerender stays date-free. The card prints it as-is (UTC).
+ */
+function useToday() {
+  return useSyncExternalStore(subscribeNoop, () => new Date().toLocaleDateString("en-CA"), () => null);
+}
 
 export function CreateCardFlow() {
   const [values, setValues] = useState<FormValues>(EMPTY_VALUES);
@@ -64,6 +75,7 @@ export function CreateCardFlow() {
   const [cardId, setCardId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [isSaving, startSaving] = useTransition();
+  const today = useToday();
 
   const previewUrl = photo?.previewUrl;
   useEffect(() => {
@@ -162,7 +174,8 @@ export function CreateCardFlow() {
       const appleMusic = song
         ? { storefront: song.storefront, collectionId: song.collectionId, trackId: song.trackId }
         : null;
-      const result = await createCard({ ...values, photoKey, appleMusic });
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? null;
+      const result = await createCard({ ...values, photoKey, appleMusic, timeZone });
       setStatus(null);
 
       if (!result.ok) {
@@ -203,6 +216,8 @@ export function CreateCardFlow() {
     lyricsExcerpt: values.lyricsExcerpt.trim(),
     message: values.message.trim(),
     senderName: values.senderName.trim(),
+    location: values.location.trim(),
+    createdAt: today,
     cardId,
   };
 
@@ -218,7 +233,7 @@ export function CreateCardFlow() {
             Anyone with the link can open it — no account needed.
           </p>
         </div>
-        <CollectibleCard card={previewCard} spinning />
+        <CollectibleCard card={previewCard} />
         {song && <AppleMusicEmbed url={buildAppleMusicUrl(song)} title={song.title} />}
         <ShareActions path={`/c/${cardId}`} title={`${previewCard.songTitle} — a Petrichor card`} showUrl />
         <div className="flex w-full gap-2">
@@ -324,7 +339,10 @@ export function CreateCardFlow() {
 
         <TextField name="lyricsExcerpt" label="Lyrics excerpt" multiline rows={2} value={values.lyricsExcerpt} error={errors.lyricsExcerpt} onChange={handleChange("lyricsExcerpt")} placeholder="The line that says it best" />
         <TextField name="message" label="Personal message" multiline rows={4} value={values.message} error={errors.message} onChange={handleChange("message")} placeholder="Why this song reminds you of them" />
-        <TextField name="senderName" label="Your name" value={values.senderName} error={errors.senderName} onChange={handleChange("senderName")} placeholder="How you'd like to sign it" />
+        <div className="grid gap-5 sm:grid-cols-2">
+          <TextField name="senderName" label="Your name" value={values.senderName} error={errors.senderName} onChange={handleChange("senderName")} placeholder="How you'd like to sign it" />
+          <TextField name="location" label="Location" value={values.location} error={errors.location} onChange={handleChange("location")} placeholder="Singapore" />
+        </div>
 
         <Button type="submit" size="lg" className="h-11 sm:self-start sm:px-6">
           Preview card <ArrowRightIcon />

@@ -63,12 +63,12 @@ async function CardView({ params }: Pick<PageProps<"/c/[cardId]">, "params">) {
             year: "numeric",
             month: "long",
             day: "numeric",
-            timeZone: "UTC",
+            timeZone: card.timeZone ?? "UTC",
           })}
         </p>
       </div>
 
-      <CollectibleCard card={card} spinning className="max-w-[420px]" />
+      <CollectibleCard card={card} className="max-w-[420px]" />
 
       <div className="flex w-full flex-col gap-3">
         {card.appleMusicUrl && <AppleMusicEmbed url={card.appleMusicUrl} title={card.songTitle} />}

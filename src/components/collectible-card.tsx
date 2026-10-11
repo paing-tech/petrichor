@@ -8,13 +8,16 @@ export type CollectibleCardData = {
   lyricsExcerpt?: string | null;
   message?: string | null;
   senderName?: string | null;
+  location?: string | null;
   cardId?: string | null;
+  /** When the card was created; previews pass today's date. */
+  createdAt?: Date | string | null;
+  /** IANA time zone the date is printed in; defaults to UTC. */
+  timeZone?: string | null;
 };
 
 type CollectibleCardProps = {
   card: CollectibleCardData;
-  /** Spin the vinyl (ignored when the viewer prefers reduced motion). */
-  spinning?: boolean;
   className?: string;
 };
 
@@ -25,13 +28,35 @@ const BASE_WIDTH = 390;
 const u = (px: number) => `calc(var(--u) * ${px})`;
 
 const PHOTO_HEIGHT = 293;
-const VINYL_SIZE = 176;
+const SIDE_PADDING = 42;
 
-export function CollectibleCard({ card, spinning = false, className }: CollectibleCardProps) {
+// Long titles step down in size so the layout stays fixed: titles up to 26
+// characters take one line and leave the message three; longer titles wrap to
+// two smaller lines and the message gets two.
+function titleLayout(title: string) {
+  if (title.length <= 18) return { fontSize: 31, messageLines: 3 };
+  if (title.length <= 26) return { fontSize: 26, messageLines: 3 };
+  return { fontSize: 21, messageLines: 2 };
+}
+
+/**
+ * Prints the date in the sender's time zone, so a card made on the morning of
+ * Oct 12 in Singapore says Oct 12 for every viewer, wherever they are.
+ */
+export function formatCardDate(date: Date | string, timeZone?: string | null) {
+  return new Date(date).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: timeZone ?? "UTC",
+  });
+}
+
+export function CollectibleCard({ card, className }: CollectibleCardProps) {
+  const title = titleLayout(card.songTitle);
+
   return (
-    <div
-      className={cn("@container relative aspect-[3/4] w-full max-w-[390px]", className)}
-    >
+    <div className={cn("@container relative aspect-3/4 w-full max-w-[390px]", className)}>
       <article
         aria-label={`${card.songTitle} by ${card.artistName}`}
         className="absolute inset-0 overflow-hidden bg-white text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.06),0_12px_40px_-12px_rgba(40,30,20,0.35)] ring-1 ring-black/5"
@@ -39,63 +64,91 @@ export function CollectibleCard({ card, spinning = false, className }: Collectib
       >
         <CardPhoto photoUrl={card.photoUrl} alt={`Photo for ${card.songTitle}`} />
 
-        <VinylDisc spinning={spinning} />
+        {/* Wordmark sits in the fade at the bottom of the photo. The left padding
+            offsets the trailing letter-spacing so the word is optically centred. */}
+        <p
+          aria-hidden
+          className="font-outfit absolute inset-x-0 text-center font-medium text-white/90"
+          style={{
+            top: u(274),
+            fontSize: u(8.5),
+            letterSpacing: "0.42em",
+            paddingLeft: "0.42em",
+            textShadow: "0 0 6px rgba(0,0,0,0.18)",
+          }}
+        >
+          PETRICHOR
+        </p>
+
+        {card.location && (
+          <p
+            className="font-outfit absolute truncate text-right text-neutral-900"
+            style={{ top: u(291), right: u(SIDE_PADDING), maxWidth: u(160), fontSize: u(8) }}
+          >
+            {card.location}
+          </p>
+        )}
 
         <div
           className="absolute flex flex-col"
-          style={{ top: u(232), left: u(26), right: u(26), bottom: u(20) }}
+          style={{ top: u(304), left: u(SIDE_PADDING), right: u(SIDE_PADDING), bottom: u(28) }}
         >
-          {card.lyricsExcerpt && (
-            <blockquote
-              className="line-clamp-3 font-serif text-neutral-700 italic"
-              style={{ fontSize: u(16), lineHeight: 1.3, marginBottom: u(14) }}
+          {/* Safety net: if text still overflows (e.g. very wide glyphs), the message gives way first. */}
+          <div className="flex min-h-0 shrink flex-col">
+            {card.message && (
+              <p
+                className={cn(
+                  "font-hand min-h-0 overflow-hidden font-light whitespace-pre-line text-neutral-900",
+                  title.messageLines === 3 ? "line-clamp-3" : "line-clamp-2",
+                )}
+                style={{ fontSize: u(15), lineHeight: 1.36 }}
+              >
+                {card.message}
+              </p>
+            )}
+            {card.senderName && (
+              <p
+                className="font-garamond shrink-0 truncate text-right text-neutral-900 italic"
+                style={{ fontSize: u(18), lineHeight: 1.2, marginTop: u(8) }}
+              >
+                {card.senderName}
+              </p>
+            )}
+          </div>
+
+          <div className="flex-1" style={{ minHeight: u(8) }} />
+
+          <div className="shrink-0">
+            <h2
+              className="line-clamp-2 font-serif text-neutral-950"
+              style={{ fontSize: u(title.fontSize), lineHeight: 1.06, letterSpacing: "-0.01em" }}
             >
-              &ldquo;{card.lyricsExcerpt}&rdquo;
-            </blockquote>
-          )}
-
-          <h2
-            className="line-clamp-1 font-serif text-neutral-950"
-            style={{ fontSize: u(30), lineHeight: 1.1, letterSpacing: "-0.01em" }}
-          >
-            {card.songTitle}
-          </h2>
-          <p
-            className="line-clamp-1 font-medium tracking-wide text-neutral-500 uppercase"
-            style={{ fontSize: u(11.5), marginTop: u(6) }}
-          >
-            {card.artistName}
-          </p>
-
-          {(card.message || card.senderName) && (
-            <div style={{ marginTop: u(14), maxWidth: u(236) }}>
-              {card.message && (
-                <p
-                  className="line-clamp-4 whitespace-pre-line text-neutral-700"
-                  style={{ fontSize: u(12.5), lineHeight: 1.45 }}
-                >
-                  {card.message}
-                </p>
-              )}
-              {card.senderName && (
-                <p
-                  className="line-clamp-1 font-serif text-neutral-900 italic"
-                  style={{ fontSize: u(15), marginTop: u(4) }}
-                >
-                  &mdash; {card.senderName}
-                </p>
-              )}
+              {card.songTitle}
+            </h2>
+            <p className="font-outfit line-clamp-1 text-neutral-500" style={{ fontSize: u(11.5), marginTop: u(5) }}>
+              {card.artistName}
+            </p>
+            <div className="flex items-end justify-between" style={{ gap: u(16), marginTop: u(6) }}>
+              <p
+                className="font-garamond line-clamp-2 min-w-0 flex-1 whitespace-pre-line text-neutral-800 italic"
+                style={{ fontSize: u(12.5), lineHeight: 1.25 }}
+              >
+                {card.lyricsExcerpt}
+              </p>
+              <div className="font-outfit shrink-0 text-right text-neutral-900" style={{ fontSize: u(8) }}>
+                <p className="font-medium">1 of 1</p>
+                {card.createdAt && <p style={{ marginTop: u(5) }}>{formatCardDate(card.createdAt, card.timeZone)}</p>}
+              </div>
             </div>
-          )}
-
-          <div
-            className="mt-auto flex items-center text-neutral-400"
-            style={{ gap: u(8), fontSize: u(8.5) }}
-          >
-            <span className="font-semibold tracking-[0.25em] text-neutral-500">PETRICHOR</span>
-            <span className="font-mono">{card.cardId ?? "P-··························"}</span>
           </div>
         </div>
+
+        <p
+          className="font-outfit absolute inset-x-0 text-center text-neutral-300"
+          style={{ bottom: u(10), fontSize: u(7.5), letterSpacing: "0.04em" }}
+        >
+          {card.cardId ?? "P-··························"}
+        </p>
       </article>
     </div>
   );
@@ -118,49 +171,13 @@ function CardPhoto({ photoUrl, alt }: { photoUrl?: string | null; alt: string })
           }}
         />
       )}
-      {/* Fade the photo into the white card body. */}
+      {/* Fade the bottom of the photo into the white card body. */}
       <div
         aria-hidden
         className="absolute inset-0"
         style={{
           background:
-            "linear-gradient(to bottom, rgba(255,255,255,0) 35%, rgba(255,255,255,0.6) 62%, rgba(255,255,255,0.94) 79%, #fff 92%)",
-        }}
-      />
-    </div>
-  );
-}
-
-function VinylDisc({ spinning }: { spinning: boolean }) {
-  return (
-    <div
-      aria-hidden
-      className="absolute rounded-full shadow-[0_6px_24px_-6px_rgba(0,0,0,0.45)]"
-      style={{ width: u(VINYL_SIZE), height: u(VINYL_SIZE), right: u(-50), bottom: u(-50) }}
-    >
-      <div
-        className={cn(
-          "size-full rounded-full",
-          spinning && "motion-safe:animate-[spin_8s_linear_infinite]",
-        )}
-        style={{
-          background: [
-            // spindle hole, label marker, label, label edge
-            "radial-gradient(circle at 50% 50%, #fff 0 3%, transparent 3.2%)",
-            "radial-gradient(circle at 50% 38%, rgba(255,255,255,0.55) 0 2.2%, transparent 2.4%)",
-            "radial-gradient(circle at 50% 50%, #b5543a 0 29%, #2a1a14 29.5% 31%, transparent 31.5%)",
-            // grooves
-            "repeating-radial-gradient(circle at 50% 50%, #141414 0 1.1%, #232323 1.1% 1.5%, #181818 1.5% 2.2%)",
-          ].join(", "),
-        }}
-      />
-      {/* Static sheen so the highlight stays put while the disc turns. */}
-      <div
-        className="absolute inset-0 rounded-full"
-        style={{
-          background:
-            "conic-gradient(from 35deg, transparent 0deg, rgba(255,255,255,0.14) 25deg, transparent 55deg, transparent 180deg, rgba(255,255,255,0.1) 205deg, transparent 235deg)",
-          mask: "radial-gradient(circle, transparent 31%, #000 31.5%)",
+            "linear-gradient(to bottom, rgba(255,255,255,0) 66%, rgba(255,255,255,0.45) 85%, rgba(255,255,255,0.85) 96%, #fff 100%)",
         }}
       />
     </div>

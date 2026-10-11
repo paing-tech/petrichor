@@ -10,6 +10,9 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-serif: var(--font-instrument-serif);
+  --font-hand: var(--font-kalam);
+  --font-garamond: var(--font-cormorant);
+  --font-outfit: var(--font-outfit-family);
   --color-clay: var(--clay);
   --font-heading: var(--font-serif);
   --color-sidebar-ring: var(--sidebar-ring);

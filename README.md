@@ -90,9 +90,9 @@ Senders search instead of typing the title and artist ([src/components/create/so
 
 [src/components/collectible-card.tsx](src/components/collectible-card.tsx) is designed on a 390 × 520 canvas:
 
-- **Top:** a 390 × 293 photo that fades into the card color, with a faint PETRICHOR wordmark at the exact center of the card (drawn in the card color, so it shows only where the photo differs from it) and the optional moment (an occasion or place, e.g. "Birthday party" or "Singapore") on the right.
+- **Top:** a 390 × 293 photo that fades into the card color. The optional moment (an occasion or place, e.g. "Birthday party" or "Singapore") sits on the right, centered on the fade's third stop.
 - **Middle:** the handwritten message, with the sender's signature right-aligned beneath it.
-- **Bottom:** song title, artist, lyrics, "1 of 1" with the creation date (UTC), and the card ID.
+- **Bottom:** song title, artist, lyrics, "1 of 1" with the creation date, and the card ID centered below them.
 
 Every measurement is written in canvas pixels and converted with container-query units, so the card scales to any width with the same layout. Titles up to 26 characters take one line, at 31px or 26px, and leave the message three lines. Longer titles wrap to two 21px lines, and the message gets two. Text never overflows the card.
 
@@ -105,7 +105,7 @@ Every measurement is written in canvas pixels and converted with container-query
 | Instrument Serif | Song title |
 | Kalam Light | Personal message |
 | Cormorant Garamond Italic | Lyrics, sender's signature |
-| Outfit | Artist, moment, date, "1 of 1", wordmark, card ID |
+| Outfit | Artist, moment, date, "1 of 1", card ID |
 
 All four are Google Fonts under the SIL Open Font License, loaded with `next/font` in [src/app/layout.tsx](src/app/layout.tsx).
 

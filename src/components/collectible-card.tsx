@@ -37,8 +37,19 @@ const BASE_WIDTH = 390;
 const u = (px: number) => `calc(var(--u) * ${px})`;
 
 const PHOTO_HEIGHT = 293;
+/**
+ * The photo's fade into the card color: [position as % of the photo height, card-color opacity].
+ * Three stops before it turns solid.
+ */
+const PHOTO_FADE = [
+  [66, 0],
+  [85, 0.45],
+  [96, 0.85],
+  [100, 1],
+] as const;
+/** The moment is centered on the third fade stop, where the photo is almost solid card color. */
+const MOMENT_CENTER = (PHOTO_HEIGHT * PHOTO_FADE[2][0]) / 100;
 const SIDE_PADDING = 38;
-const WORDMARK_OPACITY = 0.9;
 
 // Long titles step down in size so the layout stays fixed: titles up to 26
 // characters take one line and leave the message three; longer titles wrap to
@@ -53,6 +64,60 @@ function titleLayout(title: string) {
  * Prints the date in the sender's time zone, so a card made on the morning of
  * Oct 12 in Singapore says Oct 12 for every viewer, wherever they are.
  */
+// Vertical metrics (in em) of the card fonts, measured in the browser. They let
+// the song block space lines by their visible letters instead of their line boxes.
+type FontMetrics = { ascent: number; descent: number; capHeight: number };
+const FONT_METRICS = {
+  instrumentSerif: { ascent: 0.99, descent: 0.31, capHeight: 0.72 },
+  outfit: { ascent: 1, descent: 0.26, capHeight: 0.694 },
+  cormorantItalic: { ascent: 0.92, descent: 0.29, capHeight: 0.625 },
+} satisfies Record<string, FontMetrics>;
+
+/** Half-leading: the space a line box adds above and below the font's own ascent and descent. */
+const halfLeading = (m: FontMetrics, size: number, lineHeight: number) =>
+  (lineHeight - (m.ascent + m.descent) * size) / 2;
+/** From the top of a line box down to the top of its capitals. */
+const capTopOffset = (m: FontMetrics, size: number, lineHeight: number) =>
+  halfLeading(m, size, lineHeight) + (m.ascent - m.capHeight) * size;
+/** From the top of a line box down to its baseline. */
+const baselineOffset = (m: FontMetrics, size: number, lineHeight: number) =>
+  halfLeading(m, size, lineHeight) + m.ascent * size;
+/** From a baseline down to the bottom of its line box. */
+const belowBaseline = (m: FontMetrics, size: number, lineHeight: number) =>
+  halfLeading(m, size, lineHeight) + m.descent * size;
+
+/**
+ * The song block uses one visible gap (baseline of one line to the capitals of
+ * the next) between title and artist, artist and the lyrics row, and the two
+ * lyrics lines. "1 of 1" and the date share the lyrics' line spacing, so each
+ * sits on the same baseline as a lyrics line.
+ */
+const SONG_GAP = 10;
+const TITLE_LINE_HEIGHT = 1.06;
+const ARTIST_SIZE = 12;
+const ARTIST_LINE = ARTIST_SIZE * 1.2;
+const LYRICS_SIZE = 12;
+const EDITION_SIZE = 12;
+/** Line pitch shared by the lyrics and the "1 of 1"/date column. */
+const ROW_LINE = SONG_GAP + FONT_METRICS.cormorantItalic.capHeight * LYRICS_SIZE;
+
+function songLayout(titleSize: number) {
+  const { instrumentSerif: serif, outfit, cormorantItalic: garamond } = FONT_METRICS;
+  const titleLine = titleSize * TITLE_LINE_HEIGHT;
+  // The row aligns its two columns on their first baselines (flex items-baseline),
+  // so its top is set by whichever column's baseline sits lower in its line box.
+  const lyricsBaseline = baselineOffset(garamond, LYRICS_SIZE, ROW_LINE);
+  const editionBaseline = baselineOffset(outfit, EDITION_SIZE, ROW_LINE);
+  const rowBaseline = Math.max(lyricsBaseline, editionBaseline);
+  // The row's visible top is its tallest capital.
+  const rowCapTop = rowBaseline - Math.max(garamond.capHeight * LYRICS_SIZE, outfit.capHeight * EDITION_SIZE);
+  return {
+    titleLine,
+    artistMargin: SONG_GAP - belowBaseline(serif, titleSize, titleLine) - capTopOffset(outfit, ARTIST_SIZE, ARTIST_LINE),
+    rowMargin: SONG_GAP - belowBaseline(outfit, ARTIST_SIZE, ARTIST_LINE) - rowCapTop,
+  };
+}
+
 export function formatCardDate(date: Date | string, timeZone?: string | null) {
   return new Date(date).toLocaleDateString("en-US", {
     month: "short",
@@ -64,6 +129,7 @@ export function formatCardDate(date: Date | string, timeZone?: string | null) {
 
 export function CollectibleCard({ card, className }: CollectibleCardProps) {
   const title = titleLayout(card.songTitle);
+  const song = songLayout(title.fontSize);
   const cardColor = card.cardColor ?? DEFAULT_CARD_COLOR;
   const ink = cardInk(cardColor);
 
@@ -92,30 +158,19 @@ export function CollectibleCard({ card, className }: CollectibleCardProps) {
           fadeColor={cardColor}
         />
 
-        {/* Wordmark at the exact center of the card, in the card's own color, so it
-            shows only faintly against the photo behind it. Centering:
-            - horizontal: the left padding offsets the trailing letter-spacing;
-            - vertical: text-box trims the line to the capitals, so the letters
-              themselves (not the line box) are centered. */}
-        <p
-          aria-hidden
-          className="font-outfit absolute inset-x-0 top-1/2 -translate-y-1/2 text-center leading-none font-medium"
-          style={{
-            textBox: "trim-both cap alphabetic",
-            color: cardColor,
-            opacity: WORDMARK_OPACITY,
-            fontSize: u(8.5),
-            letterSpacing: "0.42em",
-            paddingLeft: "0.42em",
-          }}
-        >
-          PETRICHOR
-        </p>
-
+        {/* Moment's capitals are centered on the third fade stop (text-box trims the
+            line to the capitals, and the translate centers them on `top`). Long text
+            is clipped only horizontally, so descenders below the trimmed box still show. */}
         {card.moment && (
           <p
-            className="font-outfit absolute truncate text-right"
-            style={{ top: u(291), right: u(SIDE_PADDING), maxWidth: u(160), fontSize: u(8) }}
+            className="font-outfit absolute -translate-y-1/2 overflow-x-clip text-right leading-none text-ellipsis whitespace-nowrap"
+            style={{
+              textBox: "trim-both cap alphabetic",
+              top: u(MOMENT_CENTER),
+              right: u(SIDE_PADDING),
+              maxWidth: u(160),
+              fontSize: u(8),
+            }}
           >
             {card.moment}
           </p>
@@ -153,24 +208,35 @@ export function CollectibleCard({ card, className }: CollectibleCardProps) {
           <div className="shrink-0">
             <h2
               className="line-clamp-2 font-serif"
-              style={{ fontSize: u(title.fontSize), lineHeight: 1.06, letterSpacing: "-0.01em" }}
+              style={{ fontSize: u(title.fontSize), lineHeight: u(song.titleLine), letterSpacing: "-0.01em" }}
             >
               {card.songTitle}
             </h2>
-            <p className="font-outfit line-clamp-1 text-(--ink-muted)" style={{ fontSize: u(11.5), marginTop: u(5) }}>
+            <p
+              className="font-outfit line-clamp-1 text-(--ink-muted)"
+              style={{ fontSize: u(ARTIST_SIZE), lineHeight: u(ARTIST_LINE), marginTop: u(song.artistMargin) }}
+            >
               {card.artistName}
             </p>
-            <div className="flex items-end justify-between" style={{ gap: u(16), marginTop: u(6) }}>
+            <div className="flex items-baseline justify-between" style={{ gap: u(16), marginTop: u(song.rowMargin) }}>
               <p
                 className="font-garamond line-clamp-2 min-w-0 flex-1 whitespace-pre-line text-(--ink-soft) italic"
-                style={{ fontSize: u(12.5), lineHeight: 1.25 }}
+                style={{ fontSize: u(LYRICS_SIZE), lineHeight: u(ROW_LINE) }}
               >
                 {card.lyricsExcerpt}
               </p>
-              <div className="font-outfit font-normal shrink-0 text-right" style={{ fontSize: u(12) }}>
-                <p>1 of 1</p>
-                {card.createdAt && <p style={{ marginTop: u(5) }}>{formatCardDate(card.createdAt, card.timeZone)}</p>}
-              </div>
+              <p
+                className="font-outfit shrink-0 text-right font-normal"
+                style={{ fontSize: u(EDITION_SIZE), lineHeight: u(ROW_LINE) }}
+              >
+                1 of 1
+                {card.createdAt && (
+                  <>
+                    <br />
+                    {formatCardDate(card.createdAt, card.timeZone)}
+                  </>
+                )}
+              </p>
             </div>
           </div>
         </div>
@@ -216,7 +282,7 @@ function CardPhoto({ photoUrl, crop, emptyFill, alt, fadeColor }: CardPhotoProps
         aria-hidden
         className="absolute inset-0"
         style={{
-          background: `linear-gradient(to bottom, rgba(${rgb}, 0) 66%, rgba(${rgb}, 0.45) 85%, rgba(${rgb}, 0.85) 96%, rgb(${rgb}) 100%)`,
+          background: `linear-gradient(to bottom, ${PHOTO_FADE.map(([at, alpha]) => `rgba(${rgb}, ${alpha}) ${at}%`).join(", ")})`,
         }}
       />
     </div>

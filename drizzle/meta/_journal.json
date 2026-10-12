@@ -43,6 +43,13 @@
       "when": 1791758164930,
       "tag": "0005_add_card_color",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791760613973,
+      "tag": "0006_add_photo_area_color",
+      "breakpoints": true
     }
   ]
 }

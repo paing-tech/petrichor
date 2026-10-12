@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { cardInk, DEFAULT_CARD_COLOR, hexToRgb } from "@/lib/card-color";
+import { cardInk, DEFAULT_CARD_COLOR, EARTH_PHOTO_AREA, hexToRgb } from "@/lib/card-color";
 import { cropImageStyle, type PhotoCrop } from "@/lib/photo-crop";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +20,8 @@ export type CollectibleCardData = {
   timeZone?: string | null;
   /** Base color as #rrggbb; defaults to white. Text switches to white on dark colors. */
   cardColor?: string | null;
+  /** Fill for the photo area when there's no photo, as #rrggbb; defaults to the earth gradient. */
+  photoAreaColor?: string | null;
 };
 
 type CollectibleCardProps = {
@@ -81,7 +83,13 @@ export function CollectibleCard({ card, className }: CollectibleCardProps) {
           } as CSSProperties
         }
       >
-        <CardPhoto photoUrl={card.photoUrl} crop={card.photoCrop} alt={`Photo for ${card.songTitle}`} fadeColor={cardColor} />
+        <CardPhoto
+          photoUrl={card.photoUrl}
+          crop={card.photoCrop}
+          emptyFill={card.photoAreaColor ?? EARTH_PHOTO_AREA}
+          alt={`Photo for ${card.songTitle}`}
+          fadeColor={cardColor}
+        />
 
         {/* Wordmark at the exact center of the card, in the card's own color, so it
             shows only faintly against the photo behind it. Centering:
@@ -180,11 +188,13 @@ export function CollectibleCard({ card, className }: CollectibleCardProps) {
 type CardPhotoProps = {
   photoUrl?: string | null;
   crop?: PhotoCrop | null;
+  /** CSS background shown when there's no photo. */
+  emptyFill: string;
   alt: string;
   fadeColor: string;
 };
 
-function CardPhoto({ photoUrl, crop, alt, fadeColor }: CardPhotoProps) {
+function CardPhoto({ photoUrl, crop, emptyFill, alt, fadeColor }: CardPhotoProps) {
   const rgb = hexToRgb(fadeColor).join(", ");
   return (
     <div className="absolute inset-x-0 top-0 overflow-hidden" style={{ height: u(PHOTO_HEIGHT) }}>
@@ -198,14 +208,7 @@ function CardPhoto({ photoUrl, crop, alt, fadeColor }: CardPhotoProps) {
           style={crop ? cropImageStyle(crop) : undefined}
         />
       ) : (
-        <div
-          aria-hidden
-          className="size-full"
-          style={{
-            background:
-              "radial-gradient(120% 80% at 20% 10%, #e7ece6 0%, transparent 60%), radial-gradient(90% 70% at 85% 30%, #c9d3cc 0%, transparent 65%), linear-gradient(165deg, #dfe4de 0%, #b9c4bb 55%, #a7b2a8 100%)",
-          }}
-        />
+        <div aria-hidden className="size-full" style={{ background: emptyFill }} />
       )}
       {/* Fade the bottom of the photo into the card's base color. */}
       <div

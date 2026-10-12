@@ -44,7 +44,7 @@ export async function createCard(input: CreateCardInput): Promise<ActionResult<{
     return { ok: false, error: "Please fix the highlighted fields.", fieldErrors: fieldErrors(parsed.error) };
   }
 
-  const { photoKey, appleMusic, timeZone, cardColor, ...fields } = parsed.data;
+  const { photoKey, appleMusic, timeZone, cardColor, photoAreaColor, ...fields } = parsed.data;
 
   try {
     if (photoKey && !(await verifyUploadedPhoto(photoKey))) {
@@ -61,6 +61,8 @@ export async function createCard(input: CreateCardInput): Promise<ActionResult<{
       appleMusicUrl: appleMusic ? buildAppleMusicUrl(appleMusic) : null,
       timeZone,
       cardColor,
+      // The photo area color only applies to cards without a photo.
+      photoAreaColor: photoKey ? null : photoAreaColor,
     });
     return { ok: true, cardId };
   } catch (error) {

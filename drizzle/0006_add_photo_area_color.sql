@@ -1,0 +1,1 @@
+ALTER TABLE "cards" ADD COLUMN "photo_area_color" text;

@@ -96,6 +96,8 @@ Every measurement is written in canvas pixels and converted with container-query
 
 **Card color.** Senders pick the card's base color: White (the default), Black, up to four colors from their photo, or any color from the native picker. Photo colors are taken in the browser ([src/lib/photo-palette.ts](src/lib/photo-palette.ts)): the photo is downscaled to 64 × 64, pixels are grouped into similar colors, and the most common distinct ones are kept, skipping near-white and near-black. The photo's bottom fade blends into the chosen color. Text is white on dark colors and near-black on light ones, whichever contrasts more ([src/lib/card-color.ts](src/lib/card-color.ts)). The color is stored as `#rrggbb` in `card_color`.
 
+**Photo area color.** When a card has no photo, the sender can choose what fills the photo area: Earth (the default sage gradient), White, Black, or a custom color. It's stored in `photo_area_color`, where NULL means the Earth gradient. It's ignored when the card has a photo.
+
 | Typeface | Used for |
 | --- | --- |
 | Instrument Serif | Song title |

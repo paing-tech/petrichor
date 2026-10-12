@@ -9,6 +9,12 @@ export const PRESET_CARD_COLORS = [
 
 export const CARD_COLOR_PATTERN = /^#[0-9a-f]{6}$/;
 
+/** The default fill for the photo area when a card has no photo: a soft earth/sage gradient. */
+export const EARTH_PHOTO_AREA =
+  "radial-gradient(120% 80% at 20% 10%, #e7ece6 0%, transparent 60%), radial-gradient(90% 70% at 85% 30%, #c9d3cc 0%, transparent 65%), linear-gradient(165deg, #dfe4de 0%, #b9c4bb 55%, #a7b2a8 100%)";
+/** A representative solid color of the earth gradient, for contrast decisions and the picker's start color. */
+export const EARTH_PHOTO_AREA_TONE = "#b9c4bb";
+
 export type Rgb = [number, number, number];
 
 export function hexToRgb(hex: string): Rgb {

@@ -14,6 +14,8 @@ export const cards = pgTable("cards", {
   // The sender's IANA time zone, so the printed date matches their calendar day.
   timeZone: text("time_zone"),
   cardColor: text("card_color").notNull().default("#ffffff"),
+  // Fill for the photo area on cards without a photo; NULL means the default earth gradient.
+  photoAreaColor: text("photo_area_color"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

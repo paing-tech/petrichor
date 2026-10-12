@@ -27,6 +27,7 @@ export async function getCardByCardId(cardId: string): Promise<PublicCard | null
       location: cards.location,
       timeZone: cards.timeZone,
       cardColor: cards.cardColor,
+      photoAreaColor: cards.photoAreaColor,
       createdAt: cards.createdAt,
     })
     .from(cards)
@@ -43,6 +44,7 @@ export async function insertCard(
     appleMusicUrl: string | null;
     timeZone: string | null;
     cardColor: string;
+    photoAreaColor: string | null;
   },
 ) {
   // A 128-bit collision is practically impossible, but retrying keeps the unique

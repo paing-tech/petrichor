@@ -2,35 +2,45 @@
 
 import { CheckIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { cardInk, PRESET_CARD_COLORS } from "@/lib/card-color";
+import { cardInk } from "@/lib/card-color";
 import { cn } from "@/lib/utils";
 
-type ColorFieldProps = {
-  value: string;
-  /** Colors extracted from the attached photo, if any. */
-  photoColors: string[];
-  onChange: (color: string) => void;
+export type ColorSwatch = {
+  label: string;
+  /** A #rrggbb color, or null for a non-color default such as a gradient. */
+  value: string | null;
+  /** CSS background for the swatch; defaults to `value`. */
+  background?: string;
+  /** Color the swatch's check mark is drawn against; defaults to `value`. */
+  checkBackground?: string;
+  /** Adds space before this swatch to separate groups. */
+  gapBefore?: boolean;
 };
 
-export function ColorField({ value, photoColors, onChange }: ColorFieldProps) {
-  const swatches = [
-    ...PRESET_CARD_COLORS.map((c) => ({ label: c.name, value: c.value })),
-    ...photoColors.map((color, i) => ({ label: `Photo color ${i + 1}`, value: color })),
-  ];
-  const isCustom = !swatches.some((s) => s.value === value);
+type ColorFieldProps = {
+  id: string;
+  label: string;
+  value: string | null;
+  swatches: ColorSwatch[];
+  hint: string;
+  /** What the custom picker opens on while a preset is selected. */
+  customFallback: string;
+  onChange: (value: string | null) => void;
+};
+
+export function ColorField({ id, label, value, swatches, hint, customFallback, onChange }: ColorFieldProps) {
+  const labelId = `${id}-label`;
+  const isCustom = value !== null && !swatches.some((s) => s.value === value);
 
   return (
     <div className="grid gap-2">
-      <Label id="card-color-label">Card color</Label>
-      <div role="radiogroup" aria-labelledby="card-color-label" className="flex flex-wrap items-center gap-2.5">
-        {swatches.map((swatch, i) => (
+      <Label id={labelId}>{label}</Label>
+      <div role="radiogroup" aria-labelledby={labelId} className="flex flex-wrap items-center gap-2.5">
+        {swatches.map((swatch) => (
           <Swatch
-            key={swatch.value}
-            label={swatch.label}
-            color={swatch.value}
+            key={swatch.value ?? "default"}
+            swatch={swatch}
             selected={swatch.value === value}
-            // A visual gap between the presets and the photo colors.
-            className={i === PRESET_CARD_COLORS.length ? "ml-2" : undefined}
             onSelect={() => onChange(swatch.value)}
           />
         ))}
@@ -54,47 +64,36 @@ export function ColorField({ value, photoColors, onChange }: ColorFieldProps) {
             role="radio"
             aria-checked={isCustom}
             aria-label="Custom color"
-            value={value}
+            value={isCustom ? value : customFallback}
             onChange={(e) => onChange(e.target.value.toLowerCase())}
             className="absolute inset-0 size-full cursor-pointer opacity-0"
           />
           {isCustom && <CheckIcon className="pointer-events-none size-4" style={{ color: cardInk(value).ink }} />}
         </label>
       </div>
-      <p className="text-muted-foreground text-xs">
-        {photoColors.length > 0
-          ? "White, black, colors from your photo, or pick your own."
-          : "Add a photo to get colors picked from it."}
-      </p>
+      <p className="text-muted-foreground text-xs">{hint}</p>
     </div>
   );
 }
 
-type SwatchProps = {
-  label: string;
-  color: string;
-  selected: boolean;
-  className?: string;
-  onSelect: () => void;
-};
-
-function Swatch({ label, color, selected, className, onSelect }: SwatchProps) {
+function Swatch({ swatch, selected, onSelect }: { swatch: ColorSwatch; selected: boolean; onSelect: () => void }) {
+  const checkBackground = swatch.checkBackground ?? swatch.value ?? "#ffffff";
   return (
     <button
       type="button"
       role="radio"
       aria-checked={selected}
-      aria-label={label}
-      title={label}
+      aria-label={swatch.label}
+      title={swatch.label}
       onClick={onSelect}
       className={cn(
         "focus-visible:ring-ring/50 grid size-9 place-items-center rounded-full border border-black/10 ring-offset-2 transition-shadow outline-none focus-visible:ring-3",
         selected && "ring-foreground ring-2",
-        className,
+        swatch.gapBefore && "ml-2",
       )}
-      style={{ backgroundColor: color }}
+      style={{ background: swatch.background ?? swatch.value ?? undefined }}
     >
-      {selected && <CheckIcon className="size-4" style={{ color: cardInk(color).ink }} />}
+      {selected && <CheckIcon className="size-4" style={{ color: cardInk(checkBackground).ink }} />}
     </button>
   );
 }

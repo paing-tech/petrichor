@@ -65,6 +65,12 @@ const appleMusicTrackSchema = z.object({
   trackId: z.string().regex(/^\d{1,15}$/),
 });
 
+const hexColor = (label: string) =>
+  z
+    .string()
+    .transform((v) => v.toLowerCase())
+    .pipe(z.string().regex(CARD_COLOR_PATTERN, `${label} must be a hex color like #1a2b3c`));
+
 function isValidTimeZone(timeZone: string) {
   try {
     new Intl.DateTimeFormat("en-US", { timeZone });
@@ -81,10 +87,8 @@ export const createCardSchema = cardFieldsSchema.extend({
     .nullable(),
   appleMusic: appleMusicTrackSchema.nullable(),
   timeZone: z.string().max(64).refine(isValidTimeZone, "Invalid time zone").nullable(),
-  cardColor: z
-    .string()
-    .transform((v) => v.toLowerCase())
-    .pipe(z.string().regex(CARD_COLOR_PATTERN, "Card color must be a hex color like #1a2b3c")),
+  cardColor: hexColor("Card color"),
+  photoAreaColor: hexColor("Photo area color").nullable(),
 });
 
 export type CreateCardInput = z.input<typeof createCardSchema>;

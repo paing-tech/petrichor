@@ -37,7 +37,7 @@ const BASE_WIDTH = 390;
 const u = (px: number) => `calc(var(--u) * ${px})`;
 
 const PHOTO_HEIGHT = 293;
-const SIDE_PADDING = 42;
+const SIDE_PADDING = 38;
 const WORDMARK_OPACITY = 0.9;
 
 // Long titles step down in size so the layout stays fixed: titles up to 26
@@ -167,8 +167,8 @@ export function CollectibleCard({ card, className }: CollectibleCardProps) {
               >
                 {card.lyricsExcerpt}
               </p>
-              <div className="font-outfit shrink-0 text-right" style={{ fontSize: u(8) }}>
-                <p className="font-medium">1 of 1</p>
+              <div className="font-outfit font-normal shrink-0 text-right" style={{ fontSize: u(12) }}>
+                <p>1 of 1</p>
                 {card.createdAt && <p style={{ marginTop: u(5) }}>{formatCardDate(card.createdAt, card.timeZone)}</p>}
               </div>
             </div>

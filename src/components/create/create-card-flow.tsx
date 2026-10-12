@@ -16,9 +16,11 @@ import { createCard, requestPhotoUpload } from "@/app/create/actions";
 import { AppleMusicEmbed } from "@/components/apple-music-embed";
 import { CollectibleCard } from "@/components/collectible-card";
 import { ColorField, type ColorSwatch } from "@/components/create/color-field";
+import { EditionField, parseEditionSize } from "@/components/create/edition-field";
 import { PhotoCropper } from "@/components/create/photo-cropper";
 import { PhotoField } from "@/components/create/photo-field";
 import { SelectedSong, SongSearch } from "@/components/create/song-search";
+import { EditionLinks } from "@/components/edition-links";
 import { ShareActions } from "@/components/share-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -106,10 +108,15 @@ export function CreateCardFlow() {
   // The most recently picked file, so a slow palette extraction for an older photo is ignored.
   const latestPhotoFile = useRef<File | null>(null);
   const [step, setStep] = useState<Step>("edit");
-  const [cardId, setCardId] = useState<string | null>(null);
+  const [editionInput, setEditionInput] = useState("1");
+  const [editionError, setEditionError] = useState<string>();
+  /** The created card IDs in edition order; one entry for a single card. */
+  const [cardIds, setCardIds] = useState<string[] | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [isSaving, startSaving] = useTransition();
   const today = useToday();
+  // Falls back to 1 while the field holds something invalid; the preview step re-checks it.
+  const editionSize = parseEditionSize(editionInput).size ?? 1;
 
   const previewUrl = photo?.previewUrl;
   useEffect(() => {
@@ -196,6 +203,8 @@ export function CreateCardFlow() {
     e.preventDefault();
     setValidateLive(true);
     const result = cardFieldsSchema.safeParse(values);
+    const edition = parseEditionSize(editionInput);
+    setEditionError(edition.error);
     if (!result.success) {
       const nextErrors = fieldErrors(result.error);
       setErrors(nextErrors);
@@ -205,6 +214,10 @@ export function CreateCardFlow() {
       return;
     }
     setErrors({});
+    if (edition.error) {
+      document.getElementById("editionSize")?.focus();
+      return;
+    }
     goTo("review");
   }
 
@@ -260,6 +273,7 @@ export function CreateCardFlow() {
         timeZone,
         cardColor,
         photoAreaColor: photo ? null : photoAreaColor,
+        editionSize,
       });
       setStatus(null);
 
@@ -276,7 +290,7 @@ export function CreateCardFlow() {
         return;
       }
 
-      setCardId(result.cardId);
+      setCardIds(result.cardIds);
       goTo("done");
     });
   }
@@ -291,7 +305,9 @@ export function CreateCardFlow() {
     removePhoto();
     setCardColor(DEFAULT_CARD_COLOR);
     setPhotoAreaColor(null);
-    setCardId(null);
+    setEditionInput("1");
+    setEditionError(undefined);
+    setCardIds(null);
     goTo("edit");
   }
 
@@ -307,9 +323,35 @@ export function CreateCardFlow() {
     createdAt: today,
     cardColor,
     photoAreaColor,
-    cardId,
+    editionNumber: 1,
+    editionSize,
+    cardId: cardIds?.[0] ?? null,
   };
 
+  if (step === "done" && cardIds && cardIds.length > 1) {
+    return (
+      <div className="mx-auto flex w-full max-w-md flex-col items-center gap-8 px-4 pt-4 pb-16">
+        <div className="text-center">
+          <p className="text-clay mb-2 inline-flex items-center gap-1.5 text-sm font-medium">
+            <SparklesIcon className="size-4" /> Edition created
+          </p>
+          <h1 className="font-serif text-4xl tracking-tight">Your {cardIds.length} cards are ready</h1>
+          <p className="text-muted-foreground mt-2 text-sm">
+            Numbered 1 to {cardIds.length}, each with its own link. Anyone with a link can open that card — no
+            account needed.
+          </p>
+        </div>
+        <CollectibleCard card={previewCard} />
+        {song && <AppleMusicEmbed url={buildAppleMusicUrl(song)} title={song.title} />}
+        <EditionLinks cardIds={cardIds} />
+        <Button variant="ghost" size="lg" className="h-10" onClick={startOver}>
+          Make another
+        </Button>
+      </div>
+    );
+  }
+
+  const cardId = cardIds?.[0];
   if (step === "done" && cardId) {
     return (
       <div className="mx-auto flex w-full max-w-md flex-col items-center gap-8 px-4 pt-4 pb-16">
@@ -343,6 +385,9 @@ export function CreateCardFlow() {
         <div className="text-center">
           <h1 className="font-serif text-4xl tracking-tight">Looks good?</h1>
           <p className="text-muted-foreground mt-2 text-sm">
+            {editionSize > 1
+              ? `This creates ${editionSize} numbered cards, 1 of ${editionSize} to ${editionSize} of ${editionSize}, each with its own link. `
+              : ""}
             Cards can&apos;t be changed after they&apos;re created.
           </p>
         </div>
@@ -362,6 +407,8 @@ export function CreateCardFlow() {
               <>
                 <Loader2Icon className="animate-spin" /> {status ?? "Saving…"}
               </>
+            ) : editionSize > 1 ? (
+              `Create ${editionSize} cards`
             ) : (
               "Create card"
             )}
@@ -466,6 +513,15 @@ export function CreateCardFlow() {
           <TextField name="senderName" label="Your name" value={values.senderName} error={errors.senderName} onChange={handleChange("senderName")} placeholder="How you'd like to sign it" />
           <TextField name="moment" label="Moment" value={values.moment} error={errors.moment} onChange={handleChange("moment")} placeholder="Birthday party, graduation, a place…" />
         </div>
+
+        <EditionField
+          value={editionInput}
+          error={editionError}
+          onChange={(value) => {
+            setEditionInput(value);
+            if (validateLive) setEditionError(parseEditionSize(value).error);
+          }}
+        />
 
         <Button type="submit" size="lg" className="h-11 sm:self-start sm:px-6">
           Preview card <ArrowRightIcon />

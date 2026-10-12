@@ -14,6 +14,13 @@ export const LIMITS = {
   moment: 40,
 } as const;
 
+/**
+ * The most numbered copies one card can be created as. Requests for more go
+ * through "Contact us". The database enforces the same limit (cards_edition_size_range
+ * in src/db/schema.ts); change both together.
+ */
+export const MAX_EDITION_SIZE = 20;
+
 // Senders can pick a photo of any size; it's cropped and re-encoded in the
 // browser, and only that export is uploaded. This caps the export.
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -91,6 +98,11 @@ export const createCardSchema = cardFieldsSchema.extend({
   timeZone: z.string().max(64).refine(isValidTimeZone, "Invalid time zone").nullable(),
   cardColor: hexColor("Card color"),
   photoAreaColor: hexColor("Photo area color").nullable(),
+  editionSize: z
+    .number()
+    .int("Copies must be a whole number")
+    .min(1, "Make at least 1 copy")
+    .max(MAX_EDITION_SIZE, `You can make up to ${MAX_EDITION_SIZE} copies`),
 });
 
 export type CreateCardInput = z.input<typeof createCardSchema>;

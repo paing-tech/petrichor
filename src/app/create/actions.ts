@@ -1,7 +1,7 @@
 "use server";
 
 import { buildAppleMusicUrl } from "@/lib/apple-music";
-import { insertCard } from "@/lib/cards";
+import { insertEdition } from "@/lib/cards";
 import { createPhotoUploadUrl, getPhotoPublicUrl, verifyUploadedPhoto } from "@/lib/storage";
 import {
   createCardSchema,
@@ -38,13 +38,14 @@ export async function requestPhotoUpload(input: {
   }
 }
 
-export async function createCard(input: CreateCardInput): Promise<ActionResult<{ cardId: string }>> {
+/** Creates a card, or a numbered edition of identical cards. Returns card IDs in edition order. */
+export async function createCard(input: CreateCardInput): Promise<ActionResult<{ cardIds: string[] }>> {
   const parsed = createCardSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: "Please fix the highlighted fields.", fieldErrors: fieldErrors(parsed.error) };
   }
 
-  const { photoKey, appleMusic, timeZone, cardColor, photoAreaColor, ...fields } = parsed.data;
+  const { photoKey, appleMusic, timeZone, cardColor, photoAreaColor, editionSize, ...fields } = parsed.data;
 
   try {
     if (photoKey && !(await verifyUploadedPhoto(photoKey))) {
@@ -55,16 +56,19 @@ export async function createCard(input: CreateCardInput): Promise<ActionResult<{
       };
     }
 
-    const cardId = await insertCard({
-      ...fields,
-      photoUrl: photoKey ? getPhotoPublicUrl(photoKey) : null,
-      appleMusicUrl: appleMusic ? buildAppleMusicUrl(appleMusic) : null,
-      timeZone,
-      cardColor,
-      // The photo area color only applies to cards without a photo.
-      photoAreaColor: photoKey ? null : photoAreaColor,
-    });
-    return { ok: true, cardId };
+    const cardIds = await insertEdition(
+      {
+        ...fields,
+        photoUrl: photoKey ? getPhotoPublicUrl(photoKey) : null,
+        appleMusicUrl: appleMusic ? buildAppleMusicUrl(appleMusic) : null,
+        timeZone,
+        cardColor,
+        // The photo area color only applies to cards without a photo.
+        photoAreaColor: photoKey ? null : photoAreaColor,
+      },
+      editionSize,
+    );
+    return { ok: true, cardIds };
   } catch (error) {
     console.error("Failed to create card", error);
     return { ok: false, error: "We couldn't save your card. Please try again." };

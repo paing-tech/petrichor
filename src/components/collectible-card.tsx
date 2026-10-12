@@ -15,6 +15,9 @@ export type CollectibleCardData = {
   /** The occasion, e.g. "Birthday party" or a place; shown top-right under the photo. */
   moment?: string | null;
   cardId?: string | null;
+  /** This copy's number and the edition's size, printed as "2 of 3"; defaults to 1 of 1. */
+  editionNumber?: number | null;
+  editionSize?: number | null;
   /** When the card was created; previews pass today's date. */
   createdAt?: Date | string | null;
   /** IANA time zone the date is printed in; defaults to UTC. */
@@ -98,7 +101,7 @@ const ARTIST_SIZE = 12;
 const ARTIST_LINE = ARTIST_SIZE * 1.2;
 const LYRICS_SIZE = 12;
 const EDITION_SIZE = 12;
-/** Line pitch shared by the lyrics and the "1 of 1"/date column. */
+/** Line pitch shared by the lyrics and the edition ("1 of 1") / date column. */
 const ROW_LINE = SONG_GAP + FONT_METRICS.cormorantItalic.capHeight * LYRICS_SIZE;
 
 function songLayout(titleSize: number) {
@@ -229,7 +232,7 @@ export function CollectibleCard({ card, className }: CollectibleCardProps) {
                 className="font-outfit shrink-0 text-right font-normal"
                 style={{ fontSize: u(EDITION_SIZE), lineHeight: u(ROW_LINE) }}
               >
-                1 of 1
+                {card.editionNumber ?? 1} of {card.editionSize ?? 1}
                 {card.createdAt && (
                   <>
                     <br />

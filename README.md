@@ -82,6 +82,15 @@ Senders search instead of typing the title and artist ([src/components/create/so
 - **No album artwork on cards:** cards are Petrichor collectibles, so artwork is never stored or put on a card. It appears only as thumbnails in the search results and inside Apple's own player.
 - **Why there's no Spotify player:** Spotify's Web API locks down new apps (5-user development mode, no preview clips), and the public song.link conversion API has been shut down. Cards link to a Spotify search instead.
 
+### Editions
+
+A sender can create up to 20 numbered copies of one card ("Copies" on `/create`). For more, the form links to "Contact us" (`NEXT_PUBLIC_CONTACT_EMAIL`). Each copy has the same content but its own card ID and link, and prints as "1 of 3", "2 of 3", "3 of 3":
+
+- `edition_number` / `edition_size` hold the numbering; `edition_id` links the copies of one set.
+- All copies are inserted in a single statement, so a set is saved completely or not at all. A photo is uploaded once and shared by every copy.
+- The database enforces the rules itself: `edition_size` is between 1 and 20 (the same as `MAX_EDITION_SIZE`), `edition_number` is between 1 and `edition_size`, and numbers are unique within a set.
+- After saving, the sender gets a list of every copy's link, with "Copy all links".
+
 ### Card IDs
 
 `P-` followed by 26 Crockford base32 characters encoding 128 bits from `crypto.randomBytes` ([src/lib/card-id.ts](src/lib/card-id.ts)). The ID is stored in a `UNIQUE` column, separate from the UUID primary key, which is never exposed. No code path updates a card.

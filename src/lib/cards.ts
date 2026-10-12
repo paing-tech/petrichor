@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { getDb } from "@/db";
@@ -6,7 +7,8 @@ import { cards, type Card } from "@/db/schema";
 import { generateCardId } from "@/lib/card-id";
 import type { CardFields } from "@/lib/validation";
 
-export type PublicCard = Omit<Card, "id">;
+// What pages can see: no internal primary key, and no edition link (pages only show their own copy).
+export type PublicCard = Omit<Card, "id" | "editionId">;
 
 /** Cards are immutable once created, so a lookup can be cached indefinitely. */
 export async function getCardByCardId(cardId: string): Promise<PublicCard | null> {
@@ -28,6 +30,8 @@ export async function getCardByCardId(cardId: string): Promise<PublicCard | null
       timeZone: cards.timeZone,
       cardColor: cards.cardColor,
       photoAreaColor: cards.photoAreaColor,
+      editionNumber: cards.editionNumber,
+      editionSize: cards.editionSize,
       createdAt: cards.createdAt,
     })
     .from(cards)
@@ -38,7 +42,12 @@ export async function getCardByCardId(cardId: string): Promise<PublicCard | null
 
 const MAX_ID_ATTEMPTS = 3;
 
-export async function insertCard(
+/**
+ * Creates an edition: `editionSize` identical cards, numbered 1…N, each with its
+ * own card ID. One multi-row INSERT, so either every copy is saved or none is.
+ * Returns the card IDs in edition order.
+ */
+export async function insertEdition(
   fields: CardFields & {
     photoUrl: string | null;
     appleMusicUrl: string | null;
@@ -46,14 +55,22 @@ export async function insertCard(
     cardColor: string;
     photoAreaColor: string | null;
   },
+  editionSize: number,
 ) {
+  const editionId = randomUUID();
   // A 128-bit collision is practically impossible, but retrying keeps the unique
   // constraint from ever surfacing to a user as a failed save.
   for (let attempt = 1; ; attempt++) {
-    const cardId = generateCardId();
+    const rows = Array.from({ length: editionSize }, (_, i) => ({
+      ...fields,
+      cardId: generateCardId(),
+      editionId,
+      editionNumber: i + 1,
+      editionSize,
+    }));
     try {
-      await getDb().insert(cards).values({ ...fields, cardId });
-      return cardId;
+      await getDb().insert(cards).values(rows);
+      return rows.map((row) => row.cardId);
     } catch (error) {
       if (attempt >= MAX_ID_ATTEMPTS || !isUniqueViolation(error)) throw error;
     }

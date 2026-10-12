@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 const subscribeNoop = () => () => {};
 
-function useOrigin() {
+export function useOrigin() {
   return useSyncExternalStore(subscribeNoop, () => window.location.origin, () => "");
 }
 

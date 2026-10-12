@@ -57,6 +57,20 @@
       "when": 1791830872059,
       "tag": "0007_rename_location_to_moment",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791837673646,
+      "tag": "0008_add_editions",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791839161175,
+      "tag": "0009_edition_size_max_20",
+      "breakpoints": true
     }
   ]
 }

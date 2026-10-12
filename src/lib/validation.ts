@@ -11,10 +11,12 @@ export const LIMITS = {
   lyricsExcerpt: 100,
   message: 120,
   senderName: 40,
-  location: 40,
+  moment: 40,
 } as const;
 
-export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+// Senders can pick a photo of any size; it's cropped and re-encoded in the
+// browser, and only that export is uploaded. This caps the export.
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 export const PHOTO_TYPES = {
   "image/jpeg": "jpg",
@@ -47,7 +49,7 @@ export const cardFieldsSchema = z.object({
   lyricsExcerpt: optionalText("Lyrics", LIMITS.lyricsExcerpt),
   message: optionalText("Message", LIMITS.message),
   senderName: optionalText("Your name", LIMITS.senderName),
-  location: optionalText("Location", LIMITS.location),
+  moment: optionalText("Moment", LIMITS.moment),
 });
 
 export type CardFieldsInput = z.input<typeof cardFieldsSchema>;
@@ -101,15 +103,18 @@ export const photoUploadRequestSchema = z.object({
     .number()
     .int()
     .positive("Photo is empty")
-    .max(MAX_PHOTO_BYTES, "Photo must be 5 MB or smaller"),
+    .max(MAX_UPLOAD_BYTES, "Photo must be 10 MB or smaller"),
 });
 
+/**
+ * Checks a photo the sender picked. Any size and any format the browser can
+ * decode is fine; decoding is the real test, so files with an unknown type
+ * (empty `type`) are let through to try.
+ */
 export function validatePhotoFile(file: File): string | null {
-  const result = photoUploadRequestSchema.safeParse({
-    contentType: file.type,
-    size: file.size,
-  });
-  return result.success ? null : result.error.issues[0].message;
+  if (file.size === 0) return "This photo is empty.";
+  if (file.type && !file.type.startsWith("image/")) return "Choose an image file.";
+  return null;
 }
 
 export function fieldErrors(error: z.ZodError): CardFieldErrors {

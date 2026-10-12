@@ -38,7 +38,7 @@ function luminance(hex: string) {
 const DARK_INK = "#171717";
 
 export type CardInk = {
-  /** Title, message, signature, location, date. */
+  /** Title, message, signature, moment, date. */
   ink: string;
   /** Lyrics. */
   soft: string;

@@ -24,7 +24,7 @@ export async function getCardByCardId(cardId: string): Promise<PublicCard | null
       lyricsExcerpt: cards.lyricsExcerpt,
       message: cards.message,
       senderName: cards.senderName,
-      location: cards.location,
+      moment: cards.moment,
       timeZone: cards.timeZone,
       cardColor: cards.cardColor,
       photoAreaColor: cards.photoAreaColor,

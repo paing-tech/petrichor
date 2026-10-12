@@ -76,10 +76,10 @@ const EMPTY_VALUES: FormValues = {
   lyricsExcerpt: "",
   message: "",
   senderName: "",
-  location: "",
+  moment: "",
 };
 
-const FIELD_ORDER: FieldName[] = ["songTitle", "artistName", "lyricsExcerpt", "message", "senderName", "location"];
+const FIELD_ORDER: FieldName[] = ["songTitle", "artistName", "lyricsExcerpt", "message", "senderName", "moment"];
 
 const subscribeNoop = () => () => {};
 
@@ -162,7 +162,7 @@ export function CreateCardFlow() {
       size = await readImageSize(previewUrl);
     } catch {
       URL.revokeObjectURL(previewUrl);
-      setPhotoError("This image couldn't be opened. Try a different photo.");
+      setPhotoError("This image couldn't be opened in your browser. Try a JPEG or PNG.");
       return;
     }
     if (latestPhotoFile.current !== file) {
@@ -303,7 +303,7 @@ export function CreateCardFlow() {
     lyricsExcerpt: values.lyricsExcerpt.trim(),
     message: values.message.trim(),
     senderName: values.senderName.trim(),
-    location: values.location.trim(),
+    moment: values.moment.trim(),
     createdAt: today,
     cardColor,
     photoAreaColor,
@@ -464,7 +464,7 @@ export function CreateCardFlow() {
         <TextField name="message" label="Personal message" multiline rows={4} value={values.message} error={errors.message} onChange={handleChange("message")} placeholder="Why this song reminds you of them" />
         <div className="grid gap-5 sm:grid-cols-2">
           <TextField name="senderName" label="Your name" value={values.senderName} error={errors.senderName} onChange={handleChange("senderName")} placeholder="How you'd like to sign it" />
-          <TextField name="location" label="Location" value={values.location} error={errors.location} onChange={handleChange("location")} placeholder="Singapore" />
+          <TextField name="moment" label="Moment" value={values.moment} error={errors.moment} onChange={handleChange("moment")} placeholder="Birthday party, graduation, a place…" />
         </div>
 
         <Button type="submit" size="lg" className="h-11 sm:self-start sm:px-6">

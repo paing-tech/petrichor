@@ -10,7 +10,8 @@ export const cards = pgTable("cards", {
   lyricsExcerpt: text("lyrics_excerpt"),
   message: text("message"),
   senderName: text("sender_name"),
-  location: text("location"),
+  // A short note about the occasion: "Birthday party", "Graduation", "Singapore".
+  moment: text("moment"),
   // The sender's IANA time zone, so the printed date matches their calendar day.
   timeZone: text("time_zone"),
   cardColor: text("card_color").notNull().default("#ffffff"),

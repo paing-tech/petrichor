@@ -4,7 +4,6 @@ import { useRef, type ReactNode } from "react";
 import { ImagePlusIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { PHOTO_TYPES } from "@/lib/validation";
 
 type PhotoFieldProps = {
   previewUrl: string | null;
@@ -29,7 +28,7 @@ export function PhotoField({ previewUrl, fileName, error, disabled, onSelect, on
         ref={inputRef}
         id="photo"
         type="file"
-        accept={Object.keys(PHOTO_TYPES).join(",")}
+        accept="image/*"
         className="sr-only"
         disabled={disabled}
         aria-invalid={!!error}
@@ -66,7 +65,7 @@ export function PhotoField({ previewUrl, fileName, error, disabled, onSelect, on
         </button>
       )}
       <p id="photo-hint" className={error ? "text-destructive text-xs" : "text-muted-foreground text-xs"}>
-        {error ?? "JPEG, PNG or WebP, up to 5 MB."}
+        {error ?? "Any photo. Frame it below; it's saved in high quality."}
       </p>
       {children}
     </div>

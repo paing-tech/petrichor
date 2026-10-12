@@ -9,7 +9,7 @@ const SAMPLE_CARD = {
   lyricsExcerpt: "Little darling, it's been a long, cold, lonely winter",
   message: "For the first warm morning after all that rain.",
   senderName: "Mai",
-  location: "Singapore",
+  moment: "Singapore",
   createdAt: "2026-10-10",
   cardId: "P-1F8K2QZ7M4XW9C3T6RBNJD5HVA",
 };

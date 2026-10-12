@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { MAX_UPLOAD_BYTES } from "@/lib/validation";
 
 // The card's photo area is 390 × 293. The editor, the live preview and the
 // exported image all use the same crop rectangle, so what the sender frames is
@@ -7,9 +8,14 @@ import type { CSSProperties } from "react";
 export const PHOTO_ASPECT = 390 / 293;
 export const MIN_ZOOM = 1;
 export const MAX_ZOOM = 3;
-/** Exported width: 3× the card's 390px photo area, enough for high-density screens. */
-const EXPORT_WIDTH = 1170;
-const EXPORT_QUALITY = 0.9;
+/**
+ * Exported width: 6.5× the card's 390px photo area. Cards are collectibles that
+ * can be saved as images and printed; 2560px covers a large export or a 300 dpi
+ * print with room to spare. Photos are never enlarged past their own resolution.
+ */
+const EXPORT_WIDTH = 2560;
+/** JPEG qualities to try in order; lower ones are only used if a very detailed photo would exceed the upload cap. */
+const EXPORT_QUALITIES = [0.92, 0.85, 0.78];
 
 /** What the sender controls: zoom level and the point of the photo at the frame's center (0–1). */
 export type PhotoView = { zoom: number; centerX: number; centerY: number };
@@ -60,8 +66,9 @@ export function cropImageStyle(crop: PhotoCrop): CSSProperties {
 }
 
 /**
- * Draws the cropped area to a canvas and encodes it as JPEG. Re-encoding also
- * drops the original file's metadata (EXIF), including any GPS location.
+ * Draws the cropped area to a canvas and encodes it as JPEG at the highest
+ * quality that fits the upload cap. Re-encoding also drops the original file's
+ * metadata (EXIF), including any GPS location.
  */
 export async function exportCroppedPhoto(src: string, crop: PhotoCrop): Promise<Blob> {
   const image = new Image();
@@ -94,9 +101,12 @@ export async function exportCroppedPhoto(src: string, crop: PhotoCrop): Promise<
     height,
   );
 
-  return new Promise((resolve, reject) =>
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Could not encode photo"))), "image/jpeg", EXPORT_QUALITY),
-  );
+  for (const quality of EXPORT_QUALITIES) {
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+    if (!blob) throw new Error("Could not encode photo");
+    if (blob.size <= MAX_UPLOAD_BYTES) return blob;
+  }
+  throw new Error("Photo is too detailed to save");
 }
 
 /** Loads an image URL and returns its displayed (EXIF-oriented) size. */

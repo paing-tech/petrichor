@@ -12,7 +12,8 @@ export type CollectibleCardData = {
   lyricsExcerpt?: string | null;
   message?: string | null;
   senderName?: string | null;
-  location?: string | null;
+  /** The occasion, e.g. "Birthday party" or a place; shown top-right under the photo. */
+  moment?: string | null;
   cardId?: string | null;
   /** When the card was created; previews pass today's date. */
   createdAt?: Date | string | null;
@@ -111,12 +112,12 @@ export function CollectibleCard({ card, className }: CollectibleCardProps) {
           PETRICHOR
         </p>
 
-        {card.location && (
+        {card.moment && (
           <p
             className="font-outfit absolute truncate text-right"
             style={{ top: u(291), right: u(SIDE_PADDING), maxWidth: u(160), fontSize: u(8) }}
           >
-            {card.location}
+            {card.moment}
           </p>
         )}
 

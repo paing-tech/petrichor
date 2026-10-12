@@ -8,7 +8,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getStorageEnv } from "@/lib/env";
-import { MAX_PHOTO_BYTES, PHOTO_TYPES, type PhotoContentType } from "@/lib/validation";
+import { MAX_UPLOAD_BYTES, PHOTO_TYPES, type PhotoContentType } from "@/lib/validation";
 
 const UPLOAD_URL_TTL_SECONDS = 5 * 60;
 
@@ -75,7 +75,7 @@ export async function verifyUploadedPhoto(key: string): Promise<boolean> {
   const extension = key.split(".").pop();
   const valid =
     Number.isFinite(totalSize) &&
-    totalSize <= MAX_PHOTO_BYTES &&
+    totalSize <= MAX_UPLOAD_BYTES &&
     matchesSignature(header, extension);
 
   if (!valid) {

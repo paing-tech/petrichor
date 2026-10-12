@@ -57,12 +57,14 @@ Open http://localhost:3000.
 1. `/create` starts with a song search (see [Song search](#song-search)), then validates the form against the same Zod schemas the server uses ([src/lib/validation.ts](src/lib/validation.ts)) and shows a live `CollectibleCard` preview.
 2. **Preview card** opens a review step. Nothing is uploaded or saved until the sender clicks **Create card**.
 3. On confirm, if there is a photo:
-   - The browser crops it to exactly what the sender framed in the photo editor ([src/lib/photo-crop.ts](src/lib/photo-crop.ts)). The editor supports drag, zoom from 1× to 3×, pinch and arrow keys. The crop is exported as a JPEG at most 1170px wide (3× the card's photo area, never enlarged), which also strips EXIF metadata such as GPS location.
+   - Senders can pick a photo of any size, in any format their browser can open. The original never leaves the device.
+   - The browser crops it to exactly what the sender framed in the photo editor ([src/lib/photo-crop.ts](src/lib/photo-crop.ts)). The editor supports drag, zoom from 1× to 3×, pinch and arrow keys.
+   - The crop is exported as a JPEG at most 2560px wide (6.5× the card's photo area, enough for saving as an image or a 300 dpi print, and never enlarged) at 92% quality. Exports are typically 1–3 MB. If a very detailed photo would exceed the 10 MB upload cap, it's re-encoded at slightly lower quality. Re-encoding also strips EXIF metadata such as GPS location.
    - The `requestPhotoUpload` server action checks the file's type and size, then returns a presigned R2 `PUT` URL that expires in 5 minutes. The URL signs `Content-Type` and `Content-Length`, so R2 rejects any other type or size.
    - The browser uploads the photo straight to R2. This avoids serverless request-size limits.
 4. The `createCard` server action:
    - re-validates every field;
-   - reads the uploaded object's size and first bytes to confirm it is really a JPEG, PNG or WebP of 5 MB or less, and deletes it otherwise;
+   - reads the uploaded object's size and first bytes to confirm it is really a JPEG, PNG or WebP of 10 MB or less, and deletes it otherwise;
    - builds the Apple Music link from the selected song's IDs;
    - generates the card ID and inserts the row.
 5. The sender gets a shareable link to `/c/{cardId}`.
@@ -88,7 +90,7 @@ Senders search instead of typing the title and artist ([src/components/create/so
 
 [src/components/collectible-card.tsx](src/components/collectible-card.tsx) is designed on a 390 × 520 canvas:
 
-- **Top:** a 390 × 293 photo that fades into the card color, with a faint PETRICHOR wordmark at the exact center of the card (drawn in the card color, so it shows only where the photo differs from it) and the optional location on the right.
+- **Top:** a 390 × 293 photo that fades into the card color, with a faint PETRICHOR wordmark at the exact center of the card (drawn in the card color, so it shows only where the photo differs from it) and the optional moment (an occasion or place, e.g. "Birthday party" or "Singapore") on the right.
 - **Middle:** the handwritten message, with the sender's signature right-aligned beneath it.
 - **Bottom:** song title, artist, lyrics, "1 of 1" with the creation date (UTC), and the card ID.
 
@@ -103,7 +105,7 @@ Every measurement is written in canvas pixels and converted with container-query
 | Instrument Serif | Song title |
 | Kalam Light | Personal message |
 | Cormorant Garamond Italic | Lyrics, sender's signature |
-| Outfit | Artist, location, date, "1 of 1", wordmark, card ID |
+| Outfit | Artist, moment, date, "1 of 1", wordmark, card ID |
 
 All four are Google Fonts under the SIL Open Font License, loaded with `next/font` in [src/app/layout.tsx](src/app/layout.tsx).
 

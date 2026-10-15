@@ -3,6 +3,7 @@ import { Cormorant_Garamond, Geist, Geist_Mono, Instrument_Serif, Kalam, Outfit 
 import Link from "next/link";
 import { Suspense } from "react";
 import { AccountMenu } from "@/components/account/account-menu";
+import { SiteHeaderGate } from "@/components/site-header-gate";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -52,28 +53,36 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
+  const siteHeader = (
+    <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
+      <Link href="/" className="font-serif text-2xl tracking-tight">
+        Petrichor
+      </Link>
+      <nav className="flex items-center gap-5">
+        <Link
+          href="/create"
+          className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
+        >
+          Create a card
+        </Link>
+        <Suspense fallback={<div className="size-8" />}>
+          <AccountMenu />
+        </Suspense>
+      </nav>
+    </header>
+  );
+
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} ${kalam.variable} ${cormorant.variable} ${outfit.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
-          <Link href="/" className="font-serif text-2xl tracking-tight">
-            Petrichor
-          </Link>
-          <nav className="flex items-center gap-5">
-            <Link
-              href="/create"
-              className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
-            >
-              Create a card
-            </Link>
-            <Suspense fallback={<div className="size-8" />}>
-              <AccountMenu />
-            </Suspense>
-          </nav>
-        </header>
+        {/* Hidden while creating a card. Reading the path is request data on dynamic
+            routes, so it sits in Suspense with the header itself as the fallback. */}
+        <Suspense fallback={siteHeader}>
+          <SiteHeaderGate>{siteHeader}</SiteHeaderGate>
+        </Suspense>
         <main className="flex flex-1 flex-col">{children}</main>
         <Toaster theme="light" position="top-center" />
       </body>

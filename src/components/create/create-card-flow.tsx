@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, SparklesIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createCard, requestPhotoUpload, type CreatedCopyResult } from "@/app/create/actions";
 import { AppleMusicEmbed } from "@/components/apple-music-embed";
@@ -536,11 +536,11 @@ export function CreateCardFlow() {
     <div
       style={shellStyle}
       className={cn(
-        "group/create mx-auto grid w-full max-w-6xl lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16 lg:px-6 lg:pt-4 lg:pb-16",
+        "group/create mx-auto grid w-full max-w-6xl lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16 lg:px-6 lg:pt-10 lg:pb-16",
         // Below lg: a fixed shell over the visible area (see useViewportShell). The card
-        // stays at the top and only the form scrolls. Defaults assume the header is shown.
+        // stays at the top and only the form scrolls. (No site header on this page.)
         "bg-background fixed inset-x-0 z-30 flex flex-col overflow-hidden lg:static lg:z-auto lg:grid lg:overflow-visible",
-        "top-[var(--shell-top,68px)] h-[var(--shell-height,calc(100dvh_-_68px))] lg:top-auto lg:h-auto",
+        "top-[var(--shell-top,0px)] h-[var(--shell-height,100dvh)] lg:top-auto lg:h-auto",
       )}
     >
       <div className="shrink-0 border-b px-4 py-3 sm:px-6 lg:col-start-2 lg:row-start-1 lg:border-0 lg:p-0">
@@ -575,12 +575,17 @@ export function CreateCardFlow() {
         {/* No visible title; the heading stays for screen readers and page structure. */}
         <h1 className="sr-only">Create a card</h1>
 
-        {/* Step progress (narrow screens only). */}
-        <div className="flex items-center gap-3 lg:hidden" aria-live="polite">
-          <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+        {/* Close (there's no site header while creating) and, on narrow screens, step progress. */}
+        <div className="flex items-center gap-3">
+          <Button asChild variant="ghost" size="icon-sm" className="-ml-1.5 shrink-0" aria-label="Close and go home">
+            <Link href="/">
+              <XIcon />
+            </Link>
+          </Button>
+          <span className="text-muted-foreground shrink-0 text-xs tabular-nums lg:hidden" aria-live="polite">
             Step {formStep + 1} of {FORM_STEPS.length}
           </span>
-          <div className="bg-muted h-1 flex-1 overflow-hidden rounded-full">
+          <div className="bg-muted h-1 flex-1 overflow-hidden rounded-full lg:hidden">
             <div
               className="bg-foreground h-full rounded-full transition-[width] duration-300"
               style={{ width: `${((formStep + 1) / FORM_STEPS.length) * 100}%` }}

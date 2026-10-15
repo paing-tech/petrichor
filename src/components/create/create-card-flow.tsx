@@ -22,6 +22,7 @@ import { EditionField, parseEditionSize } from "@/components/create/edition-fiel
 import { CustomizePanel } from "@/components/create/customize-panel";
 import { PhotoFramingLayer } from "@/components/create/photo-cropper";
 import { RecipientPicker } from "@/components/create/recipient-picker";
+import { useIsNarrow, useViewportShell } from "@/components/create/use-viewport-shell";
 import { SelectedSong, SongSearch } from "@/components/create/song-search";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -124,6 +125,9 @@ export function CreateCardFlow() {
   /** The visible step on narrow screens. */
   const [formStep, setFormStep] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
+  // Narrow screens: the form is a fixed shell that follows the visible area above the keyboard.
+  const narrow = useIsNarrow();
+  const shellStyle = useViewportShell(narrow && step === "edit");
   /** The live preview card: the customize panel opens just below it. */
   const previewRef = useRef<HTMLDivElement>(null);
   const [anonymous, setAnonymous] = useState(false);
@@ -162,7 +166,7 @@ export function CreateCardFlow() {
       `[data-form-step="${formStep}"] input:not([type=checkbox]):not([type=file]):not([disabled]), [data-form-step="${formStep}"] textarea`,
     );
     field?.focus({ preventScroll: true });
-    window.scrollTo({ top: 0 });
+    formRef.current?.scrollTo({ top: 0 });
   }, [formStep]);
 
   /** Shows a step and focuses the field that needs attention. */
@@ -538,9 +542,17 @@ export function CreateCardFlow() {
   }
 
   return (
-    <div className="group/create mx-auto grid w-full max-w-6xl gap-6 px-4 pb-16 sm:px-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16 lg:pt-4">
-      {/* Below lg the preview stays pinned to the top while the fields scroll under it. */}
-      <div className="bg-background/95 sticky top-0 z-20 -mx-4 border-b px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:col-start-2 lg:row-start-1 lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+    <div
+      style={shellStyle}
+      className={cn(
+        "group/create mx-auto grid w-full max-w-6xl lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16 lg:px-6 lg:pt-4 lg:pb-16",
+        // Below lg: a fixed shell over the visible area (see useViewportShell). The card
+        // stays at the top and only the form scrolls. Defaults assume the header is shown.
+        "bg-background fixed inset-x-0 z-30 flex flex-col overflow-hidden lg:static lg:z-auto lg:grid lg:overflow-visible",
+        "top-[var(--shell-top,68px)] h-[var(--shell-height,calc(100dvh_-_68px))] lg:top-auto lg:h-auto",
+      )}
+    >
+      <div className="shrink-0 border-b px-4 py-3 sm:px-6 lg:col-start-2 lg:row-start-1 lg:border-0 lg:p-0">
         <div className="lg:sticky lg:top-8">
           {/* While a field has focus (keyboard open on phones), the card shrinks to leave room. */}
           <div
@@ -588,7 +600,12 @@ export function CreateCardFlow() {
         onCardColorChange={setCardColor}
       />
 
-      <form ref={formRef} noValidate onSubmit={handlePreview} className="flex flex-col gap-6 lg:col-start-1 lg:row-start-1">
+      <form
+        ref={formRef}
+        noValidate
+        onSubmit={handlePreview}
+        className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain px-4 pt-5 pb-8 sm:px-6 lg:col-start-1 lg:row-start-1 lg:overflow-visible lg:p-0"
+      >
         {/* No visible title; the heading stays for screen readers and page structure. */}
         <h1 className="sr-only">Create a card</h1>
 

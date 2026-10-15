@@ -20,7 +20,7 @@ export function PhotoField({ previewUrl, fileName, error, disabled, onSelect, on
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="grid gap-2">
+    <div className="grid grid-cols-1 gap-2">
       <Label htmlFor="photo">
         Photo <span className="text-muted-foreground font-normal">(optional)</span>
       </Label>

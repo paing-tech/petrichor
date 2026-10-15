@@ -247,12 +247,15 @@ export function CollectibleCard({ card, className, photoOverlay }: CollectibleCa
           </div>
         </div>
 
-        <p
-          className="font-outfit absolute inset-x-0 text-center text-(--ink-faint)"
-          style={{ bottom: u(10), fontSize: u(7.5), letterSpacing: "0.04em" }}
-        >
-          {card.cardId ?? "P-··························"}
-        </p>
+        {/* Shown only once the card exists; no placeholder while creating. */}
+        {card.cardId && (
+          <p
+            className="font-outfit absolute inset-x-0 text-center text-(--ink-faint)"
+            style={{ bottom: u(10), fontSize: u(7.5), letterSpacing: "0.04em" }}
+          >
+            {card.cardId}
+          </p>
+        )}
       </article>
     </div>
   );

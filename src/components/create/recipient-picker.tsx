@@ -57,7 +57,7 @@ export function RecipientPicker({ max, value, onChange }: RecipientPickerProps) 
 
   const full = value.length >= max;
   return (
-    <div className="grid gap-2">
+    <div className="grid grid-cols-1 gap-2">
       <Label htmlFor="recipient-search">
         Send to their account <span className="text-muted-foreground font-normal">(optional)</span>
       </Label>

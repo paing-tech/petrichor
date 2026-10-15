@@ -22,7 +22,7 @@ import { EditionField, parseEditionSize } from "@/components/create/edition-fiel
 import { PhotoAndColors } from "@/components/create/photo-and-colors";
 import { PhotoFramingLayer } from "@/components/create/photo-cropper";
 import { RecipientPicker } from "@/components/create/recipient-picker";
-import { useIsNarrow, useViewportShell } from "@/components/create/use-viewport-shell";
+import { useIsNarrow } from "@/components/create/use-is-narrow";
 import { SelectedSong, SongSearch } from "@/components/create/song-search";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,8 +77,9 @@ const EMPTY_VALUES: FormValues = {
 const FIELD_ORDER: FieldName[] = ["songTitle", "artistName", "lyricsExcerpt", "message", "senderName", "moment"];
 
 /**
- * Below lg the form is shown one step at a time, so the pinned card, the keyboard
- * and the field always fit on screen. On lg+ every step is visible as one form.
+ * Below lg the form is shown one step at a time under the card, so a step's field and
+ * the keyboard fit on screen; the page scrolls normally. On lg+ every step is visible
+ * as one form.
  */
 const FORM_STEPS: { fields: FieldName[]; optional: boolean }[] = [
   { fields: [], optional: false }, // Who is this card for? (+ recipients)
@@ -126,17 +127,7 @@ export function CreateCardFlow() {
   /** The visible step on narrow screens. */
   const [formStep, setFormStep] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
-  // Narrow screens: the form is a fixed shell that follows the visible area above the keyboard.
   const narrow = useIsNarrow();
-  // TEMPORARY layout test: by default the page scrolls normally (full card, nothing
-  // pinned); /create?layout=pinned shows the pinned shell with a half card for
-  // comparison. Remove once decided.
-  const naturalLayout = useNaturalLayoutFlag();
-  const pinned = narrow && !naturalLayout;
-  const shellStyle = useViewportShell(pinned && step === "edit");
-  // Pinned layout: narrow screens show only the card's lower (text) half on the text
-  // steps, leaving room for the keyboard, and the full card for Photo & colors and Copies.
-  const halfCard = pinned && formStep < PHOTO_STEP;
   const [anonymous, setAnonymous] = useState(false);
   const [recipients, setRecipients] = useState<PublicProfile[]>([]);
   /** The created copies in edition order, with each one's link and status. */
@@ -162,9 +153,8 @@ export function CreateCardFlow() {
       `[data-form-step="${formStep}"] input:not([type=checkbox]):not([type=file]):not([disabled]), [data-form-step="${formStep}"] textarea`,
     );
     field?.focus({ preventScroll: true });
-    if (pinned) formRef.current?.scrollTo({ top: 0 });
-    else window.scrollTo({ top: 0 });
-  }, [formStep, pinned]);
+    window.scrollTo({ top: 0 });
+  }, [formStep]);
 
   /** Shows a step and focuses the field that needs attention. */
   function showFieldError(field: FieldName | "editionSize") {
@@ -539,24 +529,12 @@ export function CreateCardFlow() {
   }
 
   return (
-    <div
-      style={shellStyle}
-      className={cn(
-        "group/create mx-auto grid w-full max-w-6xl lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16 lg:px-6 lg:pt-10 lg:pb-16",
-        // Below lg: a fixed shell over the visible area (see useViewportShell). The card
-        // stays at the top and only the form scrolls. (No site header on this page.)
-        naturalLayout
-          ? // Test layout: the page scrolls normally; Safari moves it up when the keyboard opens.
-            "flex flex-col lg:grid"
-          : [
-              "bg-background fixed inset-x-0 z-30 flex flex-col overflow-hidden lg:static lg:z-auto lg:grid lg:overflow-visible",
-              "top-[var(--shell-top,0px)] h-[var(--shell-height,100dvh)] lg:top-auto lg:h-auto",
-            ],
-      )}
-    >
-      <div className="shrink-0 border-b px-4 py-3 sm:px-6 lg:col-start-2 lg:row-start-1 lg:border-0 lg:p-0">
+    // Narrow screens: card on top, the current step below; the page scrolls normally and
+    // Safari moves it up when the keyboard opens. lg+: form left, sticky card right.
+    <div className="mx-auto flex w-full max-w-6xl flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16 lg:px-6 lg:pt-10 lg:pb-16">
+      <div className="px-4 pt-4 sm:px-6 lg:col-start-2 lg:row-start-1 lg:p-0">
         <div className="lg:sticky lg:top-8">
-          <CardViewport visibleFraction={halfCard ? 0.5 : 1}>
+          <div className="mx-auto w-full max-w-[280px] sm:max-w-[320px] lg:max-w-[400px]">
             <CollectibleCard
               card={previewCard}
               className="max-w-none"
@@ -573,7 +551,7 @@ export function CreateCardFlow() {
                 ) : undefined
               }
             />
-          </CardViewport>
+          </div>
         </div>
       </div>
 
@@ -581,7 +559,7 @@ export function CreateCardFlow() {
         ref={formRef}
         noValidate
         onSubmit={handlePreview}
-        className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain px-4 pt-5 pb-8 sm:px-6 lg:col-start-1 lg:row-start-1 lg:overflow-visible lg:p-0"
+        className="flex flex-col gap-6 px-4 pt-6 pb-10 sm:px-6 lg:col-start-1 lg:row-start-1 lg:p-0"
       >
         {/* No visible title; the heading stays for screen readers and page structure. */}
         <h1 className="sr-only">Create a card</h1>
@@ -594,7 +572,7 @@ export function CreateCardFlow() {
             </Link>
           </Button>
           <span className="text-muted-foreground shrink-0 text-xs tabular-nums lg:hidden" aria-live="polite">
-            Step {formStep + 1} of {FORM_STEPS.length}
+            {formStep + 1} of {FORM_STEPS.length}
           </span>
           <div className="bg-muted h-1 flex-1 overflow-hidden rounded-full lg:hidden">
             <div
@@ -727,39 +705,6 @@ export function CreateCardFlow() {
         </Button>
       </form>
     </div>
-  );
-}
-
-/**
- * Shows the card in full, or only its lower part (visibleFraction 0.5) with the top
- * faded out. Height animates between the two. Extra padding keeps the shadow visible.
- */
-function CardViewport({ visibleFraction, children }: { visibleFraction: number; children: ReactNode }) {
-  return (
-    <div className="@container mx-auto w-full max-w-[280px] sm:max-w-[320px] lg:max-w-[400px]">
-      <div
-        className="relative -mx-8 overflow-hidden px-8 transition-[height] duration-300 ease-out"
-        style={{
-          // Card height is 4/3 of its width; 20px below leaves room for the shadow.
-          height: `calc(100cqw * 4 / 3 * ${visibleFraction} + 20px)`,
-          maskImage: visibleFraction < 1 ? "linear-gradient(to bottom, transparent, #000 48px)" : undefined,
-        }}
-      >
-        <div className="absolute inset-x-8 bottom-5">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * TEMPORARY: the natural layout is the default; false only when the page was opened
- * with ?layout=pinned. The server renders the natural layout, so it never flashes.
- */
-function useNaturalLayoutFlag() {
-  return useSyncExternalStore(
-    subscribeNoop,
-    () => new URLSearchParams(window.location.search).get("layout") !== "pinned",
-    () => true,
   );
 }
 

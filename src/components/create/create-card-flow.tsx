@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, PaletteIcon, SparklesIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, SparklesIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createCard, requestPhotoUpload, type CreatedCopyResult } from "@/app/create/actions";
 import { AppleMusicEmbed } from "@/components/apple-music-embed";
@@ -19,7 +19,7 @@ import { CollectibleCard } from "@/components/collectible-card";
 import { AudienceField, type Audience } from "@/components/create/audience-field";
 import { CreatedCopies } from "@/components/create/created-copies";
 import { EditionField, parseEditionSize } from "@/components/create/edition-field";
-import { CustomizePanel } from "@/components/create/customize-panel";
+import { PhotoAndColors } from "@/components/create/photo-and-colors";
 import { PhotoFramingLayer } from "@/components/create/photo-cropper";
 import { RecipientPicker } from "@/components/create/recipient-picker";
 import { useIsNarrow, useViewportShell } from "@/components/create/use-viewport-shell";
@@ -86,9 +86,11 @@ const FORM_STEPS: { fields: FieldName[]; optional: boolean }[] = [
   { fields: ["lyricsExcerpt"], optional: true },
   { fields: ["message"], optional: true },
   { fields: ["senderName", "moment"], optional: true },
+  { fields: [], optional: true }, // Photo & colors
   { fields: [], optional: false }, // Copies
 ];
 const LAST_FORM_STEP = FORM_STEPS.length - 1;
+const PHOTO_STEP = 5;
 const COPIES_STEP = LAST_FORM_STEP;
 const stepOfField = (field: FieldName) => FORM_STEPS.findIndex((s) => s.fields.includes(field));
 const isWideScreen = () => window.matchMedia("(min-width: 1024px)").matches;
@@ -121,15 +123,15 @@ export function CreateCardFlow() {
   const [editionInput, setEditionInput] = useState("1");
   const [editionError, setEditionError] = useState<string>();
   const [audience, setAudience] = useState<Audience>("self");
-  const [customizeOpen, setCustomizeOpen] = useState(false);
   /** The visible step on narrow screens. */
   const [formStep, setFormStep] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
   // Narrow screens: the form is a fixed shell that follows the visible area above the keyboard.
   const narrow = useIsNarrow();
   const shellStyle = useViewportShell(narrow && step === "edit");
-  /** The live preview card: the customize panel opens just below it. */
-  const previewRef = useRef<HTMLDivElement>(null);
+  // Narrow screens show only the card's lower (text) half on the text steps, leaving
+  // room for the keyboard, and the full card for Photo & colors and Copies.
+  const halfCard = narrow && formStep < PHOTO_STEP;
   const [anonymous, setAnonymous] = useState(false);
   const [recipients, setRecipients] = useState<PublicProfile[]>([]);
   /** The created copies in edition order, with each one's link and status. */
@@ -144,17 +146,6 @@ export function CreateCardFlow() {
   // One recipient per copy; extra picks are dropped if the edition shrinks.
   const activeRecipients = audience === "others" ? recipients.slice(0, editionSize) : [];
   const signatureHidden = audience === "others" && anonymous;
-
-  // While customizing, the page stays put so the card and the panel under it don't drift.
-  useEffect(() => {
-    if (!customizeOpen) return;
-    const root = document.documentElement;
-    const previous = root.style.overflow;
-    root.style.overflow = "hidden";
-    return () => {
-      root.style.overflow = previous;
-    };
-  }, [customizeOpen]);
 
   // Keep the keyboard flowing between steps: focus the new step's first text field.
   const previousFormStep = useRef(formStep);
@@ -183,6 +174,12 @@ export function CreateCardFlow() {
     );
   }
 
+  /** Whether an optional step was left untouched (its button reads "Skip"). */
+  function stepIsEmpty(index: number) {
+    if (index === PHOTO_STEP) return !photo && cardColor === DEFAULT_CARD_COLOR && photoAreaColor === null;
+    return FORM_STEPS[index].fields.every((f) => !values[f].trim());
+  }
+
   function nextFormStep() {
     const { fields } = FORM_STEPS[formStep];
     if (fields.length > 0) {
@@ -205,12 +202,6 @@ export function CreateCardFlow() {
       return;
     }
     setFormStep((s) => s + 1);
-  }
-
-  function openCustomize() {
-    // The card is always in view (pinned on narrow screens, sticky on wide ones),
-    // so the panel just opens beneath it.
-    setCustomizeOpen(true);
   }
 
   const previewUrl = photo?.previewUrl;
@@ -554,18 +545,14 @@ export function CreateCardFlow() {
     >
       <div className="shrink-0 border-b px-4 py-3 sm:px-6 lg:col-start-2 lg:row-start-1 lg:border-0 lg:p-0">
         <div className="lg:sticky lg:top-8">
-          {/* While a field has focus (keyboard open on phones), the card shrinks to leave room. */}
-          <div
-            ref={previewRef}
-            className="mx-auto max-w-[220px] transition-[max-width] duration-300 group-has-[form:focus-within]/create:max-w-[120px] sm:max-w-[280px] lg:max-w-[400px] lg:group-has-[form:focus-within]/create:max-w-[400px]"
-          >
+          <CardViewport visibleFraction={halfCard ? 0.5 : 1}>
             <CollectibleCard
               card={previewCard}
-              // The wrapper sets the size (the panel lines up with it).
               className="max-w-none"
-              // While customizing, the photo is framed right here on the card.
+              // The photo is framed right here on the card: on the Photo & colors step on
+              // narrow screens, and whenever there's a photo on wide ones.
               photoOverlay={
-                customizeOpen && photo ? (
+                photo && (narrow ? formStep === PHOTO_STEP : true) ? (
                   <PhotoFramingLayer
                     imageWidth={photo.width}
                     imageHeight={photo.height}
@@ -575,30 +562,9 @@ export function CreateCardFlow() {
                 ) : undefined
               }
             />
-          </div>
-          <div className="mt-3 flex justify-center lg:mt-4">
-            <Button type="button" variant="outline" size="lg" className="bg-background h-9 rounded-full px-5 lg:h-10" onClick={openCustomize}>
-              <PaletteIcon /> Customize
-            </Button>
-          </div>
+          </CardViewport>
         </div>
       </div>
-
-      <CustomizePanel
-        open={customizeOpen}
-        onClose={() => setCustomizeOpen(false)}
-        anchorRef={previewRef}
-        photo={photo && { previewUrl: photo.previewUrl, fileName: photo.file.name, width: photo.width, height: photo.height, view: photo.view }}
-        photoError={photoError}
-        onPhotoSelect={handlePhotoSelect}
-        onPhotoRemove={removePhoto}
-        onPhotoViewChange={setPhotoView}
-        photoColors={photoColors}
-        photoAreaColor={photoAreaColor}
-        onPhotoAreaColorChange={setPhotoAreaColor}
-        cardColor={cardColor}
-        onCardColorChange={setCardColor}
-      />
 
       <form
         ref={formRef}
@@ -692,7 +658,22 @@ export function CreateCardFlow() {
           </div>
         </FormStep>
 
-        <FormStep index={5} current={formStep}>
+        <FormStep index={PHOTO_STEP} current={formStep}>
+          <PhotoAndColors
+            photo={photo && { previewUrl: photo.previewUrl, fileName: photo.file.name, width: photo.width, height: photo.height, view: photo.view }}
+            photoError={photoError}
+            onPhotoSelect={handlePhotoSelect}
+            onPhotoRemove={removePhoto}
+            onPhotoViewChange={setPhotoView}
+            photoColors={photoColors}
+            photoAreaColor={photoAreaColor}
+            onPhotoAreaColorChange={setPhotoAreaColor}
+            cardColor={cardColor}
+            onCardColorChange={setCardColor}
+          />
+        </FormStep>
+
+        <FormStep index={COPIES_STEP} current={formStep}>
           <EditionField
             value={editionInput}
             error={editionError}
@@ -715,7 +696,7 @@ export function CreateCardFlow() {
               <>
                 Preview card <ArrowRightIcon />
               </>
-            ) : FORM_STEPS[formStep].optional && FORM_STEPS[formStep].fields.every((f) => !values[f].trim()) ? (
+            ) : FORM_STEPS[formStep].optional && stepIsEmpty(formStep) ? (
               "Skip"
             ) : (
               <>
@@ -729,6 +710,27 @@ export function CreateCardFlow() {
           Preview card <ArrowRightIcon />
         </Button>
       </form>
+    </div>
+  );
+}
+
+/**
+ * Shows the card in full, or only its lower part (visibleFraction 0.5) with the top
+ * faded out. Height animates between the two. Extra padding keeps the shadow visible.
+ */
+function CardViewport({ visibleFraction, children }: { visibleFraction: number; children: ReactNode }) {
+  return (
+    <div className="@container mx-auto w-full max-w-[280px] sm:max-w-[320px] lg:max-w-[400px]">
+      <div
+        className="relative -mx-8 overflow-hidden px-8 transition-[height] duration-300 ease-out"
+        style={{
+          // Card height is 4/3 of its width; 20px below leaves room for the shadow.
+          height: `calc(100cqw * 4 / 3 * ${visibleFraction} + 20px)`,
+          maskImage: visibleFraction < 1 ? "linear-gradient(to bottom, transparent, #000 48px)" : undefined,
+        }}
+      >
+        <div className="absolute inset-x-8 bottom-5">{children}</div>
+      </div>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   useTransition,
   type ChangeEvent,
   type FormEvent,
+  type ReactNode,
 } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, PaletteIcon, SparklesIcon } from "lucide-react";
@@ -74,6 +75,23 @@ const EMPTY_VALUES: FormValues = {
 
 const FIELD_ORDER: FieldName[] = ["songTitle", "artistName", "lyricsExcerpt", "message", "senderName", "moment"];
 
+/**
+ * Below lg the form is shown one step at a time, so the pinned card, the keyboard
+ * and the field always fit on screen. On lg+ every step is visible as one form.
+ */
+const FORM_STEPS: { fields: FieldName[]; optional: boolean }[] = [
+  { fields: [], optional: false }, // Who is this card for? (+ recipients)
+  { fields: ["songTitle", "artistName"], optional: false },
+  { fields: ["lyricsExcerpt"], optional: true },
+  { fields: ["message"], optional: true },
+  { fields: ["senderName", "moment"], optional: true },
+  { fields: [], optional: false }, // Copies
+];
+const LAST_FORM_STEP = FORM_STEPS.length - 1;
+const COPIES_STEP = LAST_FORM_STEP;
+const stepOfField = (field: FieldName) => FORM_STEPS.findIndex((s) => s.fields.includes(field));
+const isWideScreen = () => window.matchMedia("(min-width: 1024px)").matches;
+
 const subscribeNoop = () => () => {};
 
 /**
@@ -103,6 +121,9 @@ export function CreateCardFlow() {
   const [editionError, setEditionError] = useState<string>();
   const [audience, setAudience] = useState<Audience>("self");
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  /** The visible step on narrow screens. */
+  const [formStep, setFormStep] = useState(0);
+  const formRef = useRef<HTMLFormElement>(null);
   /** The live preview card: the customize panel opens just below it. */
   const previewRef = useRef<HTMLDivElement>(null);
   const [anonymous, setAnonymous] = useState(false);
@@ -130,6 +151,57 @@ export function CreateCardFlow() {
       root.style.overflow = previous;
     };
   }, [customizeOpen]);
+
+  // Keep the keyboard flowing between steps: focus the new step's first text field.
+  const previousFormStep = useRef(formStep);
+  useEffect(() => {
+    if (previousFormStep.current === formStep) return;
+    previousFormStep.current = formStep;
+    if (isWideScreen()) return;
+    const field = document.querySelector<HTMLElement>(
+      `[data-form-step="${formStep}"] input:not([type=checkbox]):not([type=file]):not([disabled]), [data-form-step="${formStep}"] textarea`,
+    );
+    field?.focus({ preventScroll: true });
+    window.scrollTo({ top: 0 });
+  }, [formStep]);
+
+  /** Shows a step and focuses the field that needs attention. */
+  function showFieldError(field: FieldName | "editionSize") {
+    if (field === "editionSize") {
+      setFormStep(COPIES_STEP);
+      requestAnimationFrame(() => document.getElementById("editionSize")?.focus());
+      return;
+    }
+    setFormStep(stepOfField(field));
+    const isSongField = field === "songTitle" || field === "artistName";
+    requestAnimationFrame(() =>
+      document.getElementById(isSongField && songMode === "search" ? SONG_SEARCH_ID : field)?.focus(),
+    );
+  }
+
+  function nextFormStep() {
+    const { fields } = FORM_STEPS[formStep];
+    if (fields.length > 0) {
+      const result = cardFieldsSchema.safeParse(values);
+      const all = result.success ? {} : fieldErrors(result.error);
+      const failing = fields.filter((f) => all[f]);
+      setErrors((prev) => {
+        const next = { ...prev };
+        for (const f of fields) next[f] = all[f];
+        return next;
+      });
+      if (failing.length > 0) {
+        setValidateLive(true);
+        showFieldError(failing[0]);
+        return;
+      }
+    }
+    if (formStep === LAST_FORM_STEP) {
+      formRef.current?.requestSubmit();
+      return;
+    }
+    setFormStep((s) => s + 1);
+  }
 
   function openCustomize() {
     // The card is always in view (pinned on narrow screens, sticky on wide ones),
@@ -220,6 +292,11 @@ export function CreateCardFlow() {
 
   function handlePreview(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // Enter in a field on a narrow screen moves to the next step instead of submitting.
+    if (!isWideScreen() && formStep < LAST_FORM_STEP) {
+      nextFormStep();
+      return;
+    }
     setValidateLive(true);
     const result = cardFieldsSchema.safeParse(values);
     const edition = parseEditionSize(editionInput);
@@ -228,13 +305,12 @@ export function CreateCardFlow() {
       const nextErrors = fieldErrors(result.error);
       setErrors(nextErrors);
       const first = FIELD_ORDER.find((f) => nextErrors[f]);
-      const isSongField = first === "songTitle" || first === "artistName";
-      if (first) document.getElementById(isSongField && songMode === "search" ? SONG_SEARCH_ID : first)?.focus();
+      if (first) showFieldError(first);
       return;
     }
     setErrors({});
     if (edition.error) {
-      document.getElementById("editionSize")?.focus();
+      showFieldError("editionSize");
       return;
     }
     goTo("review");
@@ -342,6 +418,7 @@ export function CreateCardFlow() {
     setAnonymous(false);
     setRecipients([]);
     setCopies(null);
+    setFormStep(0);
     goTo("edit");
   }
 
@@ -465,9 +542,6 @@ export function CreateCardFlow() {
       {/* Below lg the preview stays pinned to the top while the fields scroll under it. */}
       <div className="bg-background/95 sticky top-0 z-20 -mx-4 border-b px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:col-start-2 lg:row-start-1 lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
         <div className="lg:sticky lg:top-8">
-          <p className="text-muted-foreground mb-3 hidden text-center text-xs font-medium tracking-widest uppercase lg:block">
-            Live preview
-          </p>
           {/* While a field has focus (keyboard open on phones), the card shrinks to leave room. */}
           <div
             ref={previewRef}
@@ -514,81 +588,139 @@ export function CreateCardFlow() {
         onCardColorChange={setCardColor}
       />
 
-      <form noValidate onSubmit={handlePreview} className="flex flex-col gap-6 lg:col-start-1 lg:row-start-1">
+      <form ref={formRef} noValidate onSubmit={handlePreview} className="flex flex-col gap-6 lg:col-start-1 lg:row-start-1">
         {/* No visible title; the heading stays for screen readers and page structure. */}
         <h1 className="sr-only">Create a card</h1>
 
-        <AudienceField value={audience} onChange={setAudience} />
-        {audience === "others" && (
-          <RecipientPicker max={editionSize} value={activeRecipients} onChange={setRecipients} />
-        )}
-
-        {songMode === "manual" ? (
-          <fieldset className="grid gap-5 sm:grid-cols-2">
-            <legend className="sr-only">Song</legend>
-            <TextField name="songTitle" label="Song title" required value={values.songTitle} error={errors.songTitle} onChange={handleChange("songTitle")} placeholder="Here Comes the Sun" />
-            <TextField name="artistName" label="Artist" required value={values.artistName} error={errors.artistName} onChange={handleChange("artistName")} placeholder="The Beatles" />
-            <button
-              type="button"
-              onClick={() => changeSong("search")}
-              className="text-muted-foreground hover:text-foreground -mt-2 justify-self-start text-xs underline underline-offset-2 sm:col-span-2"
-            >
-              Search Apple Music instead
-            </button>
-          </fieldset>
-        ) : song ? (
-          <SelectedSong song={song} onChange={() => changeSong("search")} />
-        ) : (
-          <SongSearch
-            inputId={SONG_SEARCH_ID}
-            autoFocus={focusSearch}
-            error={errors.songTitle || errors.artistName ? "Search for a song and pick it from the list." : undefined}
-            onSelect={handleSongSelect}
-            onEnterManually={() => changeSong("manual")}
-          />
-        )}
-
-        <TextField name="lyricsExcerpt" label="Lyrics excerpt" multiline rows={2} value={values.lyricsExcerpt} error={errors.lyricsExcerpt} onChange={handleChange("lyricsExcerpt")} placeholder="The line that says it best" />
-        <TextField name="message" label="Personal message" multiline rows={4} value={values.message} error={errors.message} onChange={handleChange("message")} placeholder="Why this song reminds you of them" />
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div className="grid gap-2">
-            <TextField
-              name="senderName"
-              label="Signature"
-              value={signatureHidden ? "" : values.senderName}
-              error={errors.senderName}
-              onChange={handleChange("senderName")}
-              placeholder={signatureHidden ? "Sent anonymously" : "How you'd like to sign it"}
-              disabled={signatureHidden}
+        {/* Step progress (narrow screens only). */}
+        <div className="flex items-center gap-3 lg:hidden" aria-live="polite">
+          <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+            Step {formStep + 1} of {FORM_STEPS.length}
+          </span>
+          <div className="bg-muted h-1 flex-1 overflow-hidden rounded-full">
+            <div
+              className="bg-foreground h-full rounded-full transition-[width] duration-300"
+              style={{ width: `${((formStep + 1) / FORM_STEPS.length) * 100}%` }}
             />
-            {audience === "others" && (
-              <label className="-mt-1 flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={anonymous}
-                  onChange={(e) => setAnonymous(e.target.checked)}
-                  className="accent-foreground size-4"
-                />
-                Send anonymously
-              </label>
-            )}
           </div>
-          <TextField name="moment" label="Moment" value={values.moment} error={errors.moment} onChange={handleChange("moment")} placeholder="Birthday party, graduation, a place…" />
         </div>
 
-        <EditionField
-          value={editionInput}
-          error={editionError}
-          onChange={(value) => {
-            setEditionInput(value);
-            if (validateLive) setEditionError(parseEditionSize(value).error);
-          }}
-        />
+        <FormStep index={0} current={formStep}>
+          <AudienceField value={audience} onChange={setAudience} />
+          {audience === "others" && (
+            <RecipientPicker max={editionSize} value={activeRecipients} onChange={setRecipients} />
+          )}
+        </FormStep>
 
-        <Button type="submit" size="lg" className="h-11 sm:self-start sm:px-6">
+        <FormStep index={1} current={formStep}>
+          {songMode === "manual" ? (
+            <fieldset className="grid gap-5 sm:grid-cols-2">
+              <legend className="sr-only">Song</legend>
+              <TextField name="songTitle" label="Song title" required value={values.songTitle} error={errors.songTitle} onChange={handleChange("songTitle")} placeholder="Here Comes the Sun" />
+              <TextField name="artistName" label="Artist" required value={values.artistName} error={errors.artistName} onChange={handleChange("artistName")} placeholder="The Beatles" />
+              <button
+                type="button"
+                onClick={() => changeSong("search")}
+                className="text-muted-foreground hover:text-foreground -mt-2 justify-self-start text-xs underline underline-offset-2 sm:col-span-2"
+              >
+                Search Apple Music instead
+              </button>
+            </fieldset>
+          ) : song ? (
+            <SelectedSong song={song} onChange={() => changeSong("search")} />
+          ) : (
+            <SongSearch
+              inputId={SONG_SEARCH_ID}
+              autoFocus={focusSearch}
+              error={errors.songTitle || errors.artistName ? "Search for a song and pick it from the list." : undefined}
+              onSelect={handleSongSelect}
+              onEnterManually={() => changeSong("manual")}
+            />
+          )}
+        </FormStep>
+
+        <FormStep index={2} current={formStep}>
+          <TextField name="lyricsExcerpt" label="Lyrics excerpt" multiline rows={2} value={values.lyricsExcerpt} error={errors.lyricsExcerpt} onChange={handleChange("lyricsExcerpt")} placeholder="The line that says it best" />
+        </FormStep>
+
+        <FormStep index={3} current={formStep}>
+          <TextField name="message" label="Personal message" multiline rows={4} value={values.message} error={errors.message} onChange={handleChange("message")} placeholder="Why this song reminds you of them" />
+        </FormStep>
+
+        <FormStep index={4} current={formStep}>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <TextField
+                name="senderName"
+                label="Signature"
+                value={signatureHidden ? "" : values.senderName}
+                error={errors.senderName}
+                onChange={handleChange("senderName")}
+                placeholder={signatureHidden ? "Sent anonymously" : "How you'd like to sign it"}
+                disabled={signatureHidden}
+              />
+              {audience === "others" && (
+                <label className="-mt-1 flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={anonymous}
+                    onChange={(e) => setAnonymous(e.target.checked)}
+                    className="accent-foreground size-4"
+                  />
+                  Send anonymously
+                </label>
+              )}
+            </div>
+            <TextField name="moment" label="Moment" value={values.moment} error={errors.moment} onChange={handleChange("moment")} placeholder="Birthday party, graduation, a place…" />
+          </div>
+        </FormStep>
+
+        <FormStep index={5} current={formStep}>
+          <EditionField
+            value={editionInput}
+            error={editionError}
+            onChange={(value) => {
+              setEditionInput(value);
+              if (validateLive) setEditionError(parseEditionSize(value).error);
+            }}
+          />
+        </FormStep>
+
+        {/* Narrow screens: Back / Next right under the field, so it stays above the keyboard. */}
+        <div className="flex gap-2 lg:hidden">
+          {formStep > 0 && (
+            <Button type="button" variant="outline" size="lg" className="bg-background h-11 rounded-full px-5" onClick={() => setFormStep((s) => s - 1)}>
+              <ArrowLeftIcon /> Back
+            </Button>
+          )}
+          <Button type="button" size="lg" className="h-11 flex-1 rounded-full" onClick={nextFormStep}>
+            {formStep === LAST_FORM_STEP ? (
+              <>
+                Preview card <ArrowRightIcon />
+              </>
+            ) : FORM_STEPS[formStep].optional && FORM_STEPS[formStep].fields.every((f) => !values[f].trim()) ? (
+              "Skip"
+            ) : (
+              <>
+                Next <ArrowRightIcon />
+              </>
+            )}
+          </Button>
+        </div>
+
+        <Button type="submit" size="lg" className="h-11 max-lg:hidden sm:self-start sm:px-6">
           Preview card <ArrowRightIcon />
         </Button>
       </form>
+    </div>
+  );
+}
+
+/** One step of the form: the only one shown on narrow screens; all shown on lg+. */
+function FormStep({ index, current, children }: { index: number; current: number; children: ReactNode }) {
+  return (
+    <div data-form-step={index} className={cn("flex flex-col gap-6", index !== current && "max-lg:hidden")}>
+      {children}
     </div>
   );
 }

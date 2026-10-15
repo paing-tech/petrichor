@@ -84,7 +84,7 @@ const escapeLike = (value: string) => value.replace(/[\\%_]/g, (c) => `\\${c}`);
  * Recipient search: searchable accounts whose username starts with, or display
  * name contains, the query. Only public fields are returned.
  */
-export async function searchProfiles(query: string, excludeUserId: string): Promise<PublicProfile[]> {
+export async function searchProfiles(query: string, excludeUserId: string | null): Promise<PublicProfile[]> {
   const term = query.trim().replace(/^@/, "");
   if (term.length < 2) return [];
   const pattern = escapeLike(term.toLowerCase());
@@ -94,7 +94,7 @@ export async function searchProfiles(query: string, excludeUserId: string): Prom
     .where(
       and(
         eq(profiles.searchable, true),
-        ne(profiles.userId, excludeUserId),
+        excludeUserId ? ne(profiles.userId, excludeUserId) : undefined,
         or(ilike(profiles.username, `${pattern}%`), ilike(profiles.displayName, `%${pattern}%`)),
       ),
     )

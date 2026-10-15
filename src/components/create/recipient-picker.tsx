@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { Loader2Icon, SearchIcon, XIcon } from "lucide-react";
 import { UserAvatar } from "@/components/account/user-avatar";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,6 @@ import { searchRecipients } from "@/app/create/actions";
 import type { PublicProfile } from "@/lib/profiles";
 
 type RecipientPickerProps = {
-  signedIn: boolean;
   /** Up to one recipient per copy. */
   max: number;
   value: PublicProfile[];
@@ -22,7 +20,7 @@ type RecipientPickerProps = {
  * Optional: send copies straight to accounts (they accept before it's theirs).
  * Copies without a recipient get claim links for people without an account.
  */
-export function RecipientPicker({ signedIn, max, value, onChange }: RecipientPickerProps) {
+export function RecipientPicker({ max, value, onChange }: RecipientPickerProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PublicProfile[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,21 +53,6 @@ export function RecipientPicker({ signedIn, max, value, onChange }: RecipientPic
     onChange([...value, profile]);
     setQuery("");
     setResults([]);
-  }
-
-  if (!signedIn) {
-    return (
-      <div className="grid gap-1">
-        <Label>Send to their account</Label>
-        <p className="text-muted-foreground text-xs">
-          <Link href="/sign-in?next=/create" className="text-foreground underline underline-offset-2">
-            Sign in
-          </Link>{" "}
-          to send this card straight to someone&apos;s Petrichor account. Without that, you&apos;ll get a private claim
-          link to send them.
-        </p>
-      </div>
-    );
   }
 
   const full = value.length >= max;

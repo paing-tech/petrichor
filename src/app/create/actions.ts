@@ -86,12 +86,13 @@ export async function createCard(input: CreateCardInput): Promise<ActionResult<{
       );
     } else {
       const uniqueIds = [...new Set(recipientUserIds)];
+      // Signed-out senders can send to accounts too; if such a copy is declined there's
+      // no account to re-issue it from, so it simply stays unkept.
       if (uniqueIds.length > 0) {
-        if (!account) return { ok: false, error: "Sign in to send a card straight to someone's account." };
         if (uniqueIds.length > editionSize) {
           return { ok: false, error: `You picked more recipients than copies (${editionSize}).` };
         }
-        if (uniqueIds.includes(account.user.id)) {
+        if (account && uniqueIds.includes(account.user.id)) {
           return { ok: false, error: "To keep a copy yourself, choose “For myself”." };
         }
         // Only accounts that can be found in search can receive cards directly.
@@ -143,9 +144,12 @@ export async function createCard(input: CreateCardInput): Promise<ActionResult<{
   }
 }
 
-/** Recipient search for "For someone". Signed-in senders only, so accounts can't be listed anonymously. */
+/**
+ * Recipient search for "For someone", open to signed-out senders too. Returns only
+ * public fields of accounts that allow being found, at most 8 at a time.
+ */
 export async function searchRecipients(query: string): Promise<PublicProfile[]> {
+  if (typeof query !== "string" || query.length > 50) return [];
   const account = await getAccount();
-  if (!account || typeof query !== "string" || query.length > 50) return [];
-  return searchProfiles(query, account.user.id);
+  return searchProfiles(query, account?.user.id ?? null);
 }

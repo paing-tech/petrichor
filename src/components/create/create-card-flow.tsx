@@ -473,6 +473,9 @@ export function CreateCardFlow() {
         </div>
 
         <AudienceField value={audience} onChange={setAudience} />
+        {audience === "others" && (
+          <RecipientPicker max={editionSize} value={activeRecipients} onChange={setRecipients} />
+        )}
 
         {songMode === "manual" ? (
           <fieldset className="grid gap-5 sm:grid-cols-2">
@@ -580,10 +583,6 @@ export function CreateCardFlow() {
             if (validateLive) setEditionError(parseEditionSize(value).error);
           }}
         />
-
-        {audience === "others" && (
-          <RecipientPicker signedIn={signedIn} max={editionSize} value={activeRecipients} onChange={setRecipients} />
-        )}
 
         <Button type="submit" size="lg" className="h-11 sm:self-start sm:px-6">
           Preview card <ArrowRightIcon />

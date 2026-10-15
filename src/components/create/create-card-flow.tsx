@@ -10,17 +10,15 @@ import {
   type FormEvent,
 } from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, SparklesIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, PaletteIcon, SparklesIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createCard, requestPhotoUpload, type CreatedCopyResult } from "@/app/create/actions";
 import { AppleMusicEmbed } from "@/components/apple-music-embed";
 import { CollectibleCard } from "@/components/collectible-card";
 import { AudienceField, type Audience } from "@/components/create/audience-field";
-import { ColorField, type ColorSwatch } from "@/components/create/color-field";
 import { CreatedCopies } from "@/components/create/created-copies";
 import { EditionField, parseEditionSize } from "@/components/create/edition-field";
-import { PhotoCropper } from "@/components/create/photo-cropper";
-import { PhotoField } from "@/components/create/photo-field";
+import { CustomizeSheet } from "@/components/create/customize-sheet";
 import { RecipientPicker } from "@/components/create/recipient-picker";
 import { SelectedSong, SongSearch } from "@/components/create/song-search";
 import { Button } from "@/components/ui/button";
@@ -29,12 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { buildAppleMusicUrl, type SongSearchResult } from "@/lib/apple-music";
 import { authClient } from "@/lib/auth/client";
-import {
-  DEFAULT_CARD_COLOR,
-  EARTH_PHOTO_AREA,
-  EARTH_PHOTO_AREA_TONE,
-  PRESET_CARD_COLORS,
-} from "@/lib/card-color";
+import { DEFAULT_CARD_COLOR } from "@/lib/card-color";
 import { cropFromView, DEFAULT_PHOTO_VIEW, exportCroppedPhoto, readImageSize, type PhotoView } from "@/lib/photo-crop";
 import { extractPalette } from "@/lib/photo-palette";
 import type { PublicProfile } from "@/lib/profiles";
@@ -68,13 +61,6 @@ type Step = "edit" | "review" | "done";
 type SongMode = "search" | "manual";
 
 const SONG_SEARCH_ID = "song-search";
-
-const WHITE_AND_BLACK: ColorSwatch[] = PRESET_CARD_COLORS.map((c) => ({ label: c.name, value: c.value }));
-
-const PHOTO_AREA_SWATCHES: ColorSwatch[] = [
-  { label: "Earth (default)", value: null, background: EARTH_PHOTO_AREA, checkBackground: EARTH_PHOTO_AREA_TONE },
-  ...WHITE_AND_BLACK,
-];
 
 const EMPTY_VALUES: FormValues = {
   songTitle: "",
@@ -115,6 +101,7 @@ export function CreateCardFlow() {
   const [editionInput, setEditionInput] = useState("1");
   const [editionError, setEditionError] = useState<string>();
   const [audience, setAudience] = useState<Audience>("self");
+  const [customizeOpen, setCustomizeOpen] = useState(false);
   const [anonymous, setAnonymous] = useState(false);
   const [recipients, setRecipients] = useState<PublicProfile[]>([]);
   /** The created copies in edition order, with each one's link and status. */
@@ -461,8 +448,29 @@ export function CreateCardFlow() {
             Live preview
           </p>
           <CollectibleCard card={previewCard} className="mx-auto max-w-[280px] sm:max-w-[320px] lg:max-w-[400px]" />
+          <div className="mt-4 flex justify-center">
+            <Button type="button" variant="outline" size="lg" className="bg-background h-10 rounded-full px-5" onClick={() => setCustomizeOpen(true)}>
+              <PaletteIcon /> Customize
+            </Button>
+          </div>
         </div>
       </div>
+
+      <CustomizeSheet
+        open={customizeOpen}
+        onOpenChange={setCustomizeOpen}
+        card={previewCard}
+        photo={photo && { previewUrl: photo.previewUrl, fileName: photo.file.name, width: photo.width, height: photo.height, view: photo.view }}
+        photoError={photoError}
+        onPhotoSelect={handlePhotoSelect}
+        onPhotoRemove={removePhoto}
+        onPhotoViewChange={setPhotoView}
+        photoColors={photoColors}
+        photoAreaColor={photoAreaColor}
+        onPhotoAreaColorChange={setPhotoAreaColor}
+        cardColor={cardColor}
+        onCardColorChange={setCardColor}
+      />
 
       <form noValidate onSubmit={handlePreview} className="flex flex-col gap-6 lg:col-start-1 lg:row-start-1">
         <div>
@@ -501,51 +509,6 @@ export function CreateCardFlow() {
             onEnterManually={() => changeSong("manual")}
           />
         )}
-
-        <PhotoField
-          previewUrl={photo?.previewUrl ?? null}
-          fileName={photo?.file.name ?? null}
-          error={photoError}
-          onSelect={handlePhotoSelect}
-          onRemove={removePhoto}
-        >
-          {photo ? (
-            <PhotoCropper
-              src={photo.previewUrl}
-              imageWidth={photo.width}
-              imageHeight={photo.height}
-              view={photo.view}
-              onChange={setPhotoView}
-            />
-          ) : (
-            <ColorField
-              id="photo-area-color"
-              label="Photo area color"
-              value={photoAreaColor}
-              swatches={PHOTO_AREA_SWATCHES}
-              customFallback={EARTH_PHOTO_AREA_TONE}
-              hint="Fills the top of the card when there's no photo."
-              onChange={setPhotoAreaColor}
-            />
-          )}
-        </PhotoField>
-
-        <ColorField
-          id="card-color"
-          label="Card color"
-          value={cardColor}
-          swatches={[
-            ...WHITE_AND_BLACK,
-            ...photoColors.map((color, i) => ({ label: `Photo color ${i + 1}`, value: color, gapBefore: i === 0 })),
-          ]}
-          customFallback={cardColor}
-          hint={
-            photoColors.length > 0
-              ? "White, black, colors from your photo, or pick your own."
-              : "Add a photo to get colors picked from it."
-          }
-          onChange={(color) => setCardColor(color ?? DEFAULT_CARD_COLOR)}
-        />
 
         <TextField name="lyricsExcerpt" label="Lyrics excerpt" multiline rows={2} value={values.lyricsExcerpt} error={errors.lyricsExcerpt} onChange={handleChange("lyricsExcerpt")} placeholder="The line that says it best" />
         <TextField name="message" label="Personal message" multiline rows={4} value={values.message} error={errors.message} onChange={handleChange("message")} placeholder="Why this song reminds you of them" />

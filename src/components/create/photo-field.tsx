@@ -65,7 +65,7 @@ export function PhotoField({ previewUrl, fileName, error, disabled, onSelect, on
         </button>
       )}
       <p id="photo-hint" className={error ? "text-destructive text-xs" : "text-muted-foreground text-xs"}>
-        {error ?? "Any photo. Frame it below; it's saved in high quality."}
+        {error ?? (previewUrl ? "Drag the photo on the card to frame it. It's saved in high quality." : "Any photo, any size. You'll frame it right on the card.")}
       </p>
       {children}
     </div>

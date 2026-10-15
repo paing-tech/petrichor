@@ -1,7 +1,6 @@
 "use client";
 
 import { CheckIcon } from "lucide-react";
-import { Label } from "@/components/ui/label";
 import { cardInk } from "@/lib/card-color";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +21,7 @@ type ColorFieldProps = {
   label: string;
   value: string | null;
   swatches: ColorSwatch[];
-  hint: string;
+  hint?: string;
   /** What the custom picker opens on while a preset is selected. */
   customFallback: string;
   onChange: (value: string | null) => void;
@@ -34,7 +33,9 @@ export function ColorField({ id, label, value, swatches, hint, customFallback, o
 
   return (
     <div className="grid gap-2">
-      <Label id={labelId}>{label}</Label>
+      <p id={labelId} className="text-muted-foreground text-xs font-medium">
+        {label}
+      </p>
       <div role="radiogroup" aria-labelledby={labelId} className="flex flex-wrap items-center gap-2.5">
         {swatches.map((swatch) => (
           <Swatch
@@ -71,7 +72,7 @@ export function ColorField({ id, label, value, swatches, hint, customFallback, o
           {isCustom && <CheckIcon className="pointer-events-none size-4" style={{ color: cardInk(value).ink }} />}
         </label>
       </div>
-      <p className="text-muted-foreground text-xs">{hint}</p>
+      {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
     </div>
   );
 }

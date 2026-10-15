@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { cardInk, DEFAULT_CARD_COLOR, EARTH_PHOTO_AREA, hexToRgb } from "@/lib/card-color";
 import { cropImageStyle, type PhotoCrop } from "@/lib/photo-crop";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,8 @@ export type CollectibleCardData = {
 type CollectibleCardProps = {
   card: CollectibleCardData;
   className?: string;
+  /** Laid over the photo area, e.g. the framing layer while customizing. */
+  photoOverlay?: ReactNode;
 };
 
 // The card is designed on a 390 × 520 canvas. Every measurement is expressed in
@@ -130,7 +132,7 @@ export function formatCardDate(date: Date | string, timeZone?: string | null) {
   });
 }
 
-export function CollectibleCard({ card, className }: CollectibleCardProps) {
+export function CollectibleCard({ card, className, photoOverlay }: CollectibleCardProps) {
   const title = titleLayout(card.songTitle);
   const song = songLayout(title.fontSize);
   const cardColor = card.cardColor ?? DEFAULT_CARD_COLOR;
@@ -159,6 +161,7 @@ export function CollectibleCard({ card, className }: CollectibleCardProps) {
           emptyFill={card.photoAreaColor ?? EARTH_PHOTO_AREA}
           alt={`Photo for ${card.songTitle}`}
           fadeColor={cardColor}
+          overlay={photoOverlay}
         />
 
         {/* Moment's capitals are centered on the third fade stop (text-box trims the
@@ -262,9 +265,10 @@ type CardPhotoProps = {
   emptyFill: string;
   alt: string;
   fadeColor: string;
+  overlay?: ReactNode;
 };
 
-function CardPhoto({ photoUrl, crop, emptyFill, alt, fadeColor }: CardPhotoProps) {
+function CardPhoto({ photoUrl, crop, emptyFill, alt, fadeColor, overlay }: CardPhotoProps) {
   const rgb = hexToRgb(fadeColor).join(", ");
   return (
     <div className="absolute inset-x-0 top-0 overflow-hidden" style={{ height: u(PHOTO_HEIGHT) }}>
@@ -288,6 +292,7 @@ function CardPhoto({ photoUrl, crop, emptyFill, alt, fadeColor }: CardPhotoProps
           background: `linear-gradient(to bottom, ${PHOTO_FADE.map(([at, alpha]) => `rgba(${rgb}, ${alpha}) ${at}%`).join(", ")})`,
         }}
       />
+      {overlay}
     </div>
   );
 }

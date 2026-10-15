@@ -128,8 +128,9 @@ export function CreateCardFlow() {
   const formRef = useRef<HTMLFormElement>(null);
   // Narrow screens: the form is a fixed shell that follows the visible area above the keyboard.
   const narrow = useIsNarrow();
-  // TEMPORARY layout test: /create?layout=natural uses ordinary page scrolling (full card,
-  // nothing pinned) instead of the pinned shell with a half card. Remove once decided.
+  // TEMPORARY layout test: by default the page scrolls normally (full card, nothing
+  // pinned); /create?layout=pinned shows the pinned shell with a half card for
+  // comparison. Remove once decided.
   const naturalLayout = useNaturalLayoutFlag();
   const pinned = narrow && !naturalLayout;
   const shellStyle = useViewportShell(pinned && step === "edit");
@@ -750,12 +751,15 @@ function CardViewport({ visibleFraction, children }: { visibleFraction: number; 
   );
 }
 
-/** TEMPORARY: true when the page was opened with ?layout=natural (read in the browser only). */
+/**
+ * TEMPORARY: the natural layout is the default; false only when the page was opened
+ * with ?layout=pinned. The server renders the natural layout, so it never flashes.
+ */
 function useNaturalLayoutFlag() {
   return useSyncExternalStore(
     subscribeNoop,
-    () => new URLSearchParams(window.location.search).get("layout") === "natural",
-    () => false,
+    () => new URLSearchParams(window.location.search).get("layout") !== "pinned",
+    () => true,
   );
 }
 

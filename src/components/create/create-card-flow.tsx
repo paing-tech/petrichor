@@ -132,11 +132,9 @@ export function CreateCardFlow() {
   }, [customizeOpen]);
 
   function openCustomize() {
+    // The card is always in view (pinned on narrow screens, sticky on wide ones),
+    // so the panel just opens beneath it.
     setCustomizeOpen(true);
-    // On narrow screens bring the card to the top so the panel has room below it.
-    if (!window.matchMedia("(min-width: 1024px)").matches) {
-      previewRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
-    }
   }
 
   const previewUrl = photo?.previewUrl;
@@ -463,13 +461,18 @@ export function CreateCardFlow() {
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 pt-4 pb-16 sm:px-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16">
-      <div className="lg:col-start-2 lg:row-start-1">
+    <div className="group/create mx-auto grid w-full max-w-6xl gap-6 px-4 pb-16 sm:px-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16 lg:pt-4">
+      {/* Below lg the preview stays pinned to the top while the fields scroll under it. */}
+      <div className="bg-background/95 sticky top-0 z-20 -mx-4 border-b px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:col-start-2 lg:row-start-1 lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
         <div className="lg:sticky lg:top-8">
-          <p className="text-muted-foreground mb-3 text-center text-xs font-medium tracking-widest uppercase">
+          <p className="text-muted-foreground mb-3 hidden text-center text-xs font-medium tracking-widest uppercase lg:block">
             Live preview
           </p>
-          <div ref={previewRef} className="mx-auto max-w-[280px] scroll-mt-3 sm:max-w-[320px] lg:max-w-[400px]">
+          {/* While a field has focus (keyboard open on phones), the card shrinks to leave room. */}
+          <div
+            ref={previewRef}
+            className="mx-auto max-w-[220px] transition-[max-width] duration-300 group-has-[form:focus-within]/create:max-w-[120px] sm:max-w-[280px] lg:max-w-[400px] lg:group-has-[form:focus-within]/create:max-w-[400px]"
+          >
             <CollectibleCard
               card={previewCard}
               // The wrapper sets the size (the panel lines up with it).
@@ -487,8 +490,8 @@ export function CreateCardFlow() {
               }
             />
           </div>
-          <div className="mt-4 flex justify-center">
-            <Button type="button" variant="outline" size="lg" className="bg-background h-10 rounded-full px-5" onClick={openCustomize}>
+          <div className="mt-3 flex justify-center lg:mt-4">
+            <Button type="button" variant="outline" size="lg" className="bg-background h-9 rounded-full px-5 lg:h-10" onClick={openCustomize}>
               <PaletteIcon /> Customize
             </Button>
           </div>
@@ -512,12 +515,8 @@ export function CreateCardFlow() {
       />
 
       <form noValidate onSubmit={handlePreview} className="flex flex-col gap-6 lg:col-start-1 lg:row-start-1">
-        <div>
-          <h1 className="font-serif text-4xl tracking-tight sm:text-5xl">Make a card</h1>
-          <p className="text-muted-foreground mt-2">
-            Pick a song, add a moment, and keep it as a collectible — for yourself or someone else.
-          </p>
-        </div>
+        {/* No visible title; the heading stays for screen readers and page structure. */}
+        <h1 className="sr-only">Create a card</h1>
 
         <AudienceField value={audience} onChange={setAudience} />
         {audience === "others" && (

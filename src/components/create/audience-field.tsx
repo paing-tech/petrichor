@@ -6,9 +6,9 @@ import { cn } from "@/lib/utils";
 
 export type Audience = "self" | "others";
 
-const OPTIONS: { value: Audience; label: string; hint: string; icon: typeof UserIcon }[] = [
-  { value: "self", label: "For myself", hint: "Keep it in your own collection.", icon: UserIcon },
-  { value: "others", label: "For someone", hint: "They keep it, by their account or a private link.", icon: UsersIcon },
+const OPTIONS: { value: Audience; label: string; icon: typeof UserIcon }[] = [
+  { value: "self", label: "For myself", icon: UserIcon },
+  { value: "others", label: "For someone", icon: UsersIcon },
 ];
 
 export function AudienceField({ value, onChange }: { value: Audience; onChange: (value: Audience) => void }) {
@@ -16,7 +16,7 @@ export function AudienceField({ value, onChange }: { value: Audience; onChange: 
     <div className="grid gap-2">
       <Label id="audience-label">Who is this card for?</Label>
       <div role="radiogroup" aria-labelledby="audience-label" className="grid grid-cols-2 gap-2">
-        {OPTIONS.map(({ value: option, label, hint, icon: Icon }) => (
+        {OPTIONS.map(({ value: option, label, icon: Icon }) => (
           <button
             key={option}
             type="button"
@@ -24,14 +24,13 @@ export function AudienceField({ value, onChange }: { value: Audience; onChange: 
             aria-checked={value === option}
             onClick={() => onChange(option)}
             className={cn(
-              "bg-background focus-visible:ring-ring/50 grid gap-1 rounded-xl border p-3 text-left transition-colors outline-none focus-visible:ring-3",
+              "bg-background focus-visible:ring-ring/50 rounded-xl border p-3 text-left transition-colors outline-none focus-visible:ring-3",
               value === option ? "border-foreground ring-foreground ring-1" : "hover:border-foreground/40",
             )}
           >
             <span className="flex items-center gap-2 text-sm font-medium">
               <Icon className="size-4" /> {label}
             </span>
-            <span className="text-muted-foreground text-xs">{hint}</span>
           </button>
         ))}
       </div>

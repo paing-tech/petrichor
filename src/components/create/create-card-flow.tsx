@@ -128,10 +128,14 @@ export function CreateCardFlow() {
   const formRef = useRef<HTMLFormElement>(null);
   // Narrow screens: the form is a fixed shell that follows the visible area above the keyboard.
   const narrow = useIsNarrow();
-  const shellStyle = useViewportShell(narrow && step === "edit");
-  // Narrow screens show only the card's lower (text) half on the text steps, leaving
-  // room for the keyboard, and the full card for Photo & colors and Copies.
-  const halfCard = narrow && formStep < PHOTO_STEP;
+  // TEMPORARY layout test: /create?layout=natural uses ordinary page scrolling (full card,
+  // nothing pinned) instead of the pinned shell with a half card. Remove once decided.
+  const naturalLayout = useNaturalLayoutFlag();
+  const pinned = narrow && !naturalLayout;
+  const shellStyle = useViewportShell(pinned && step === "edit");
+  // Pinned layout: narrow screens show only the card's lower (text) half on the text
+  // steps, leaving room for the keyboard, and the full card for Photo & colors and Copies.
+  const halfCard = pinned && formStep < PHOTO_STEP;
   const [anonymous, setAnonymous] = useState(false);
   const [recipients, setRecipients] = useState<PublicProfile[]>([]);
   /** The created copies in edition order, with each one's link and status. */
@@ -157,8 +161,9 @@ export function CreateCardFlow() {
       `[data-form-step="${formStep}"] input:not([type=checkbox]):not([type=file]):not([disabled]), [data-form-step="${formStep}"] textarea`,
     );
     field?.focus({ preventScroll: true });
-    formRef.current?.scrollTo({ top: 0 });
-  }, [formStep]);
+    if (pinned) formRef.current?.scrollTo({ top: 0 });
+    else window.scrollTo({ top: 0 });
+  }, [formStep, pinned]);
 
   /** Shows a step and focuses the field that needs attention. */
   function showFieldError(field: FieldName | "editionSize") {
@@ -539,8 +544,13 @@ export function CreateCardFlow() {
         "group/create mx-auto grid w-full max-w-6xl lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16 lg:px-6 lg:pt-10 lg:pb-16",
         // Below lg: a fixed shell over the visible area (see useViewportShell). The card
         // stays at the top and only the form scrolls. (No site header on this page.)
-        "bg-background fixed inset-x-0 z-30 flex flex-col overflow-hidden lg:static lg:z-auto lg:grid lg:overflow-visible",
-        "top-[var(--shell-top,0px)] h-[var(--shell-height,100dvh)] lg:top-auto lg:h-auto",
+        naturalLayout
+          ? // Test layout: the page scrolls normally; Safari moves it up when the keyboard opens.
+            "flex flex-col lg:grid"
+          : [
+              "bg-background fixed inset-x-0 z-30 flex flex-col overflow-hidden lg:static lg:z-auto lg:grid lg:overflow-visible",
+              "top-[var(--shell-top,0px)] h-[var(--shell-height,100dvh)] lg:top-auto lg:h-auto",
+            ],
       )}
     >
       <div className="shrink-0 border-b px-4 py-3 sm:px-6 lg:col-start-2 lg:row-start-1 lg:border-0 lg:p-0">
@@ -737,6 +747,15 @@ function CardViewport({ visibleFraction, children }: { visibleFraction: number; 
         <div className="absolute inset-x-8 bottom-5">{children}</div>
       </div>
     </div>
+  );
+}
+
+/** TEMPORARY: true when the page was opened with ?layout=natural (read in the browser only). */
+function useNaturalLayoutFlag() {
+  return useSyncExternalStore(
+    subscribeNoop,
+    () => new URLSearchParams(window.location.search).get("layout") === "natural",
+    () => false,
   );
 }
 

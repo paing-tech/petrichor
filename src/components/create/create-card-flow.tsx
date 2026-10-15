@@ -18,7 +18,8 @@ import { CollectibleCard } from "@/components/collectible-card";
 import { AudienceField, type Audience } from "@/components/create/audience-field";
 import { CreatedCopies } from "@/components/create/created-copies";
 import { EditionField, parseEditionSize } from "@/components/create/edition-field";
-import { CustomizeSheet } from "@/components/create/customize-sheet";
+import { CustomizePanel } from "@/components/create/customize-panel";
+import { PhotoFramingLayer } from "@/components/create/photo-cropper";
 import { RecipientPicker } from "@/components/create/recipient-picker";
 import { SelectedSong, SongSearch } from "@/components/create/song-search";
 import { Button } from "@/components/ui/button";
@@ -102,6 +103,8 @@ export function CreateCardFlow() {
   const [editionError, setEditionError] = useState<string>();
   const [audience, setAudience] = useState<Audience>("self");
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  /** The live preview card: the customize panel opens just below it. */
+  const previewRef = useRef<HTMLDivElement>(null);
   const [anonymous, setAnonymous] = useState(false);
   const [recipients, setRecipients] = useState<PublicProfile[]>([]);
   /** The created copies in edition order, with each one's link and status. */
@@ -116,6 +119,25 @@ export function CreateCardFlow() {
   // One recipient per copy; extra picks are dropped if the edition shrinks.
   const activeRecipients = audience === "others" ? recipients.slice(0, editionSize) : [];
   const signatureHidden = audience === "others" && anonymous;
+
+  // While customizing, the page stays put so the card and the panel under it don't drift.
+  useEffect(() => {
+    if (!customizeOpen) return;
+    const root = document.documentElement;
+    const previous = root.style.overflow;
+    root.style.overflow = "hidden";
+    return () => {
+      root.style.overflow = previous;
+    };
+  }, [customizeOpen]);
+
+  function openCustomize() {
+    setCustomizeOpen(true);
+    // On narrow screens bring the card to the top so the panel has room below it.
+    if (!window.matchMedia("(min-width: 1024px)").matches) {
+      previewRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    }
+  }
 
   const previewUrl = photo?.previewUrl;
   useEffect(() => {
@@ -447,19 +469,36 @@ export function CreateCardFlow() {
           <p className="text-muted-foreground mb-3 text-center text-xs font-medium tracking-widest uppercase">
             Live preview
           </p>
-          <CollectibleCard card={previewCard} className="mx-auto max-w-[280px] sm:max-w-[320px] lg:max-w-[400px]" />
+          <div ref={previewRef} className="mx-auto max-w-[280px] scroll-mt-3 sm:max-w-[320px] lg:max-w-[400px]">
+            <CollectibleCard
+              card={previewCard}
+              // The wrapper sets the size (the panel lines up with it).
+              className="max-w-none"
+              // While customizing, the photo is framed right here on the card.
+              photoOverlay={
+                customizeOpen && photo ? (
+                  <PhotoFramingLayer
+                    imageWidth={photo.width}
+                    imageHeight={photo.height}
+                    view={photo.view}
+                    onChange={setPhotoView}
+                  />
+                ) : undefined
+              }
+            />
+          </div>
           <div className="mt-4 flex justify-center">
-            <Button type="button" variant="outline" size="lg" className="bg-background h-10 rounded-full px-5" onClick={() => setCustomizeOpen(true)}>
+            <Button type="button" variant="outline" size="lg" className="bg-background h-10 rounded-full px-5" onClick={openCustomize}>
               <PaletteIcon /> Customize
             </Button>
           </div>
         </div>
       </div>
 
-      <CustomizeSheet
+      <CustomizePanel
         open={customizeOpen}
-        onOpenChange={setCustomizeOpen}
-        card={previewCard}
+        onClose={() => setCustomizeOpen(false)}
+        anchorRef={previewRef}
         photo={photo && { previewUrl: photo.previewUrl, fileName: photo.file.name, width: photo.width, height: photo.height, view: photo.view }}
         photoError={photoError}
         onPhotoSelect={handlePhotoSelect}

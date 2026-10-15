@@ -39,11 +39,7 @@ export class SongSearchError extends Error {
   }
 }
 
-export async function searchSongs(
-  term: string,
-  storefront: string,
-  signal?: AbortSignal,
-): Promise<SongSearchResult[]> {
+export function buildItunesSearchUrl(term: string, storefront: string) {
   const params = new URLSearchParams({
     term,
     country: storefront,
@@ -51,22 +47,12 @@ export async function searchSongs(
     entity: "song",
     limit: String(RESULT_LIMIT),
   });
+  return `${ITUNES_SEARCH_URL}?${params}`;
+}
 
-  let response = await fetch(`${ITUNES_SEARCH_URL}?${params}`, { signal });
-  // Unknown storefronts are rejected; fall back to the US catalog.
-  if (response.status === 400 && storefront !== DEFAULT_STOREFRONT) {
-    params.set("country", DEFAULT_STOREFRONT);
-    storefront = DEFAULT_STOREFRONT;
-    response = await fetch(`${ITUNES_SEARCH_URL}?${params}`, { signal });
-  }
-  if (!response.ok) {
-    throw new SongSearchError(response.status === 403 || response.status === 429 ? "rate_limited" : "failed");
-  }
-
-  const body: unknown = await response.json();
-  const results = (body as { results?: unknown })?.results;
+/** Turns raw iTunes results into songs, skipping anything that isn't a playable track. */
+export function parseItunesSongs(results: unknown, storefront: string): SongSearchResult[] {
   if (!Array.isArray(results)) return [];
-
   return results.flatMap((raw) => {
     const parsed = itunesSongSchema.safeParse(raw);
     if (!parsed.success) return [];
@@ -85,6 +71,56 @@ export async function searchSongs(
     ];
   });
 }
+
+// On iPhones and iPads with a phone-style browser, Apple answers the search API with a
+// redirect to the Music app (musics://…) instead of results, which a web page can't
+// follow. When that happens we switch to our own /api/songs, which asks Apple from the
+// server, for the rest of the visit.
+let searchThroughServer = false;
+
+/** Searches Apple's catalog: directly from the browser when possible, otherwise via /api/songs. */
+export async function searchSongs(
+  term: string,
+  storefront: string,
+  signal?: AbortSignal,
+): Promise<SongSearchResult[]> {
+  if (!searchThroughServer) {
+    try {
+      return await searchDirect(term, storefront, signal);
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      if (error instanceof SongSearchError && error.reason === "rate_limited") throw error;
+      searchThroughServer = true;
+    }
+  }
+  return searchViaServer(term, storefront, signal);
+}
+
+async function searchDirect(term: string, storefront: string, signal?: AbortSignal) {
+  let response = await fetch(buildItunesSearchUrl(term, storefront), { signal });
+  // Unknown storefronts are rejected; fall back to the US catalog.
+  if (response.status === 400 && storefront !== DEFAULT_STOREFRONT) {
+    storefront = DEFAULT_STOREFRONT;
+    response = await fetch(buildItunesSearchUrl(term, storefront), { signal });
+  }
+  if (!response.ok) {
+    throw new SongSearchError(response.status === 403 || response.status === 429 ? "rate_limited" : "failed");
+  }
+  const body = (await response.json()) as { results?: unknown };
+  return parseItunesSongs(body?.results, storefront);
+}
+
+async function searchViaServer(term: string, storefront: string, signal?: AbortSignal) {
+  const params = new URLSearchParams({ term, country: storefront });
+  const response = await fetch(`/api/songs?${params}`, { signal });
+  if (!response.ok) {
+    throw new SongSearchError(response.status === 429 ? "rate_limited" : "failed");
+  }
+  const body = (await response.json()) as { storefront: string; results: unknown };
+  return parseItunesSongs(body.results, body.storefront);
+}
+
+export const DEFAULT_SEARCH_STOREFRONT = DEFAULT_STOREFRONT;
 
 /** Picks the Apple Music storefront from the browser's locale, e.g. "en-SG" → "sg". */
 export function detectStorefront(): string {

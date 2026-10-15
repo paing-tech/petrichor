@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Geist, Geist_Mono, Instrument_Serif, Kalam, Outfit } from "next/font/google";
 import Link from "next/link";
+import { Suspense } from "react";
+import { AccountMenu } from "@/components/account/account-menu";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -46,7 +48,7 @@ export const metadata: Metadata = {
     default: "Petrichor — music memory cards",
     template: "%s · Petrichor",
   },
-  description: "Turn a song and a moment into a collectible card you can share with anyone.",
+  description: "Collectible keepsakes for preserving memories through music.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -60,12 +62,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <Link href="/" className="font-serif text-2xl tracking-tight">
             Petrichor
           </Link>
-          <Link
-            href="/create"
-            className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
-          >
-            Create a card
-          </Link>
+          <nav className="flex items-center gap-5">
+            <Link
+              href="/create"
+              className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
+            >
+              Create a card
+            </Link>
+            <Suspense fallback={<div className="size-8" />}>
+              <AccountMenu />
+            </Suspense>
+          </nav>
         </header>
         <main className="flex flex-1 flex-col">{children}</main>
         <Toaster theme="light" position="top-center" />

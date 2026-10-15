@@ -12,21 +12,23 @@ import {
 import Link from "next/link";
 import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, SparklesIcon } from "lucide-react";
 import { toast } from "sonner";
-import { createCard, requestPhotoUpload } from "@/app/create/actions";
+import { createCard, requestPhotoUpload, type CreatedCopyResult } from "@/app/create/actions";
 import { AppleMusicEmbed } from "@/components/apple-music-embed";
 import { CollectibleCard } from "@/components/collectible-card";
+import { AudienceField, type Audience } from "@/components/create/audience-field";
 import { ColorField, type ColorSwatch } from "@/components/create/color-field";
+import { CreatedCopies } from "@/components/create/created-copies";
 import { EditionField, parseEditionSize } from "@/components/create/edition-field";
 import { PhotoCropper } from "@/components/create/photo-cropper";
 import { PhotoField } from "@/components/create/photo-field";
+import { RecipientPicker } from "@/components/create/recipient-picker";
 import { SelectedSong, SongSearch } from "@/components/create/song-search";
-import { EditionLinks } from "@/components/edition-links";
-import { ShareActions } from "@/components/share-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { buildAppleMusicUrl, type SongSearchResult } from "@/lib/apple-music";
+import { authClient } from "@/lib/auth/client";
 import {
   DEFAULT_CARD_COLOR,
   EARTH_PHOTO_AREA,
@@ -35,6 +37,8 @@ import {
 } from "@/lib/card-color";
 import { cropFromView, DEFAULT_PHOTO_VIEW, exportCroppedPhoto, readImageSize, type PhotoView } from "@/lib/photo-crop";
 import { extractPalette } from "@/lib/photo-palette";
+import type { PublicProfile } from "@/lib/profiles";
+import { saveClaims } from "@/lib/saved-claims";
 import { cn } from "@/lib/utils";
 import {
   cardFieldsSchema,
@@ -110,13 +114,21 @@ export function CreateCardFlow() {
   const [step, setStep] = useState<Step>("edit");
   const [editionInput, setEditionInput] = useState("1");
   const [editionError, setEditionError] = useState<string>();
-  /** The created card IDs in edition order; one entry for a single card. */
-  const [cardIds, setCardIds] = useState<string[] | null>(null);
+  const [audience, setAudience] = useState<Audience>("self");
+  const [anonymous, setAnonymous] = useState(false);
+  const [recipients, setRecipients] = useState<PublicProfile[]>([]);
+  /** The created copies in edition order, with each one's link and status. */
+  const [copies, setCopies] = useState<CreatedCopyResult[] | null>(null);
+  const { data: session } = authClient.useSession();
+  const signedIn = Boolean(session?.user);
   const [status, setStatus] = useState<string | null>(null);
   const [isSaving, startSaving] = useTransition();
   const today = useToday();
   // Falls back to 1 while the field holds something invalid; the preview step re-checks it.
   const editionSize = parseEditionSize(editionInput).size ?? 1;
+  // One recipient per copy; extra picks are dropped if the edition shrinks.
+  const activeRecipients = audience === "others" ? recipients.slice(0, editionSize) : [];
+  const signatureHidden = audience === "others" && anonymous;
 
   const previewUrl = photo?.previewUrl;
   useEffect(() => {
@@ -274,10 +286,19 @@ export function CreateCardFlow() {
         cardColor,
         photoAreaColor: photo ? null : photoAreaColor,
         editionSize,
+        audience,
+        anonymous: signatureHidden,
+        recipientUserIds: activeRecipients.map((r) => r.userId),
       });
       setStatus(null);
 
       if (!result.ok) {
+        if (result.code === "needs_profile") {
+          toast.error(result.error, {
+            action: { label: "Set up", onClick: () => window.open("/onboarding?next=/keepsakes", "_blank") },
+          });
+          return;
+        }
         if (result.code === "photo_invalid") {
           removePhoto();
           setPhotoError(result.error);
@@ -290,7 +311,11 @@ export function CreateCardFlow() {
         return;
       }
 
-      setCardIds(result.cardIds);
+      // Made "for myself" while signed out: remember the claim codes in this browser so
+      // signing in moves the cards into the collection automatically.
+      const unclaimedOwn = result.copies.filter((c) => audience === "self" && c.claimToken);
+      if (unclaimedOwn.length) saveClaims(unclaimedOwn.map((c) => ({ cardId: c.cardId, token: c.claimToken! })));
+      setCopies(result.copies);
       goTo("done");
     });
   }
@@ -307,7 +332,9 @@ export function CreateCardFlow() {
     setPhotoAreaColor(null);
     setEditionInput("1");
     setEditionError(undefined);
-    setCardIds(null);
+    setAnonymous(false);
+    setRecipients([]);
+    setCopies(null);
     goTo("edit");
   }
 
@@ -318,63 +345,64 @@ export function CreateCardFlow() {
     photoCrop: photo ? cropFromView(photo.width, photo.height, photo.view) : null,
     lyricsExcerpt: values.lyricsExcerpt.trim(),
     message: values.message.trim(),
-    senderName: values.senderName.trim(),
+    senderName: signatureHidden ? "" : values.senderName.trim(),
     moment: values.moment.trim(),
     createdAt: today,
     cardColor,
     photoAreaColor,
     editionNumber: 1,
     editionSize,
-    cardId: cardIds?.[0] ?? null,
+    cardId: copies?.[0]?.cardId ?? null,
   };
 
-  if (step === "done" && cardIds && cardIds.length > 1) {
+  if (step === "done" && copies) {
+    const size = copies.length;
+    const allYours = copies.every((c) => c.ownedByYou);
+    const keepAfterSignIn = audience === "self" && copies.some((c) => c.claimToken);
+    const heading = allYours
+      ? size > 1
+        ? `Your ${size} cards are in your collection`
+        : "It's in your collection"
+      : keepAfterSignIn
+        ? size > 1
+          ? "Sign in to keep your cards"
+          : "Sign in to keep your card"
+        : size > 1
+          ? `Your ${size} cards are ready`
+          : "Your card is ready";
     return (
       <div className="mx-auto flex w-full max-w-md flex-col items-center gap-8 px-4 pt-4 pb-16">
         <div className="text-center">
           <p className="text-clay mb-2 inline-flex items-center gap-1.5 text-sm font-medium">
-            <SparklesIcon className="size-4" /> Edition created
+            <SparklesIcon className="size-4" /> {size > 1 ? "Edition created" : "Card created"}
           </p>
-          <h1 className="font-serif text-4xl tracking-tight">Your {cardIds.length} cards are ready</h1>
+          <h1 className="font-serif text-4xl tracking-tight">{heading}</h1>
           <p className="text-muted-foreground mt-2 text-sm">
-            Numbered 1 to {cardIds.length}, each with its own link. Anyone with a link can open that card — no
-            account needed.
+            {keepAfterSignIn
+              ? "We've saved it on this device. Sign in and it moves into your collection — or keep the claim links below."
+              : allYours
+                ? "Share the view link with anyone; the card stays yours."
+                : "Each copy below shows where it stands and the link to send."}
           </p>
         </div>
         <CollectibleCard card={previewCard} />
         {song && <AppleMusicEmbed url={buildAppleMusicUrl(song)} title={song.title} />}
-        <EditionLinks cardIds={cardIds} />
+        {keepAfterSignIn && (
+          <Button asChild size="lg" className="h-11 w-full">
+            <Link href="/sign-in?next=/keepsakes">
+              <SparklesIcon /> Sign in to keep {size > 1 ? "them" : "it"}
+            </Link>
+          </Button>
+        )}
+        {allYours && (
+          <Button asChild size="lg" variant="outline" className="h-11 w-full">
+            <Link href="/keepsakes">Go to my keepsakes</Link>
+          </Button>
+        )}
+        <CreatedCopies copies={copies} />
         <Button variant="ghost" size="lg" className="h-10" onClick={startOver}>
           Make another
         </Button>
-      </div>
-    );
-  }
-
-  const cardId = cardIds?.[0];
-  if (step === "done" && cardId) {
-    return (
-      <div className="mx-auto flex w-full max-w-md flex-col items-center gap-8 px-4 pt-4 pb-16">
-        <div className="text-center">
-          <p className="text-clay mb-2 inline-flex items-center gap-1.5 text-sm font-medium">
-            <SparklesIcon className="size-4" /> Card created
-          </p>
-          <h1 className="font-serif text-4xl tracking-tight">Your card is ready</h1>
-          <p className="text-muted-foreground mt-2 text-sm">
-            Anyone with the link can open it — no account needed.
-          </p>
-        </div>
-        <CollectibleCard card={previewCard} />
-        {song && <AppleMusicEmbed url={buildAppleMusicUrl(song)} title={song.title} />}
-        <ShareActions path={`/c/${cardId}`} title={`${previewCard.songTitle} — a Petrichor card`} showUrl />
-        <div className="flex w-full gap-2">
-          <Button asChild variant="outline" size="lg" className="h-10 flex-1">
-            <Link href={`/c/${cardId}`}>Open card</Link>
-          </Button>
-          <Button variant="ghost" size="lg" className="h-10 flex-1" onClick={startOver}>
-            Make another
-          </Button>
-        </div>
       </div>
     );
   }
@@ -388,6 +416,13 @@ export function CreateCardFlow() {
             {editionSize > 1
               ? `This creates ${editionSize} numbered cards, 1 of ${editionSize} to ${editionSize} of ${editionSize}, each with its own link. `
               : ""}
+            {audience === "self"
+              ? signedIn
+                ? "They'll go straight into your collection. "
+                : "Sign in afterwards to keep them in your collection. "
+              : activeRecipients.length > 0
+                ? `${activeRecipients.length === 1 ? "Your recipient accepts" : "Each recipient accepts"} before it's theirs. `
+                : ""}
             Cards can&apos;t be changed after they&apos;re created.
           </p>
         </div>
@@ -433,9 +468,11 @@ export function CreateCardFlow() {
         <div>
           <h1 className="font-serif text-4xl tracking-tight sm:text-5xl">Make a card</h1>
           <p className="text-muted-foreground mt-2">
-            Pick a song, add a moment, and send it to someone.
+            Pick a song, add a moment, and keep it as a collectible — for yourself or someone else.
           </p>
         </div>
+
+        <AudienceField value={audience} onChange={setAudience} />
 
         {songMode === "manual" ? (
           <fieldset className="grid gap-5 sm:grid-cols-2">
@@ -510,7 +547,28 @@ export function CreateCardFlow() {
         <TextField name="lyricsExcerpt" label="Lyrics excerpt" multiline rows={2} value={values.lyricsExcerpt} error={errors.lyricsExcerpt} onChange={handleChange("lyricsExcerpt")} placeholder="The line that says it best" />
         <TextField name="message" label="Personal message" multiline rows={4} value={values.message} error={errors.message} onChange={handleChange("message")} placeholder="Why this song reminds you of them" />
         <div className="grid gap-5 sm:grid-cols-2">
-          <TextField name="senderName" label="Your name" value={values.senderName} error={errors.senderName} onChange={handleChange("senderName")} placeholder="How you'd like to sign it" />
+          <div className="grid gap-2">
+            <TextField
+              name="senderName"
+              label="Signature"
+              value={signatureHidden ? "" : values.senderName}
+              error={errors.senderName}
+              onChange={handleChange("senderName")}
+              placeholder={signatureHidden ? "Sent anonymously" : "How you'd like to sign it"}
+              disabled={signatureHidden}
+            />
+            {audience === "others" && (
+              <label className="-mt-1 flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={anonymous}
+                  onChange={(e) => setAnonymous(e.target.checked)}
+                  className="accent-foreground size-4"
+                />
+                Send anonymously
+              </label>
+            )}
+          </div>
           <TextField name="moment" label="Moment" value={values.moment} error={errors.moment} onChange={handleChange("moment")} placeholder="Birthday party, graduation, a place…" />
         </div>
 
@@ -522,6 +580,10 @@ export function CreateCardFlow() {
             if (validateLive) setEditionError(parseEditionSize(value).error);
           }}
         />
+
+        {audience === "others" && (
+          <RecipientPicker signedIn={signedIn} max={editionSize} value={activeRecipients} onChange={setRecipients} />
+        )}
 
         <Button type="submit" size="lg" className="h-11 sm:self-start sm:px-6">
           Preview card <ArrowRightIcon />
@@ -542,10 +604,11 @@ type TextFieldProps = {
   placeholder?: string;
   hint?: string;
   className?: string;
+  disabled?: boolean;
   onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
 };
 
-function TextField({ name, label, value, error, required, multiline, rows, hint, className, ...inputProps }: TextFieldProps) {
+function TextField({ name, label, value, error, required, multiline, rows, hint, className, disabled, ...inputProps }: TextFieldProps) {
   const max = LIMITS[name];
   const describedBy = `${name}-message`;
   const shared = {
@@ -553,6 +616,7 @@ function TextField({ name, label, value, error, required, multiline, rows, hint,
     name,
     value,
     required,
+    disabled,
     "aria-invalid": !!error,
     "aria-describedby": describedBy,
     className: "bg-background",

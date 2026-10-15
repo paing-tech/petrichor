@@ -14,6 +14,11 @@ const storageEnvSchema = z.object({
   R2_PUBLIC_URL: z.url().transform((url) => url.replace(/\/+$/, "")),
 });
 
+const authEnvSchema = z.object({
+  NEON_AUTH_BASE_URL: z.url(),
+  NEON_AUTH_COOKIE_SECRET: z.string().min(32),
+});
+
 // Parsed lazily so `next build` works without secrets; misconfiguration
 // surfaces on first use with a message naming the missing variables.
 function parseEnv<T extends z.ZodType>(schema: T, label: string): z.output<T> {
@@ -36,4 +41,11 @@ export function getDatabaseEnv() {
 export function getStorageEnv() {
   storageEnv ??= parseEnv(storageEnvSchema, "storage");
   return storageEnv;
+}
+
+let authEnv: z.output<typeof authEnvSchema> | undefined;
+
+export function getAuthEnv() {
+  authEnv ??= parseEnv(authEnvSchema, "auth");
+  return authEnv;
 }

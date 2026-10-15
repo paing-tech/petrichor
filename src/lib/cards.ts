@@ -3,14 +3,19 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { getDb } from "@/db";
-import { cards, type Card } from "@/db/schema";
+import { cardDeliveries, cardOwnerships, cards, type Card } from "@/db/schema";
 import { generateCardId } from "@/lib/card-id";
+import { generateClaimToken, hashClaimToken } from "@/lib/claim-token";
 import type { CardFields } from "@/lib/validation";
 
-// What pages can see: no internal primary key, and no edition link (pages only show their own copy).
-export type PublicCard = Omit<Card, "id" | "editionId">;
+// What pages can see: the card's content only. No internal keys, edition link,
+// creator, owner or claim data (ownership is read separately, per request).
+export type PublicCard = Omit<
+  Card,
+  "id" | "editionId" | "creatorUserId" | "ownerUserId" | "claimTokenHash"
+>;
 
-/** Cards are immutable once created, so a lookup can be cached indefinitely. */
+/** Card content never changes once created, so a lookup can be cached indefinitely. */
 export async function getCardByCardId(cardId: string): Promise<PublicCard | null> {
   "use cache";
   cacheLife("max");
@@ -40,12 +45,28 @@ export async function getCardByCardId(cardId: string): Promise<PublicCard | null
   return card ?? null;
 }
 
+/** How one copy of an edition starts out. */
+export type CopyPlan =
+  /** Owned by the signed-in creator straight away ("for myself"). */
+  | { kind: "owned"; ownerUserId: string }
+  /** Sent to an account; owned once the recipient accepts. */
+  | { kind: "delivered"; recipientUserId: string }
+  /** Unowned until someone opens its claim link and keeps it. */
+  | { kind: "claimable" };
+
+export type CreatedCopy = {
+  cardId: string;
+  editionNumber: number;
+  /** Only for claimable copies: the secret for the claim link. Never stored. */
+  claimToken: string | null;
+};
+
 const MAX_ID_ATTEMPTS = 3;
 
 /**
- * Creates an edition: `editionSize` identical cards, numbered 1…N, each with its
- * own card ID. One multi-row INSERT, so either every copy is saved or none is.
- * Returns the card IDs in edition order.
+ * Creates an edition: one card per copy plan, numbered 1…N, each with its own card
+ * ID, plus its ownership record or delivery. Runs as one database transaction, so
+ * either the whole edition is saved or nothing is.
  */
 export async function insertEdition(
   fields: CardFields & {
@@ -55,29 +76,61 @@ export async function insertEdition(
     cardColor: string;
     photoAreaColor: string | null;
   },
-  editionSize: number,
-) {
+  { creatorUserId, copies }: { creatorUserId: string | null; copies: CopyPlan[] },
+): Promise<CreatedCopy[]> {
   const editionId = randomUUID();
-  // A 128-bit collision is practically impossible, but retrying keeps the unique
-  // constraint from ever surfacing to a user as a failed save.
+  const editionSize = copies.length;
+
+  // A collision of 128-bit card IDs (or 256-bit claim codes) is practically
+  // impossible, but retrying keeps a unique constraint from ever failing a save.
   for (let attempt = 1; ; attempt++) {
-    const rows = Array.from({ length: editionSize }, (_, i) => ({
-      ...fields,
-      cardId: generateCardId(),
-      editionId,
-      editionNumber: i + 1,
-      editionSize,
-    }));
+    const planned = copies.map((plan, i) => {
+      const claimToken = plan.kind === "claimable" ? generateClaimToken() : null;
+      return {
+        plan,
+        claimToken,
+        row: {
+          ...fields,
+          id: randomUUID(),
+          cardId: generateCardId(),
+          editionId,
+          editionNumber: i + 1,
+          editionSize,
+          creatorUserId,
+          ownerUserId: plan.kind === "owned" ? plan.ownerUserId : null,
+          claimTokenHash: claimToken ? hashClaimToken(claimToken) : null,
+        },
+      };
+    });
+
+    const ownerships = planned.flatMap(({ plan, row }) =>
+      plan.kind === "owned" ? [{ cardId: row.id, userId: plan.ownerUserId, acquiredVia: "created" }] : [],
+    );
+    const deliveries = planned.flatMap(({ plan, row }) =>
+      plan.kind === "delivered"
+        ? [{ cardId: row.id, senderUserId: creatorUserId, recipientUserId: plan.recipientUserId }]
+        : [],
+    );
+
+    const db = getDb();
     try {
-      await getDb().insert(cards).values(rows);
-      return rows.map((row) => row.cardId);
+      await db.batch([
+        db.insert(cards).values(planned.map((p) => p.row)),
+        ...(ownerships.length ? [db.insert(cardOwnerships).values(ownerships)] : []),
+        ...(deliveries.length ? [db.insert(cardDeliveries).values(deliveries)] : []),
+      ]);
+      return planned.map(({ row, claimToken }) => ({
+        cardId: row.cardId,
+        editionNumber: row.editionNumber,
+        claimToken,
+      }));
     } catch (error) {
       if (attempt >= MAX_ID_ATTEMPTS || !isUniqueViolation(error)) throw error;
     }
   }
 }
 
-function isUniqueViolation(error: unknown): boolean {
+export function isUniqueViolation(error: unknown): boolean {
   for (let e = error; e && typeof e === "object"; e = (e as { cause?: unknown }).cause) {
     if ((e as { code?: unknown }).code === "23505") return true;
   }

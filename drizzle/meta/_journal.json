@@ -71,6 +71,13 @@
       "when": 1791839161175,
       "tag": "0009_edition_size_max_20",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791908621307,
+      "tag": "0010_accounts_and_ownership",
+      "breakpoints": true
     }
   ]
 }

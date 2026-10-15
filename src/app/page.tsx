@@ -23,8 +23,8 @@ export default function Home() {
           A song, a moment, and the person it reminds you of.
         </h1>
         <p className="text-muted-foreground mt-6 text-lg">
-          Petrichor turns a song and a few words into a collectible card. Add a photo and the lyric that
-          says it best, then send the link — nobody needs an account.
+          Petrichor turns a song and a moment into a collectible keepsake. Add a photo and the lyric that
+          says it best, then keep it in your collection — or make it for someone to keep in theirs.
         </p>
         <Button asChild size="lg" className="mt-8 h-11 px-6">
           <Link href="/create">

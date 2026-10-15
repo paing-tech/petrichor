@@ -1,8 +1,8 @@
 # Petrichor
 
-Create and share digital music memory cards. No accounts: a sender builds a card at `/create`, and anyone with the link (`/c/P-…`) can view it.
+A collectible keepsake platform for preserving memories through music. Each card pairs a song with a photo, lyrics and a message, and is permanently owned by one account. Anyone with a card's link (`/c/P-…`) can view it; ownership comes from keeping it.
 
-**Stack:** Next.js 16 (App Router, Cache Components), React 19, TypeScript, Tailwind CSS v4, shadcn/ui, Neon Postgres + Drizzle ORM, Zod, Cloudflare R2 for photos.
+**Stack:** Next.js 16 (App Router, Cache Components), React 19, TypeScript, Tailwind CSS v4, shadcn/ui, Neon Postgres + Drizzle ORM, Neon Auth (Managed Better Auth), Zod, Cloudflare R2 for photos.
 
 ## Setup
 
@@ -42,7 +42,18 @@ When you change [src/db/schema.ts](src/db/schema.ts), run `npm run db:generate` 
    ]
    ```
 
-### 4. Run
+### 4. Accounts (Neon Auth)
+
+Neon Auth is declared in [neon.ts](neon.ts) (`auth: true`). With the Neon CLI linked to the project:
+
+```sh
+neon deploy            # enables Neon Auth; writes NEON_AUTH_BASE_URL and NEON_AUTH_JWKS_URL to .env.local
+openssl rand -base64 32  # put the result in NEON_AUTH_COOKIE_SECRET
+```
+
+Sign-in methods are **email code** and **Google**. Password sign-in is turned off on purpose (`neon neon-auth config email-password update --enabled false`): the app never offers passwords, and leaving the endpoint on would let someone pre-register another person's email with a password.
+
+### 5. Run
 
 ```sh
 npm run dev
@@ -66,8 +77,9 @@ Open http://localhost:3000.
    - re-validates every field;
    - reads the uploaded object's size and first bytes to confirm it is really a JPEG, PNG or WebP of 10 MB or less, and deletes it otherwise;
    - builds the Apple Music link from the selected song's IDs;
-   - generates the card ID and inserts the row.
-5. The sender gets a shareable link to `/c/{cardId}`.
+   - works out each copy's owner (you, a recipient's pending delivery, or a claim link);
+   - generates the card IDs and saves the whole edition, its ownership and deliveries in one transaction.
+5. The sender gets each copy's status and links: a public view link, plus a private claim link for copies that will be kept through one (see [Accounts and ownership](#accounts-and-ownership)).
 6. `/c/[cardId]` serves a prerendered shell and streams the card in, followed by Apple Music's embedded player and a "Find on Spotify" link. Cards are immutable, so lookups are cached indefinitely (`"use cache"` + `cacheLife("max")`). Card pages are marked `noindex`.
 
 ### Song search
@@ -130,7 +142,30 @@ All four are Google Fonts under the SIL Open Font License, loaded with `next/fon
 | `npm run db:migrate` | Apply migrations |
 | `npm run db:studio` | Browse data with Drizzle Studio |
 
+## Accounts and ownership
+
+Every card can be permanently owned by one account. Creating a card doesn't require an account.
+
+- **For myself:** signed in, every copy is owned by you immediately. Signed out, each copy gets a claim code saved in this browser; after signing in, `/keepsakes` keeps them automatically (the claim links shown after creating work too).
+- **For someone:** the recipient becomes the owner. Copies can be sent to an account found by name or @username (one per copy): the recipient accepts or declines before it's theirs, and a declined copy returns to its creator. Copies without a recipient get a private **claim link**.
+- **Claim links** (`/c/P-…?k=…`) carry a 256-bit secret. Only its SHA-256 is stored, it works once, and the public view link (and the card ID printed on the card) can never be used to claim. Creators can issue a new claim link for an unkept copy from `/keepsakes`, which invalidates the old one.
+- **Public:** the owner's name, @username and photo are shown under the card. **Private:** who created the card (`creator_user_id`, reserved for approved template creators later), claim dates (`card_ownerships`, for history only), and the signature is only what the sender typed — or blank when sent anonymously.
+- **Profiles** (`profiles`): a changeable @username (3–20 lowercase letters, numbers, dots, underscores), display name, photo (from Google; initials otherwise) and a "Let people find me" setting for recipient search.
+- Ownership changes (claim, accept) run as single SQL statements, so two people can't keep the same copy. Card pages cache the card's content forever but read ownership per request.
+
+Pages: `/sign-in`, `/onboarding` (choose username), `/keepsakes` (waiting for you, collection, cards you created), `/settings`.
+
+### Before launch
+
+- **Email:** Neon's shared sender (`auth@mail.myneon.app`) is for development. Configure custom SMTP: https://neon.com/docs/auth/production-checklist.md
+- **Google:** replace Neon's shared development OAuth credentials with your own Google OAuth app (`neon neon-auth oauth-provider`).
+- **Trusted domains:** add the production origin with `neon neon-auth domain add https://your-domain`.
+
 ## Known gaps (post-MVP)
+
+- **Transfers:** an owner can't yet pass a card on to someone else. Ownership history already supports it.
+- **Account deletion and collection export** aren't built. Deleting an auth user currently leaves their cards unowned.
+- **Profile photo upload** for email-code accounts (they show initials).
 
 - **Orphaned photos:** a photo uploaded for a card that then fails to save stays in R2. Add an R2 lifecycle rule or a cleanup job.
 - **No rate limiting** on card creation or upload URLs. Add it before a public launch (for example with Upstash or Cloudflare).

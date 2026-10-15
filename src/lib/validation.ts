@@ -103,6 +103,12 @@ export const createCardSchema = cardFieldsSchema.extend({
     .int("Copies must be a whole number")
     .min(1, "Make at least 1 copy")
     .max(MAX_EDITION_SIZE, `You can make up to ${MAX_EDITION_SIZE} copies`),
+  /** "self": the creator keeps it. "others": recipients keep it, by account or claim link. */
+  audience: z.enum(["self", "others"]),
+  /** Leaves the signature off the card, whatever was typed. */
+  anonymous: z.boolean(),
+  /** Accounts to send copies to directly, in copy order ("others" only). */
+  recipientUserIds: z.array(z.uuid()).max(MAX_EDITION_SIZE),
 });
 
 export type CreateCardInput = z.input<typeof createCardSchema>;
@@ -137,3 +143,27 @@ export function fieldErrors(error: z.ZodError): CardFieldErrors {
   }
   return errors;
 }
+
+// Accounts --------------------------------------------------------------------
+
+export const USERNAME_PATTERN = /^[a-z0-9._]{3,20}$/;
+
+export const usernameSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(USERNAME_PATTERN, "Use 3–20 lowercase letters, numbers, dots or underscores");
+
+export const displayNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Enter your name")
+  .max(50, "Name must be 50 characters or fewer");
+
+export const profileInputSchema = z.object({
+  username: usernameSchema,
+  displayName: displayNameSchema,
+});
+
+export type ProfileInput = z.input<typeof profileInputSchema>;
+

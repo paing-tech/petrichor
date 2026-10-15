@@ -22,6 +22,7 @@ import { EditionField, parseEditionSize } from "@/components/create/edition-fiel
 import { PhotoAndColors } from "@/components/create/photo-and-colors";
 import { PhotoFramingLayer } from "@/components/create/photo-cropper";
 import { RecipientPicker } from "@/components/create/recipient-picker";
+import { useActionsAboveKeyboard } from "@/components/create/use-actions-above-keyboard";
 import { useIsNarrow } from "@/components/create/use-is-narrow";
 import { SelectedSong, SongSearch } from "@/components/create/song-search";
 import { Button } from "@/components/ui/button";
@@ -143,18 +144,20 @@ export function CreateCardFlow() {
   const activeRecipients = audience === "others" ? recipients.slice(0, editionSize) : [];
   const signatureHidden = audience === "others" && anonymous;
 
-  // Keep the keyboard flowing between steps: focus the new step's first text field.
+  // On a new step, move focus to the step itself (for screen readers) rather than a
+  // field: the keyboard or color picker should only open when the person taps them.
   const previousFormStep = useRef(formStep);
   useEffect(() => {
     if (previousFormStep.current === formStep) return;
     previousFormStep.current = formStep;
     if (isWideScreen()) return;
-    const field = document.querySelector<HTMLElement>(
-      `[data-form-step="${formStep}"] input:not([type=checkbox]):not([type=file]):not([disabled]), [data-form-step="${formStep}"] textarea`,
-    );
-    field?.focus({ preventScroll: true });
+    document.querySelector<HTMLElement>(`[data-form-step="${formStep}"]`)?.focus({ preventScroll: true });
     window.scrollTo({ top: 0 });
   }, [formStep]);
+
+  // With the keyboard open on a phone, keep Back / Next just above it (no blank page below).
+  const stepActionsRef = useRef<HTMLDivElement>(null);
+  useActionsAboveKeyboard(stepActionsRef, narrow && step === "edit");
 
   /** Shows a step and focuses the field that needs attention. */
   function showFieldError(field: FieldName | "editionSize") {
@@ -679,7 +682,7 @@ export function CreateCardFlow() {
         </FormStep>
 
         {/* Narrow screens: Back / Next right under the field, so it stays above the keyboard. */}
-        <div className="flex gap-2 lg:hidden">
+        <div ref={stepActionsRef} className="flex gap-2 lg:hidden">
           {formStep > 0 && (
             <Button type="button" variant="outline" size="lg" className="bg-background h-11 rounded-full px-5" onClick={() => setFormStep((s) => s - 1)}>
               <ArrowLeftIcon /> Back
@@ -711,7 +714,12 @@ export function CreateCardFlow() {
 /** One step of the form: the only one shown on narrow screens; all shown on lg+. */
 function FormStep({ index, current, children }: { index: number; current: number; children: ReactNode }) {
   return (
-    <div data-form-step={index} className={cn("flex flex-col gap-6", index !== current && "max-lg:hidden")}>
+    <div
+      data-form-step={index}
+      // Focusable (not tabbable) so a new step can take focus without opening the keyboard.
+      tabIndex={-1}
+      className={cn("flex flex-col gap-6 outline-none", index !== current && "max-lg:hidden")}
+    >
       {children}
     </div>
   );

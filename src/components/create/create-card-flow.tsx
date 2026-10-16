@@ -457,9 +457,9 @@ export function CreateCardFlow() {
           <h1 className="font-serif text-4xl tracking-tight">{heading}</h1>
           <p className="text-muted-foreground mt-2 text-sm">
             {keepAfterSignIn
-              ? "We've saved it on this device. Sign in and it moves into your collection — or keep the claim links below."
+              ? "We've saved it on this device. Sign in and it moves into your collection, or save the link below to keep it later."
               : allYours
-                ? "Share the view link with anyone; the card stays yours."
+                ? "Share the link with anyone; the card stays yours."
                 : "Each copy below shows where it stands and the link to send."}
           </p>
         </div>

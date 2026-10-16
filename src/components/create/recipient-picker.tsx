@@ -18,7 +18,7 @@ type RecipientPickerProps = {
 
 /**
  * Optional: send copies straight to accounts (they accept before it's theirs).
- * Copies without a recipient get claim links for people without an account.
+ * Copies without a recipient get a link (carrying a claim code) for people without an account.
  */
 export function RecipientPicker({ max, value, onChange }: RecipientPickerProps) {
   const [query, setQuery] = useState("");
@@ -105,7 +105,7 @@ export function RecipientPicker({ max, value, onChange }: RecipientPickerProps) 
           {query.trim().replace(/^@/, "").length >= 2 && !loading && (
             <ul className="bg-popover absolute inset-x-0 top-full z-20 mt-1.5 max-h-72 overflow-y-auto rounded-xl border py-1 shadow-lg">
               {results.length === 0 ? (
-                <li className="text-muted-foreground px-3 py-2.5 text-sm">No accounts found. You can send a claim link instead.</li>
+                <li className="text-muted-foreground px-3 py-2.5 text-sm">No accounts found. You can send them a link instead.</li>
               ) : (
                 results.map((profile) => (
                   <li key={profile.userId}>
@@ -130,8 +130,8 @@ export function RecipientPicker({ max, value, onChange }: RecipientPickerProps) 
       )}
       <p className="text-muted-foreground text-xs">
         {max > 1
-          ? `Pick up to ${max} people, one per copy. They accept it before it's theirs; copies without a recipient get claim links.`
-          : "They accept it before it's theirs. Leave empty to get a claim link instead."}
+          ? `Pick up to ${max} people, one per copy. They accept it before it's theirs; copies without a recipient get a link to send.`
+          : "They accept it before it's theirs. Leave empty to get a link to send instead."}
       </p>
     </div>
   );

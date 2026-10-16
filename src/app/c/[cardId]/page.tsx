@@ -94,8 +94,10 @@ async function CardView({ params, searchParams }: PageProps<"/c/[cardId]">) {
 }
 
 /**
- * Below the card: the owner (public), or, for an unowned card, "Keep this card" on a
- * valid claim link and Accept/Decline for the account a delivery is waiting on.
+ * Below the card: the owner (public), or, for an unowned card, "Keep this card" when the
+ * link carries a valid claim code and Accept/Decline for the account a delivery is waiting
+ * on. The card's one link works before and after it's kept: once the code is used or
+ * replaced, it just shows the card.
  */
 async function Ownership({
   cardId,
@@ -134,9 +136,8 @@ async function Ownership({
 
   const { k } = await searchParams;
   const token = typeof k === "string" && CLAIM_TOKEN_PATTERN.test(k) ? k : null;
-  if (!token) return null;
-  if (!ownership.claimable || !(await isValidClaimToken(cardId, token))) {
-    return <p className="text-muted-foreground text-sm">This claim link has already been used or replaced.</p>;
+  if (!token || !ownership.claimable || !(await isValidClaimToken(cardId, token))) {
+    return <p className="text-muted-foreground text-sm">Not kept yet</p>;
   }
   const state = !account ? "signed_out" : !account.profile ? "needs_profile" : "ready";
   return <KeepCard cardId={cardId} token={token} state={state} />;

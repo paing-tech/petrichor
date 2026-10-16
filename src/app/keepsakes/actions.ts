@@ -25,7 +25,7 @@ const claimSchema = z.object({
 
 export async function claimCardAction(input: { cardId: string; token: string }): Promise<Result> {
   const parsed = claimSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: "This claim link isn't valid." };
+  if (!parsed.success) return { ok: false, error: "This link can't be used to keep the card." };
   const auth = await requireOwnerAccount();
   if ("error" in auth) return auth.error;
   const claimed = await claimCard(parsed.data.cardId, parsed.data.token, auth.userId);
@@ -71,5 +71,5 @@ export async function reissueClaimLinkAction(cardId: string): Promise<Result<{ t
   const account = await getAccount();
   if (!account) return { ok: false, code: "sign_in", error: "Sign in first." };
   const token = await reissueClaimLink(cardId, account.user.id);
-  return token ? { ok: true, token } : { ok: false, error: "This card can't get a new claim link right now." };
+  return token ? { ok: true, token } : { ok: false, error: "This card can't get a new link right now." };
 }

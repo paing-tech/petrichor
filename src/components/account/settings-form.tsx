@@ -31,7 +31,7 @@ export function SettingsForm({ username, displayName, searchable }: SettingsForm
           <Label htmlFor="searchable">Let people find me</Label>
           <p className="text-muted-foreground text-xs">
             When on, people can find you by name or @username and send cards straight to your account. When off,
-            you can still receive cards through claim links.
+            you can still receive cards through links people send you.
           </p>
         </div>
         <Switch id="searchable" name="searchable" defaultChecked={searchable} />

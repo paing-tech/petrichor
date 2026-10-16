@@ -15,14 +15,14 @@ type CreatedCardRowProps = {
   status: CreatedCardStatus;
 };
 
-/** One copy you created: who has it now, and a fresh claim link for unclaimed copies. */
+/** One copy you created: who has it now, and a fresh link for copies nobody has kept yet. */
 export function CreatedCardRow({ cardId, label, status }: CreatedCardRowProps) {
   const origin = useOrigin();
   const [link, setLink] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function newLink() {
-    if (!confirm("Make a new claim link? The previous link for this copy will stop working.")) return;
+    if (!confirm("Make a new link for this card? The link you sent before will still show the card, but no one can keep it with that link.")) return;
     setBusy(true);
     const result = await reissueClaimLinkAction(cardId);
     setBusy(false);
@@ -34,9 +34,9 @@ export function CreatedCardRow({ cardId, label, status }: CreatedCardRowProps) {
     setLink(url);
     try {
       await navigator.clipboard.writeText(url);
-      toast.success("New claim link copied. Send it only to who should keep this card.");
+      toast.success("New link copied. Send it only to the person who should keep this card.");
     } catch {
-      toast.success("New claim link ready");
+      toast.success("New link ready");
     }
   }
 
@@ -54,7 +54,7 @@ export function CreatedCardRow({ cardId, label, status }: CreatedCardRowProps) {
         </span>
         {status.kind === "unclaimed" && (
           <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={newLink}>
-            {busy ? <Loader2Icon className="animate-spin" /> : <RefreshCwIcon />} New claim link
+            {busy ? <Loader2Icon className="animate-spin" /> : <RefreshCwIcon />} New link
           </Button>
         )}
       </div>
@@ -65,7 +65,7 @@ export function CreatedCardRow({ cardId, label, status }: CreatedCardRowProps) {
             type="button"
             variant="ghost"
             size="icon-xs"
-            aria-label="Copy claim link"
+            aria-label="Copy link"
             onClick={() => navigator.clipboard.writeText(link).then(() => toast.success("Copied"))}
           >
             <CopyIcon />

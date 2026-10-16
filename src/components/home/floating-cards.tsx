@@ -9,10 +9,10 @@ import { CollectibleCard, type CollectibleCardData } from "@/components/collecti
 // Speeds are per 60 fps frame and scaled to the real frame time.
 
 /** At least this many cards, repeating the list if it's shorter, so the sphere looks full. */
-const MIN_CARDS = 18;
+const MIN_CARDS = 12;
 /** Sphere radius and card height in px, for wide screens (scaled down on laptops and phones). */
 const RADIUS = 250;
-const CARD_SIZE = 82;
+const CARD_SIZE = 120;
 /** Vertical field of view of the virtual camera, which sets how strong the perspective is. */
 const FOV_DEGREES = 60;
 /** Auto spin, in radians per frame, around an axis tilted this many degrees from vertical. */
@@ -96,9 +96,11 @@ export function FloatingCards({ cards }: { cards: CollectibleCardData[] }) {
       height = field.clientHeight;
       const phone = width <= 640;
       const laptop = width >= 1025 && width <= 1440 ? 0.8 : 1;
-      cardSize = phone ? 60 : CARD_SIZE * laptop;
+      cardSize = phone ? 84 : CARD_SIZE * laptop;
       // On phones the sphere fills the width, less a 24px margin each side.
       radius = phone ? Math.max(0, (width - 48) / 2 - cardSize / 2) : RADIUS * laptop;
+      // Short windows: keep the nearest cards (drawn larger) from running off the top and bottom.
+      radius = Math.max(0, Math.min(radius, height / 2 - cardSize * 0.8));
       // Distance from the camera to the sphere's center, in px, for the field of view.
       focal = height / 2 / Math.tan((FOV_DEGREES * Math.PI) / 360);
     };

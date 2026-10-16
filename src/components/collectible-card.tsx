@@ -33,6 +33,11 @@ type CollectibleCardProps = {
   className?: string;
   /** Laid over the photo area, e.g. the framing layer while customizing. */
   photoOverlay?: ReactNode;
+  /**
+   * Text only: no background, photo or shadow, for laying over artwork that already
+   * draws the card. `card.cardColor` should still be the artwork's color, to pick the ink.
+   */
+  bare?: boolean;
 };
 
 // The card is designed on a 390 × 520 canvas. Every measurement is expressed in
@@ -132,7 +137,7 @@ export function formatCardDate(date: Date | string, timeZone?: string | null) {
   });
 }
 
-export function CollectibleCard({ card, className, photoOverlay }: CollectibleCardProps) {
+export function CollectibleCard({ card, className, photoOverlay, bare = false }: CollectibleCardProps) {
   const title = titleLayout(card.songTitle);
   const song = songLayout(title.fontSize);
   const cardColor = card.cardColor ?? DEFAULT_CARD_COLOR;
@@ -142,7 +147,10 @@ export function CollectibleCard({ card, className, photoOverlay }: CollectibleCa
     <div className={cn("@container relative aspect-3/4 w-full max-w-[390px]", className)}>
       <article
         aria-label={`${card.songTitle} by ${card.artistName}`}
-        className="absolute inset-0 overflow-hidden text-(--ink) shadow-[0_1px_2px_rgba(0,0,0,0.06),0_12px_40px_-12px_rgba(40,30,20,0.35)] ring-1 ring-black/5"
+        className={cn(
+          "absolute inset-0 overflow-hidden text-(--ink)",
+          !bare && "shadow-[0_1px_2px_rgba(0,0,0,0.06),0_12px_40px_-12px_rgba(40,30,20,0.35)] ring-1 ring-black/5",
+        )}
         style={
           {
             "--u": `calc(100cqw / ${BASE_WIDTH})`,
@@ -150,19 +158,21 @@ export function CollectibleCard({ card, className, photoOverlay }: CollectibleCa
             "--ink-soft": ink.soft,
             "--ink-muted": ink.muted,
             "--ink-faint": ink.faint,
-            backgroundColor: cardColor,
+            backgroundColor: bare ? undefined : cardColor,
             borderRadius: u(18),
           } as CSSProperties
         }
       >
-        <CardPhoto
-          photoUrl={card.photoUrl}
-          crop={card.photoCrop}
-          emptyFill={card.photoAreaColor ?? EARTH_PHOTO_AREA}
-          alt={`Photo for ${card.songTitle}`}
-          fadeColor={cardColor}
-          overlay={photoOverlay}
-        />
+        {!bare && (
+          <CardPhoto
+            photoUrl={card.photoUrl}
+            crop={card.photoCrop}
+            emptyFill={card.photoAreaColor ?? EARTH_PHOTO_AREA}
+            alt={`Photo for ${card.songTitle}`}
+            fadeColor={cardColor}
+            overlay={photoOverlay}
+          />
+        )}
 
         {/* Moment's capitals are centered on the third fade stop (text-box trims the
             line to the capitals, and the translate centers them on `top`). Long text

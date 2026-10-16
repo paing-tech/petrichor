@@ -34,6 +34,11 @@ type CollectibleCardProps = {
   /** Laid over the photo area, e.g. the framing layer while customizing. */
   photoOverlay?: ReactNode;
   /**
+   * Sits right after the song title, e.g. a play button. Size it in card units
+   * (`calc(var(--u) * N)`) and keep it no taller than the title's line so the layout holds.
+   */
+  titleAccessory?: ReactNode;
+  /**
    * Text only: no background, photo or shadow, for laying over artwork that already
    * draws the card. `card.cardColor` should still be the artwork's color, to pick the ink.
    */
@@ -137,7 +142,7 @@ export function formatCardDate(date: Date | string, timeZone?: string | null) {
   });
 }
 
-export function CollectibleCard({ card, className, photoOverlay, bare = false }: CollectibleCardProps) {
+export function CollectibleCard({ card, className, photoOverlay, titleAccessory, bare = false }: CollectibleCardProps) {
   const title = titleLayout(card.songTitle);
   const song = songLayout(title.fontSize);
   const cardColor = card.cardColor ?? DEFAULT_CARD_COLOR;
@@ -222,12 +227,15 @@ export function CollectibleCard({ card, className, photoOverlay, bare = false }:
           <div className="flex-1" style={{ minHeight: u(8) }} />
 
           <div className="shrink-0">
-            <h2
-              className="line-clamp-2 font-serif"
-              style={{ fontSize: u(title.fontSize), lineHeight: u(song.titleLine), letterSpacing: "-0.01em" }}
-            >
-              {card.songTitle}
-            </h2>
+            <div className="flex items-center" style={{ gap: u(10) }}>
+              <h2
+                className="line-clamp-2 min-w-0 font-serif"
+                style={{ fontSize: u(title.fontSize), lineHeight: u(song.titleLine), letterSpacing: "-0.01em" }}
+              >
+                {card.songTitle}
+              </h2>
+              {titleAccessory}
+            </div>
             <p
               className="font-outfit line-clamp-1 text-(--ink-muted)"
               style={{ fontSize: u(ARTIST_SIZE), lineHeight: u(ARTIST_LINE), marginTop: u(song.artistMargin) }}

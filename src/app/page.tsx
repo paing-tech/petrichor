@@ -3,14 +3,15 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import type { CollectibleCardData } from "@/components/collectible-card";
 import { HomeActions, HomeActionsFallback } from "@/components/home/home-actions";
+import { AudioPlayButton } from "@/components/home/audio-play-button";
 import { TiltArtwork } from "@/components/home/tilt-artwork";
 import { TodayCard } from "@/components/home/today-card";
 import { afterSignInPath, getAccount, safeNextPath } from "@/lib/auth/account";
 
 const SAMPLE_CARD: CollectibleCardData = {
-  songTitle: "Here Comes the Sun",
-  artistName: "The Beatles",
-  lyricsExcerpt: "Little darling, it's been a long, cold, lonely winter",
+  songTitle: "Ethereal Levitation",
+  artistName: "The Petrichor Ensemble",
+  lyricsExcerpt: "No gravity, no sense of time,\nJust your soul drifting into mine.",
   message: "For the first warm morning after all that rain.",
   senderName: "Petrichor Team",
   moment: "Reverie",
@@ -61,7 +62,12 @@ export default function Home({ searchParams }: PageProps<"/">) {
               width: pct(CARD.width, VIEW.width),
             }}
           >
-            <TodayCard card={SAMPLE_CARD} bare className="max-w-none" />
+            <TodayCard
+              card={SAMPLE_CARD}
+              bare
+              className="max-w-none"
+              titleAccessory={<AudioPlayButton src="/audio/ethereal-levitation.m4a" label="the song" />}
+            />
           </div>
         </TiltArtwork>
         {/* Starts 8px below the glow (the artwork's white margin under it is pulled up). */}

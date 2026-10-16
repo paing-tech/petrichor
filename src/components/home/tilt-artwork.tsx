@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, type CSSProperties, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, type CSSProperties, type PointerEvent, type ReactNode } from "react";
+import { useListening } from "@/components/home/listening";
 import { cn } from "@/lib/utils";
 
 /** Furthest the artwork turns toward the cursor, in degrees. */
@@ -11,7 +12,8 @@ const PERSPECTIVE = 1000;
 /**
  * Tilts its contents toward a mouse cursor, like turning a card in your hand, with a soft
  * light that follows the cursor. Mouse only (touch screens have no hover), and still for
- * anyone who prefers reduced motion.
+ * anyone who prefers reduced motion or while the home page's song plays (the light would
+ * show as a gray box on the black).
  */
 export function TiltArtwork({
   children,
@@ -23,10 +25,16 @@ export function TiltArtwork({
   style?: CSSProperties;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const listening = useListening()?.playing ?? false;
+
+  // Settle flat as soon as the song starts.
+  useEffect(() => {
+    if (listening) leave();
+  }, [listening]);
 
   function move(e: PointerEvent<HTMLDivElement>) {
     const el = ref.current;
-    if (!el || e.pointerType !== "mouse") return;
+    if (!el || e.pointerType !== "mouse" || listening) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const rect = el.getBoundingClientRect();
     // Cursor position across the artwork, 0…1.

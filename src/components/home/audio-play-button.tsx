@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { PauseIcon, PlayIcon } from "lucide-react";
+import { useListening } from "@/components/home/listening";
 
 /** The button's diameter in card units (the card is 390 wide); the title line is about 33. */
 const SIZE = 26;
@@ -9,11 +10,17 @@ const u = (px: number) => `calc(var(--u) * ${px})`;
 
 /**
  * A round play/pause button for a card, in the card's ink color. The file only downloads
- * on the first press. Meant for a CollectibleCard's `titleAccessory`.
+ * on the first press. Meant for a CollectibleCard's `titleAccessory`; inside a
+ * ListeningProvider it also switches the page into listening mode while playing.
  */
 export function AudioPlayButton({ src, label }: { src: string; label: string }) {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [playing, setPlaying] = useState(false);
+  const [playing, setLocalPlaying] = useState(false);
+  const listening = useListening();
+  const setPlaying = (value: boolean) => {
+    setLocalPlaying(value);
+    listening?.setPlaying(value);
+  };
 
   // Stop when leaving the page.
   useEffect(() => () => audioRef.current?.pause(), []);

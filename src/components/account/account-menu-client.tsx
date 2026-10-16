@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { LogOutIcon, SettingsIcon, SparklesIcon } from "lucide-react";
 import { UserAvatar } from "@/components/account/user-avatar";
 import {
@@ -13,19 +13,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth/client";
-
-export function SignInLink() {
-  const pathname = usePathname();
-  const next = pathname.startsWith("/sign-in") ? "/keepsakes" : pathname;
-  return (
-    <Link
-      href={`/sign-in?next=${encodeURIComponent(next)}`}
-      className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
-    >
-      Sign in
-    </Link>
-  );
-}
 
 type AccountMenuClientProps = {
   displayName: string;

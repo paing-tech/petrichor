@@ -567,7 +567,7 @@ export function CreateCardFlow() {
         {/* No visible title; the heading stays for screen readers and page structure. */}
         <h1 className="sr-only">Create a card</h1>
 
-        {/* Close (there's no site header while creating) and, on narrow screens, step progress. */}
+        {/* Close and, on narrow screens, step progress. */}
         <div className="flex items-center gap-3">
           <Button asChild variant="ghost" size="icon-sm" className="-ml-1.5 shrink-0" aria-label="Close and go home">
             <Link href="/">

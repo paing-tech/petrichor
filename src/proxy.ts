@@ -8,7 +8,7 @@ import { getAuth } from "@/lib/auth/server";
  * send people back to where they were after signing in.
  */
 export default function proxy(request: NextRequest) {
-  return getAuth().middleware({ loginUrl: "/sign-in" })(request);
+  return getAuth().middleware({ loginUrl: "/" })(request);
 }
 
 export const config = {

@@ -54,7 +54,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   const siteHeader = (
     // Wordmark centered; the account menu (signed in only) sits on the right.
-    <header className="mx-auto grid w-full max-w-6xl grid-cols-[1fr_auto_1fr] items-center px-4 py-5 sm:px-6">
+    <header className="mx-auto grid w-full max-w-6xl grid-cols-[1fr_auto_1fr] items-center px-4 py-3 sm:px-6">
       <Link href="/" className="col-start-2 font-serif text-2xl tracking-tight">
         Petrichor
       </Link>

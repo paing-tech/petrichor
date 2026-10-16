@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import { redirect } from "next/navigation";
 import { CollectibleCard, type CollectibleCardData } from "@/components/collectible-card";
+import { HomeActions, HomeActionsFallback } from "@/components/home/home-actions";
 import { TiltArtwork } from "@/components/home/tilt-artwork";
-import { Button } from "@/components/ui/button";
-import { getAccount } from "@/lib/auth/account";
+import { afterSignInPath, getAccount, safeNextPath } from "@/lib/auth/account";
 
 const SAMPLE_CARD: CollectibleCardData = {
   songTitle: "Here Comes the Sun",
@@ -27,14 +27,17 @@ const SAMPLE_CARD: CollectibleCardData = {
 const ART = { width: 1000, height: 1350 };
 const VIEW = { left: 0, top: 0, width: 1000, height: 1350 };
 const CARD = { left: 160, top: 248, width: 680, bottom: 1154 };
+/** Where the green glow under the card fades to white. */
+const GLOW_BOTTOM = 1317;
 const pct = (value: number, of: number) => `${(value / of) * 100}%`;
 
-export default function Home() {
+export default function Home({ searchParams }: PageProps<"/">) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-4 pt-1 pb-8">
+    // Anchored to the top (not centered) so the artwork stays put when the sign-in form opens.
+    <div className="flex flex-1 flex-col items-center px-4">
       {/* Artwork size: grows with the screen height (leaving room for the header and the
-          link below), from 300px up to 600px wide. */}
-      <div className="@container flex w-full max-w-[clamp(300px,calc((100svh-170px)*0.74),600px)] flex-col items-center">
+          buttons below), from 300px up to 600px wide. */}
+      <div className="@container flex w-full max-w-[clamp(300px,calc((100svh-230px)*0.74),600px)] flex-col items-center">
         <TiltArtwork className="relative w-full overflow-hidden" style={{ aspectRatio: `${VIEW.width} / ${VIEW.height}` }}>
           <Image
             src="/ethereal-floating.png"
@@ -62,16 +65,13 @@ export default function Home() {
             <CollectibleCard card={SAMPLE_CARD} bare className="max-w-none" />
           </div>
         </TiltArtwork>
-        {/* Pulled up into the glow so the button sits 14px under the drawn card's edge. */}
+        {/* Starts 8px below the glow (the artwork's white margin under it is pulled up). */}
         <div
-          className="relative flex flex-col items-center gap-2"
-          style={{ marginTop: `calc(14px - 100cqw * ${(VIEW.top + VIEW.height - CARD.bottom) / VIEW.width})` }}
+          className="relative flex w-full flex-col items-center"
+          style={{ marginTop: `calc(-20px - 100cqw * ${(VIEW.top + VIEW.height - GLOW_BOTTOM) / VIEW.width})` }}
         >
-          <Button asChild size="lg" className="h-11 px-6">
-            <Link href="/create">Create a keepsake</Link>
-          </Button>
-          <Suspense fallback={<div className="h-9" />}>
-            <AccountLink />
+          <Suspense fallback={<HomeActionsFallback />}>
+            <Actions searchParams={searchParams} />
           </Suspense>
         </div>
       </div>
@@ -79,13 +79,16 @@ export default function Home() {
   );
 }
 
-/** Sign in for visitors; the collection for anyone already signed in. */
-async function AccountLink() {
-  const account = await getAccount();
-  const href = !account ? "/sign-in?next=/keepsakes" : account.profile ? "/keepsakes" : "/onboarding?next=/keepsakes";
-  return (
-    <Button asChild variant="ghost" size="lg" className="text-muted-foreground h-9">
-      <Link href={href}>{account ? "My keepsakes" : "Sign in"}</Link>
-    </Button>
-  );
+/**
+ * Reads the session and the URL, so it renders per request inside <Suspense>. Pages that
+ * need a signed-in visitor send them to `/?next=…`: the sign-in form opens right away and
+ * returns them to `next` afterwards (or sends them straight there if already signed in).
+ */
+async function Actions({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
+  const [account, params] = await Promise.all([getAccount(), searchParams]);
+  const requested = params.next !== undefined;
+  const next = safeNextPath(params.next);
+  if (account && requested) redirect(afterSignInPath(account.profile, next));
+  const collectionHref = !account ? null : afterSignInPath(account.profile, "/keepsakes");
+  return <HomeActions collectionHref={collectionHref} next={next} startOpen={requested} />;
 }

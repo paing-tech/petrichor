@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { afterSignInPath, getAccount, safeNextPath } from "@/lib/auth/account";
+import { signInPath } from "@/lib/auth/sign-in-path";
 
 /**
  * Every sign-in lands here (Google via Neon Auth's middleware, which turns the OAuth
@@ -19,6 +20,6 @@ export default function AuthCallbackPage({ searchParams }: PageProps<"/auth/call
 async function Continue({ searchParams }: Pick<PageProps<"/auth/callback">, "searchParams">): Promise<null> {
   const next = safeNextPath((await searchParams).next);
   const account = await getAccount();
-  if (!account) redirect(`/sign-in?next=${encodeURIComponent(next)}`);
+  if (!account) redirect(signInPath(next));
   redirect(afterSignInPath(account.profile, next));
 }

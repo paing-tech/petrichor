@@ -7,6 +7,7 @@ import { CheckIcon, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { acceptDeliveryAction, claimCardAction, declineDeliveryAction } from "@/app/keepsakes/actions";
+import { signInPath } from "@/lib/auth/sign-in-path";
 
 type KeepCardProps = {
   cardId: string;
@@ -23,7 +24,7 @@ export function KeepCard({ cardId, token, state }: KeepCardProps) {
   if (state !== "ready") {
     const href =
       state === "signed_out"
-        ? `/sign-in?next=${encodeURIComponent(here)}`
+        ? signInPath(here)
         : `/onboarding?next=${encodeURIComponent(here)}`;
     return (
       <KeepPanel>

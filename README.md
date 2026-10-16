@@ -153,7 +153,7 @@ Every card can be permanently owned by one account. Creating a card doesn't requ
 - **Profiles** (`profiles`): a changeable @username (3–20 lowercase letters, numbers, dots, underscores), display name, photo (from Google; initials otherwise) and a "Let people find me" setting for recipient search.
 - Ownership changes (claim, accept) run as single SQL statements, so two people can't keep the same copy. Card pages cache the card's content forever but read ownership per request.
 
-Pages: `/sign-in`, `/onboarding` (choose username), `/keepsakes` (waiting for you, collection, cards you created), `/settings`.
+Sign-in lives on the home page; pages that need an account send visitors to `/?next=<page>`, which opens the form and returns them afterwards. Pages: `/onboarding` (choose username), `/keepsakes` (waiting for you, collection, cards you created), `/settings`.
 
 ### Before launch
 

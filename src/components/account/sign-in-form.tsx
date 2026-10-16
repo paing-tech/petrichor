@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, Loader2Icon, MailIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,14 +10,45 @@ import { authClient } from "@/lib/auth/client";
 
 type Step = { kind: "email" } | { kind: "code"; email: string };
 
+/**
+ * Runs an auth call and returns its error message, or null on success. Neon's client
+ * throws for most failures instead of returning `{ error }`, so both are handled.
+ */
+async function attempt(call: () => Promise<{ error?: { message?: string } | null }>): Promise<string | null> {
+  try {
+    const { error } = await call();
+    return error ? (error.message ?? "") : null;
+  } catch (error) {
+    return error instanceof Error ? error.message : "";
+  }
+}
+
+/** Plain words for what went wrong with a code (the server's messages are "Invalid OTP" and the like). */
+function codeErrorMessage(message: string) {
+  const text = message.toLowerCase();
+  if (text.includes("expired")) return "This code has expired. Send a new code.";
+  if (text.includes("too many")) return "Too many tries. Send a new code.";
+  if (text.includes("invalid") || text.includes("otp")) return "Invalid code.";
+  return "Couldn't check the code. Try again in a moment.";
+}
+
 /** Email code (no passwords) or Google. New emails get an account on first sign-in. */
-export function SignInForm({ next }: { next: string }) {
+export function SignInForm({
+  next,
+  onStepChange,
+}: {
+  next: string;
+  /** Told when the form moves between entering an email and entering the code. */
+  onStepChange?: (step: Step["kind"]) => void;
+}) {
   const router = useRouter();
   const [step, setStep] = useState<Step>({ kind: "email" });
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"email" | "code" | "google" | null>(null);
+
+  useEffect(() => onStepChange?.(step.kind), [step.kind, onStepChange]);
 
   // Every sign-in finishes on /auth/callback, which sends new accounts to username setup.
   const callbackPath = `/auth/callback?next=${encodeURIComponent(next)}`;
@@ -31,10 +62,10 @@ export function SignInForm({ next }: { next: string }) {
     }
     setBusy("email");
     setError(null);
-    const { error } = await authClient.emailOtp.sendVerificationOtp({ email: address, type: "sign-in" });
+    const error = await attempt(() => authClient.emailOtp.sendVerificationOtp({ email: address, type: "sign-in" }));
     setBusy(null);
-    if (error) {
-      setError(error.message ?? "We couldn't send a code. Try again in a moment.");
+    if (error !== null) {
+      setError(/too many|rate/i.test(error) ? "Too many requests. Wait a minute, then try again." : "We couldn't send a code. Try again in a moment.");
       return;
     }
     setCode("");
@@ -46,10 +77,10 @@ export function SignInForm({ next }: { next: string }) {
     if (step.kind !== "code") return;
     setBusy("code");
     setError(null);
-    const { error } = await authClient.signIn.emailOtp({ email: step.email, otp: code.trim() });
-    if (error) {
+    const error = await attempt(() => authClient.signIn.emailOtp({ email: step.email, otp: code.trim() }));
+    if (error !== null) {
       setBusy(null);
-      setError(error.code === "TOO_MANY_ATTEMPTS" ? "Too many tries. Request a new code." : "That code didn't work. Check it and try again.");
+      setError(codeErrorMessage(error));
       return;
     }
     router.replace(callbackPath);
@@ -59,11 +90,10 @@ export function SignInForm({ next }: { next: string }) {
   async function signInWithGoogle() {
     setBusy("google");
     setError(null);
-    const { error } = await authClient.signIn.social({
-      provider: "google",
-      callbackURL: `${window.location.origin}${callbackPath}`,
-    });
-    if (error) {
+    const error = await attempt(() =>
+      authClient.signIn.social({ provider: "google", callbackURL: `${window.location.origin}${callbackPath}` }),
+    );
+    if (error !== null) {
       setBusy(null);
       setError("Google sign-in didn't start. Try again.");
     }
@@ -72,18 +102,21 @@ export function SignInForm({ next }: { next: string }) {
   if (step.kind === "code") {
     return (
       <form onSubmit={verifyCode} className="grid gap-4">
-        <p className="text-sm">
-          We sent a code to <span className="font-medium">{step.email}</span>. It may take a minute to arrive.
-        </p>
-        <div className="grid gap-2">
-          <Label htmlFor="otp">Code</Label>
+        <div className="grid gap-3">
+          {/* The instruction doubles as the field's label. */}
+          <Label htmlFor="otp" className="block leading-snug font-normal">
+            We sent a code to <span className="font-medium">{step.email}</span>
+          </Label>
           <Input
             id="otp"
             inputMode="numeric"
             autoComplete="one-time-code"
             autoFocus
             value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            onChange={(e) => {
+              setCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+              setError(null);
+            }}
             placeholder="123456"
             aria-invalid={!!error}
             className="bg-background h-11 text-center text-lg tracking-[0.4em] tabular-nums"
@@ -94,7 +127,10 @@ export function SignInForm({ next }: { next: string }) {
           {busy === "code" && <Loader2Icon className="animate-spin" />} Sign in
         </Button>
         <div className="flex justify-between text-sm">
-          <button type="button" className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1" onClick={() => setStep({ kind: "email" })}>
+          <button type="button" className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1" onClick={() => {
+              setError(null);
+              setStep({ kind: "email" });
+            }}>
             <ArrowLeftIcon className="size-3.5" /> Use a different email
           </button>
           <button type="button" className="text-muted-foreground hover:text-foreground" disabled={busy !== null} onClick={() => sendCode()}>
@@ -106,15 +142,18 @@ export function SignInForm({ next }: { next: string }) {
   }
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-3">
       <Button type="button" variant="outline" size="lg" className="bg-background h-11" disabled={busy !== null} onClick={signInWithGoogle}>
         {busy === "google" ? <Loader2Icon className="animate-spin" /> : <GoogleIcon />} Continue with Google
       </Button>
-      <div className="text-muted-foreground flex items-center gap-3 text-xs">
+      <div className="text-muted-foreground flex h-3 items-center gap-3 text-xs">
         <span className="bg-border h-px flex-1" /> or <span className="bg-border h-px flex-1" />
       </div>
       <form onSubmit={sendCode} className="grid gap-3">
-        <Label htmlFor="email">Email</Label>
+        {/* The placeholder shows what goes here; the label stays for screen readers. */}
+        <Label htmlFor="email" className="sr-only">
+          Email
+        </Label>
         <Input
           id="email"
           type="email"

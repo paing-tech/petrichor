@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { OnboardingForm } from "@/components/account/onboarding-form";
 import { getAccount, safeNextPath } from "@/lib/auth/account";
+import { signInPath } from "@/lib/auth/sign-in-path";
 import { suggestUsername } from "@/lib/profiles";
 
 export const metadata: Metadata = { title: "Set up your account", robots: { index: false } };
@@ -26,7 +27,7 @@ export default function OnboardingPage({ searchParams }: PageProps<"/onboarding"
 async function Setup({ searchParams }: Pick<PageProps<"/onboarding">, "searchParams">) {
   const next = safeNextPath((await searchParams).next);
   const account = await getAccount();
-  if (!account) redirect(`/sign-in?next=${encodeURIComponent(`/onboarding?next=${next}`)}`);
+  if (!account) redirect(signInPath(`/onboarding?next=${next}`));
   if (account.profile) redirect(next);
 
   // Email-code accounts have no name yet; Neon Auth stores the email there or leaves it blank.

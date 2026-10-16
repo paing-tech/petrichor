@@ -31,6 +31,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { buildAppleMusicUrl, type SongSearchResult } from "@/lib/apple-music";
 import { authClient } from "@/lib/auth/client";
+import { signInPath } from "@/lib/auth/sign-in-path";
 import { DEFAULT_CARD_COLOR } from "@/lib/card-color";
 import { cropFromView, DEFAULT_PHOTO_VIEW, exportCroppedPhoto, readImageSize, type PhotoView } from "@/lib/photo-crop";
 import { extractPalette } from "@/lib/photo-palette";
@@ -466,7 +467,7 @@ export function CreateCardFlow() {
         <CollectibleCard card={previewCard} />
         {keepAfterSignIn && (
           <Button asChild size="lg" className="h-11 w-full">
-            <Link href="/sign-in?next=/keepsakes">
+            <Link href={signInPath("/keepsakes")}>
               <SparklesIcon /> Sign in to keep {size > 1 ? "them" : "it"}
             </Link>
           </Button>

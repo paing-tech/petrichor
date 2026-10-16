@@ -8,6 +8,7 @@ import { ClaimSavedCards } from "@/components/keepsakes/claim-saved-cards";
 import { CreatedCardRow } from "@/components/keepsakes/created-card-row";
 import { Button } from "@/components/ui/button";
 import { getAccount } from "@/lib/auth/account";
+import { signInPath } from "@/lib/auth/sign-in-path";
 import { listCollection, listCreated, listPendingDeliveries } from "@/lib/ownership";
 
 export const metadata: Metadata = { title: "My keepsakes", robots: { index: false } };
@@ -24,7 +25,7 @@ export default function KeepsakesPage() {
 
 async function Keepsakes() {
   const account = await getAccount();
-  if (!account) redirect("/sign-in?next=/keepsakes");
+  if (!account) redirect(signInPath("/keepsakes"));
   if (!account.profile) redirect("/onboarding?next=/keepsakes");
   const userId = account.user.id;
 

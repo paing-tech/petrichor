@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getAccount, safeNextPath } from "@/lib/auth/account";
+import { signInPath } from "@/lib/auth/sign-in-path";
 import { createProfile } from "@/lib/profiles";
 import { profileInputSchema } from "@/lib/validation";
 
@@ -13,7 +14,7 @@ export type ProfileFormState = {
 /** Saves the new account's username and name, then continues to where they were going. */
 export async function saveNewProfile(_prev: ProfileFormState, formData: FormData): Promise<ProfileFormState> {
   const account = await getAccount();
-  if (!account) redirect("/sign-in");
+  if (!account) redirect(signInPath("/keepsakes"));
 
   const next = safeNextPath(formData.get("next")?.toString());
   if (account.profile) redirect(next);

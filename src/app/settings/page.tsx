@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { SettingsForm } from "@/components/account/settings-form";
 import { getAccount } from "@/lib/auth/account";
+import { signInPath } from "@/lib/auth/sign-in-path";
 
 export const metadata: Metadata = { title: "Settings", robots: { index: false } };
 
@@ -19,7 +20,7 @@ export default function SettingsPage() {
 
 async function Settings() {
   const account = await getAccount();
-  if (!account) redirect("/sign-in?next=/settings");
+  if (!account) redirect(signInPath("/settings"));
   if (!account.profile) redirect("/onboarding?next=/settings");
   const { profile } = account;
   return (

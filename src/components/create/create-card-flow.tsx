@@ -607,7 +607,11 @@ export function CreateCardFlow() {
               </button>
             </fieldset>
           ) : song ? (
-            <SelectedSong song={song} onChange={() => changeSong("search")} />
+            <>
+              <SelectedSong song={song} onChange={() => changeSong("search")} />
+              {/* Hear the 30-second preview to check it's the right version. */}
+              <AppleMusicEmbed url={buildAppleMusicUrl(song)} title={song.title} />
+            </>
           ) : (
             <SongSearch
               inputId={SONG_SEARCH_ID}

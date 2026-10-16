@@ -1,9 +1,10 @@
 import { Suspense } from "react";
 import Image from "next/image";
 import { redirect } from "next/navigation";
-import { CollectibleCard, type CollectibleCardData } from "@/components/collectible-card";
+import type { CollectibleCardData } from "@/components/collectible-card";
 import { HomeActions, HomeActionsFallback } from "@/components/home/home-actions";
 import { TiltArtwork } from "@/components/home/tilt-artwork";
+import { TodayCard } from "@/components/home/today-card";
 import { afterSignInPath, getAccount, safeNextPath } from "@/lib/auth/account";
 
 const SAMPLE_CARD: CollectibleCardData = {
@@ -11,10 +12,8 @@ const SAMPLE_CARD: CollectibleCardData = {
   artistName: "The Beatles",
   lyricsExcerpt: "Little darling, it's been a long, cold, lonely winter",
   message: "For the first warm morning after all that rain.",
-  senderName: "Mai",
-  moment: "Singapore",
-  createdAt: "2026-10-10",
-  cardId: "P-1F8K2QZ7M4XW9C3T6RBNJD5HVA",
+  senderName: "Petrichor Team",
+  moment: "Reverie",
   // The artwork's green, so the text picks matching ink.
   cardColor: "#a3b18a",
 };
@@ -62,7 +61,7 @@ export default function Home({ searchParams }: PageProps<"/">) {
               width: pct(CARD.width, VIEW.width),
             }}
           >
-            <CollectibleCard card={SAMPLE_CARD} bare className="max-w-none" />
+            <TodayCard card={SAMPLE_CARD} bare className="max-w-none" />
           </div>
         </TiltArtwork>
         {/* Starts 8px below the glow (the artwork's white margin under it is pulled up). */}

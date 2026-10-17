@@ -55,7 +55,8 @@ export function AudioPlayButton({
  * in white. Slides up a little as it fades in.
  */
 export function NowPlaying({ title, artist }: { title: string; artist: string }) {
-  const playing = useListening()?.playing ?? false;
+  // Stays while she settles back down, so the song can be resumed from here.
+  const playing = useListening()?.dark ?? false;
 
   return (
     <div

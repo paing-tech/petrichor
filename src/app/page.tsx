@@ -11,6 +11,7 @@ import {
   NowPlaying,
 } from "@/components/home/audio-play-button";
 import {
+  FloatWhileListening,
   HideWhileListening,
   ListeningBackdrop,
   ListeningProvider,
@@ -42,7 +43,8 @@ const VIEW = { left: 0, top: 0, width: 1000, height: 1350 };
 const CARD = { left: 160, top: 248, width: 680, bottom: 1154 };
 /** Where the green glow under the card fades to white. */
 const GLOW_BOTTOM = 1317;
-// public/reverie.png (1024 × 1536) is the same figure glowing on black, shown while the song
+// public/reverie-glow.png (1024 × 1536; reverie.png with its black made transparent, so the
+// night sky shows through) is the same figure glowing, shown while the song
 // plays. Placed so her fingertips line up with the artwork's (scale 1.0023, matched by the
 // hands): in the artwork's units it spans x −14…1012 and y −75…1465, past the frame.
 const REVERIE = {
@@ -88,21 +90,24 @@ export default function Home({ searchParams }: PageProps<"/">) {
                 }}
               />
             </HideWhileListening>
-            {/* While the song plays: the figure alone, glowing, exactly over the drawn one. */}
+            {/* While the song plays: the figure alone, glowing, exactly over the drawn one,
+                drifting slowly upward (and settling back when it stops). */}
             <ShowWhileListening className="absolute inset-0">
-              <Image
-                src="/reverie.png"
-                alt=""
-                width={REVERIE.imageWidth}
-                height={REVERIE.imageHeight}
-                unoptimized
-                className="absolute h-auto max-w-none"
-                style={{
-                  width: pct(REVERIE.width, VIEW.width),
-                  left: pct(REVERIE.left - VIEW.left, VIEW.width),
-                  top: pct(REVERIE.top - VIEW.top, VIEW.height),
-                }}
-              />
+              <FloatWhileListening className="absolute inset-0">
+                <Image
+                  src="/reverie-glow.png"
+                  alt=""
+                  width={REVERIE.imageWidth}
+                  height={REVERIE.imageHeight}
+                  unoptimized
+                  className="absolute h-auto max-w-none"
+                  style={{
+                    width: pct(REVERIE.width, VIEW.width),
+                    left: pct(REVERIE.left - VIEW.left, VIEW.width),
+                    top: pct(REVERIE.top - VIEW.top, VIEW.height),
+                  }}
+                />
+              </FloatWhileListening>
             </ShowWhileListening>
             <div
               className="absolute"

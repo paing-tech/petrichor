@@ -25,7 +25,7 @@ export function TiltArtwork({
   style?: CSSProperties;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const listening = useListening()?.playing ?? false;
+  const listening = useListening()?.dark ?? false;
 
   // Settle flat as soon as the song starts.
   useEffect(() => {

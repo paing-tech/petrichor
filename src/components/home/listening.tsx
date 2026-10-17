@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { Starfield } from "@/components/home/starfield";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +44,13 @@ type Listening = {
 
 const ListeningContext = createContext<Listening | null>(null);
 
-export function ListeningProvider({ tracks, children }: { tracks: Track[]; children: ReactNode }) {
+export function ListeningProvider({
+  tracks,
+  children,
+}: {
+  tracks: Track[];
+  children: ReactNode;
+}) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -75,7 +89,10 @@ export function ListeningProvider({ tracks, children }: { tracks: Track[]; child
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     setSettling(true);
     window.clearTimeout(settleTimer.current);
-    settleTimer.current = window.setTimeout(() => setSettling(false), SETTLE_MS);
+    settleTimer.current = window.setTimeout(
+      () => setSettling(false),
+      SETTLE_MS,
+    );
   }
 
   function toggle() {
@@ -99,7 +116,8 @@ export function ListeningProvider({ tracks, children }: { tracks: Track[]; child
   function previous() {
     const audio = audioRef.current;
     if (!audio) return;
-    if (audio.currentTime > RESTART_AFTER_S || index === 0) audio.currentTime = 0;
+    if (audio.currentTime > RESTART_AFTER_S || index === 0)
+      audio.currentTime = 0;
     else goTo(index - 1);
   }
 
@@ -150,7 +168,8 @@ export function useListening() {
   return useContext(ListeningContext);
 }
 
-const FADE = "transition-opacity duration-700 ease-out motion-reduce:transition-none";
+const FADE =
+  "transition-opacity duration-700 ease-out motion-reduce:transition-none";
 
 /** A starry black sky over the whole window (behind the page's content) while listening. */
 export function ListeningBackdrop() {
@@ -158,7 +177,11 @@ export function ListeningBackdrop() {
   return (
     <div
       aria-hidden
-      className={cn("pointer-events-none fixed inset-0 -z-10 bg-black", FADE, playing ? "opacity-100" : "opacity-0")}
+      className={cn(
+        "pointer-events-none fixed inset-0 -z-10 bg-black",
+        FADE,
+        playing ? "opacity-100" : "opacity-0",
+      )}
     >
       <Starfield active={playing} />
     </div>
@@ -166,13 +189,19 @@ export function ListeningBackdrop() {
 }
 
 /** Drifts its contents slowly upward while the song plays, and back down when it stops. */
-export function FloatWhileListening({ children, className }: { children: ReactNode; className?: string }) {
+export function FloatWhileListening({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   const playing = useListening()?.playing ?? false;
   return (
     <div
       className={cn(
         "transition-[translate] ease-in-out motion-reduce:transition-none",
-        playing ? "-translate-y-[16%]" : "translate-y-0",
+        playing ? "-translate-y-[10%]" : "translate-y-0",
         className,
       )}
       style={{ transitionDuration: `${playing ? RISE_MS : SETTLE_MS}ms` }}
@@ -195,22 +224,32 @@ const PULSE_REST_MS = 4000;
  * normal and up to brightest again, over and over. When it stops, eases back to normal from
  * wherever it was, over SETTLE_MS.
  */
-export function BrightenWhileListening({ children, className }: { children: ReactNode; className?: string }) {
+export function BrightenWhileListening({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   const playing = useListening()?.playing ?? false;
   const ref = useRef<HTMLDivElement>(null);
   const pulse = useRef<Animation | null>(null);
 
   useEffect(() => {
     const el = ref.current;
-    if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+      return;
     const bright = `brightness(${PULSE_BRIGHTNESS})`;
     if (playing) {
-      const rise = el.animate([{ filter: "brightness(1)" }, { filter: bright }], {
-        duration: RISE_MS,
-        // Tailwind's ease-in-out (FloatWhileListening's curve), so brightness tracks height.
-        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
-        fill: "forwards",
-      });
+      const rise = el.animate(
+        [{ filter: "brightness(1)" }, { filter: bright }],
+        {
+          duration: RISE_MS,
+          // Tailwind's ease-in-out (FloatWhileListening's curve), so brightness tracks height.
+          easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+          fill: "forwards",
+        },
+      );
       pulse.current = rise;
       rise.onfinish = () => {
         if (pulse.current !== rise) return;
@@ -234,7 +273,10 @@ export function BrightenWhileListening({ children, className }: { children: Reac
       const current = getComputedStyle(el).filter;
       pulse.current.cancel();
       pulse.current = null;
-      el.animate([{ filter: current }, { filter: "brightness(1)" }], { duration: SETTLE_MS, easing: "ease-out" });
+      el.animate([{ filter: current }, { filter: "brightness(1)" }], {
+        duration: SETTLE_MS,
+        easing: "ease-out",
+      });
     }
   }, [playing]);
 
@@ -248,10 +290,19 @@ export function BrightenWhileListening({ children, className }: { children: Reac
 }
 
 /** Fades its contents out (and out of reach) while listening. */
-export function HideWhileListening({ children, className }: { children: ReactNode; className?: string }) {
+export function HideWhileListening({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   const playing = useListening()?.dark ?? false;
   return (
-    <div className={cn(FADE, playing && "opacity-0", className)} inert={playing}>
+    <div
+      className={cn(FADE, playing && "opacity-0", className)}
+      inert={playing}
+    >
       {children}
     </div>
   );
@@ -266,7 +317,13 @@ const COVER_MS = 700;
  * while she settles back down, then slides back with the card (COVER_MS). Add it to a
  * mask's gradient stops to push a fade-out past the bottom of the image.
  */
-export function RevealWhileListening({ children, className }: { children: ReactNode; className?: string }) {
+export function RevealWhileListening({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   const dark = useListening()?.dark ?? false;
   return (
     <div

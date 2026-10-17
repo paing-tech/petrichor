@@ -11,7 +11,7 @@ import { useListening } from "@/components/home/listening";
 import { cn } from "@/lib/utils";
 
 /** Furthest the artwork turns toward the cursor, in degrees. */
-const MAX_TILT = 4;
+const MAX_TILT = 10;
 /** How deep the 3D space is; smaller numbers exaggerate the tilt. */
 const PERSPECTIVE = 1000;
 /**
@@ -31,7 +31,38 @@ type OrientationPermission = {
 };
 
 /**
- * Tilts its contents like turning a card in your hand, with a soft light that moves with
+ * One layer that turns with the tilt of its TiltArtwork; anything not wrapped in a TiltLayer
+ * stays still (so the card can turn while the figure in front of it doesn't). `origin` is the
+ * point it turns around; give every layer of one object the same origin.
+ */
+export function TiltLayer({
+  children,
+  className,
+  origin = "50% 50%",
+}: {
+  children: ReactNode;
+  className?: string;
+  origin?: string;
+}) {
+  return (
+    <div
+      // Eases back slowly when the tilt ends, follows quickly while it moves.
+      className={cn(
+        "transition-transform duration-500 ease-out will-change-transform group-data-tilting:duration-100",
+        className,
+      )}
+      style={{
+        transformOrigin: origin,
+        transform: `perspective(var(--tilt-perspective, ${PERSPECTIVE}px)) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg))`,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Provides a tilt like turning a card in your hand, for the TiltLayers inside it, with a soft light that moves with
  * it: toward a mouse cursor on desktop, and on phones as the phone itself tilts (its motion
  * sensor; iPhones ask permission on the first tap). Still for anyone who prefers reduced
  * motion, and while the home page's song plays (the light would show as a gray box on black).
@@ -134,19 +165,13 @@ export function TiltArtwork({
   }
 
   return (
+    // Sets the tilt (as CSS variables) for the TiltLayers inside; layers outside them stay still.
     <div
       ref={ref}
       onPointerMove={move}
       onPointerLeave={leave}
-      // Eases back slowly when the cursor leaves, follows quickly while it moves.
-      className={cn(
-        "group transition-transform duration-500 ease-out will-change-transform data-tilting:duration-100",
-        className,
-      )}
-      style={{
-        ...style,
-        transform: `perspective(var(--tilt-perspective, ${PERSPECTIVE}px)) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg))`,
-      }}
+      className={cn("group", className)}
+      style={style}
     >
       {children}
       {/* The light: brightens what's under the cursor; on plain white it changes nothing. */}

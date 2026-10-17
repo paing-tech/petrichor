@@ -22,7 +22,7 @@ import {
   RevealWhileListening,
   type Track,
 } from "@/components/home/listening";
-import { TiltArtwork } from "@/components/home/tilt-artwork";
+import { TiltArtwork, TiltLayer } from "@/components/home/tilt-artwork";
 import { TodayCard } from "@/components/home/today-card";
 import { afterSignInPath, getAccount, safeNextPath } from "@/lib/auth/account";
 
@@ -83,6 +83,8 @@ const cardBox = {
   width: pct(CARD.width, VIEW.width),
   height: pct(CARD.height, VIEW.height),
 };
+/** The point the card tilts around: its centre, within the frame. */
+const CARD_CENTER = `${pct(CARD.left + CARD.width / 2 - VIEW.left, VIEW.width)} ${pct(CARD.top + CARD.height / 2 - VIEW.top, VIEW.height)}`;
 /** The card's corner radius: 18 of the card's 390 design units, in frame widths (cqw). */
 const CARD_RADIUS = `${((18 / 390) * CARD.width) / 10}cqw`;
 
@@ -100,17 +102,20 @@ export default function Home({ searchParams }: PageProps<"/">) {
             className="relative w-full"
             style={{ aspectRatio: `${VIEW.width} / ${VIEW.height}` }}
           >
-            {/* The card's white base and its soft green glow. */}
-            <HideWhileListening className="absolute inset-0">
-              <div
-                className="absolute bg-white"
-                style={{
-                  ...cardBox,
-                  borderRadius: CARD_RADIUS,
-                  boxShadow: `0 3cqw 9cqw -1cqw ${CARD_GREEN}e6, 0 0 5cqw ${CARD_GREEN}73`,
-                }}
-              />
-            </HideWhileListening>
+            {/* The card's white base and its soft green glow. The card's three layers (this,
+                the green half and the text) tilt together; the figure between them stays still. */}
+            <TiltLayer className="absolute inset-0" origin={CARD_CENTER}>
+              <HideWhileListening className="absolute inset-0">
+                <div
+                  className="absolute bg-white"
+                  style={{
+                    ...cardBox,
+                    borderRadius: CARD_RADIUS,
+                    boxShadow: `0 3cqw 9cqw -1cqw ${CARD_GREEN}e6, 0 0 5cqw ${CARD_GREEN}73`,
+                  }}
+                />
+              </HideWhileListening>
+            </TiltLayer>
             {/* The figure: on the card, faded out below her waist; while the song plays the
                 fade slides away and she rises, pulsing brighter (settling back when it stops). */}
             <FloatWhileListening className="absolute inset-0">
@@ -135,37 +140,41 @@ export default function Home({ searchParams }: PageProps<"/">) {
               </BrightenWhileListening>
             </FloatWhileListening>
             {/* The card's lower half, washed green (fading in from white), over her legs. */}
-            <HideWhileListening className="absolute inset-0">
-              <div
-                className="absolute"
-                style={{
-                  ...cardBox,
-                  borderRadius: CARD_RADIUS,
-                  // The same fade as any card's photo, so the moment sits inside it just the same.
-                  background: cardFadeBackground(CARD_GREEN),
-                }}
-              />
-            </HideWhileListening>
-            <div className="absolute" style={cardBox}>
-              {/* While the song plays, the title and artist move to the bottom-left corner. */}
-              <HideWhileListening>
-                <TodayCard
-                  card={SAMPLE_CARD}
-                  bare
-                  className="max-w-none"
-                  inkColor="#FFFFFF"
-                  titleAccessory={
-                    // No ring; 20 card units, just under the title's line height (title size 20).
-                    <AudioPlayButton
-                      label={SAMPLE_CARD.songTitle}
-                      ring={false}
-                      size="calc(var(--u) * 20)"
-                      iconSize="calc(var(--u) * 20)"
-                    />
-                  }
+            <TiltLayer className="absolute inset-0" origin={CARD_CENTER}>
+              <HideWhileListening className="absolute inset-0">
+                <div
+                  className="absolute"
+                  style={{
+                    ...cardBox,
+                    borderRadius: CARD_RADIUS,
+                    // The same fade as any card's photo, so the moment sits inside it just the same.
+                    background: cardFadeBackground(CARD_GREEN),
+                  }}
                 />
               </HideWhileListening>
-            </div>
+            </TiltLayer>
+            <TiltLayer className="absolute inset-0" origin={CARD_CENTER}>
+              <div className="absolute" style={cardBox}>
+                {/* While the song plays, the title and artist move to the bottom-left corner. */}
+                <HideWhileListening>
+                  <TodayCard
+                    card={SAMPLE_CARD}
+                    bare
+                    className="max-w-none"
+                    inkColor="#FFFFFF"
+                    titleAccessory={
+                      // No ring; 20 card units, just under the title's line height (title size 20).
+                      <AudioPlayButton
+                        label={SAMPLE_CARD.songTitle}
+                        ring={false}
+                        size="calc(var(--u) * 20)"
+                        iconSize="calc(var(--u) * 20)"
+                      />
+                    }
+                  />
+                </HideWhileListening>
+              </div>
+            </TiltLayer>
           </TiltArtwork>
           {/* Starts 8px below the glow (the artwork's white margin under it is pulled up). */}
           {/* Fixed to the two buttons' height (44 + 12 + 44px), so the centering counts only

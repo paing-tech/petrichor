@@ -8,9 +8,9 @@ import { useEffect, useRef } from "react";
 // `active`, and stays still for anyone who prefers reduced motion.
 
 /** Tiny stars per 10,000 px² of window. */
-const STAR_DENSITY = 0.9;
+const STAR_DENSITY = 10;
 /** Glowing four-point sparkles. */
-const SPARKLES = 14;
+const SPARKLES = 30;
 /** Seconds between falling stars (random within the range). */
 const FALL_EVERY: [number, number] = [2.5, 6];
 /** A sparkle's spikes are this much longer up/down than left/right. */

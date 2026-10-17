@@ -4,6 +4,13 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* How far the home page's figure fade has slid away (animatable, so the reveal can ease). */
+@property --reveal {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 0%;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -11,7 +18,6 @@
   --font-mono: var(--font-geist-mono);
   --font-serif: var(--font-instrument-serif);
   --font-hand: var(--font-kalam);
-  --font-garamond: var(--font-cormorant);
   --font-outfit: var(--font-outfit-family);
   --color-clay: var(--clay);
   --font-heading: var(--font-serif);

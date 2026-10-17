@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Geist, Geist_Mono, Instrument_Serif, Kalam, Outfit } from "next/font/google";
+import { Geist, Geist_Mono, Instrument_Serif, Kalam, Outfit } from "next/font/google";
 import Link from "next/link";
 import { Suspense } from "react";
 import { AccountMenu } from "@/components/account/account-menu";
@@ -23,19 +23,12 @@ const instrumentSerif = Instrument_Serif({
   style: ["normal", "italic"],
 });
 
-// Card typefaces: Kalam for the handwritten message, Cormorant Garamond for
-// lyrics and the signature, Outfit for the small print.
+// Card typefaces: Instrument Serif (above) for the song title and, in italic, the lyrics;
+// Kalam for the handwritten message and signature; Outfit for the small print.
 const kalam = Kalam({
   variable: "--font-kalam",
   subsets: ["latin"],
   weight: "300",
-});
-
-const cormorant = Cormorant_Garamond({
-  variable: "--font-cormorant",
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  style: "italic",
 });
 
 const outfit = Outfit({
@@ -55,10 +48,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   const siteHeader = (
     // Wordmark centered; the account menu (signed in only) sits on the right.
     <header className="mx-auto grid w-full max-w-6xl grid-cols-[1fr_auto_1fr] items-center px-4 py-3 sm:px-6">
-      <Link href="/" className="col-start-2 font-serif text-2xl tracking-tight">
+      {/* White on the home page's night sky while its song plays. */}
+      <Link
+        href="/"
+        className="col-start-2 font-serif text-2xl tracking-tight transition-colors duration-700 [html[data-listening]_&]:text-white"
+      >
         Petrichor
       </Link>
-      <div className="flex justify-end">
+      {/* Hidden (and out of the tab order) on the home page's night sky while its song plays. */}
+      <div className="flex justify-end transition-[opacity,visibility] duration-700 [html[data-listening]_&]:invisible [html[data-listening]_&]:opacity-0">
         <Suspense fallback={null}>
           <AccountMenu />
         </Suspense>
@@ -69,7 +67,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} ${kalam.variable} ${cormorant.variable} ${outfit.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} ${kalam.variable} ${outfit.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         {siteHeader}

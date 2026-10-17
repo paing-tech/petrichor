@@ -39,6 +39,11 @@ type CollectibleCardProps = {
    */
   titleAccessory?: ReactNode;
   /**
+   * One color for all of the card's text (title, artist, lyrics, message, card ID…) instead of
+   * the ink picked from `card.cardColor` with its softer shades. The title accessory follows it.
+   */
+  inkColor?: string;
+  /**
    * Text only: no background, photo or shadow, for laying over artwork that already
    * draws the card. `card.cardColor` should still be the artwork's color, to pick the ink.
    */
@@ -85,7 +90,6 @@ type FontMetrics = { ascent: number; descent: number; capHeight: number };
 const FONT_METRICS = {
   instrumentSerif: { ascent: 0.99, descent: 0.31, capHeight: 0.72 },
   outfit: { ascent: 1, descent: 0.26, capHeight: 0.694 },
-  cormorantItalic: { ascent: 0.92, descent: 0.29, capHeight: 0.625 },
 } satisfies Record<string, FontMetrics>;
 
 /** Half-leading: the space a line box adds above and below the font's own ascent and descent. */
@@ -113,19 +117,19 @@ const ARTIST_SIZE = 12;
 const ARTIST_LINE = ARTIST_SIZE * 1.2;
 const LYRICS_SIZE = 12;
 const EDITION_SIZE = 12;
-/** Line pitch shared by the lyrics and the edition ("1 of 1") / date column. */
-const ROW_LINE = SONG_GAP + FONT_METRICS.cormorantItalic.capHeight * LYRICS_SIZE;
+/** Line pitch shared by the lyrics (Instrument Serif italic) and the edition ("1 of 1") / date column. */
+const ROW_LINE = SONG_GAP + FONT_METRICS.instrumentSerif.capHeight * LYRICS_SIZE;
 
 function songLayout(titleSize: number) {
-  const { instrumentSerif: serif, outfit, cormorantItalic: garamond } = FONT_METRICS;
+  const { instrumentSerif: serif, outfit } = FONT_METRICS;
   const titleLine = titleSize * TITLE_LINE_HEIGHT;
   // The row aligns its two columns on their first baselines (flex items-baseline),
   // so its top is set by whichever column's baseline sits lower in its line box.
-  const lyricsBaseline = baselineOffset(garamond, LYRICS_SIZE, ROW_LINE);
+  const lyricsBaseline = baselineOffset(serif, LYRICS_SIZE, ROW_LINE);
   const editionBaseline = baselineOffset(outfit, EDITION_SIZE, ROW_LINE);
   const rowBaseline = Math.max(lyricsBaseline, editionBaseline);
   // The row's visible top is its tallest capital.
-  const rowCapTop = rowBaseline - Math.max(garamond.capHeight * LYRICS_SIZE, outfit.capHeight * EDITION_SIZE);
+  const rowCapTop = rowBaseline - Math.max(serif.capHeight * LYRICS_SIZE, outfit.capHeight * EDITION_SIZE);
   return {
     titleLine,
     artistMargin: SONG_GAP - belowBaseline(serif, titleSize, titleLine) - capTopOffset(outfit, ARTIST_SIZE, ARTIST_LINE),
@@ -142,7 +146,14 @@ export function formatCardDate(date: Date | string, timeZone?: string | null) {
   });
 }
 
-export function CollectibleCard({ card, className, photoOverlay, titleAccessory, bare = false }: CollectibleCardProps) {
+export function CollectibleCard({
+  card,
+  className,
+  photoOverlay,
+  titleAccessory,
+  inkColor,
+  bare = false,
+}: CollectibleCardProps) {
   const title = titleLayout(card.songTitle);
   const song = songLayout(title.fontSize);
   const cardColor = card.cardColor ?? DEFAULT_CARD_COLOR;
@@ -159,10 +170,10 @@ export function CollectibleCard({ card, className, photoOverlay, titleAccessory,
         style={
           {
             "--u": `calc(100cqw / ${BASE_WIDTH})`,
-            "--ink": ink.ink,
-            "--ink-soft": ink.soft,
-            "--ink-muted": ink.muted,
-            "--ink-faint": ink.faint,
+            "--ink": inkColor ?? ink.ink,
+            "--ink-soft": inkColor ?? ink.soft,
+            "--ink-muted": inkColor ?? ink.muted,
+            "--ink-faint": inkColor ?? ink.faint,
             backgroundColor: bare ? undefined : cardColor,
             borderRadius: u(18),
           } as CSSProperties
@@ -216,8 +227,9 @@ export function CollectibleCard({ card, className, photoOverlay, titleAccessory,
             )}
             {card.senderName && (
               <p
-                className="font-garamond shrink-0 truncate text-right italic"
-                style={{ fontSize: u(18), lineHeight: 1.2, marginTop: u(8) }}
+                // Handwritten, like the message above it.
+                className="font-hand shrink-0 truncate text-right font-light"
+                style={{ fontSize: u(17), lineHeight: 1.3, marginTop: u(6) }}
               >
                 {card.senderName}
               </p>
@@ -244,7 +256,7 @@ export function CollectibleCard({ card, className, photoOverlay, titleAccessory,
             </p>
             <div className="flex items-baseline justify-between" style={{ gap: u(16), marginTop: u(song.rowMargin) }}>
               <p
-                className="font-garamond line-clamp-2 min-w-0 flex-1 whitespace-pre-line text-(--ink-soft) italic"
+                className="line-clamp-2 min-w-0 flex-1 font-serif whitespace-pre-line text-(--ink-soft) italic"
                 style={{ fontSize: u(LYRICS_SIZE), lineHeight: u(ROW_LINE) }}
               >
                 {card.lyricsExcerpt}

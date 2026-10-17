@@ -138,5 +138,43 @@
   }
   html {
     @apply font-sans;
+    /* App-like touch: no rubber-band bounce or pull-to-refresh, no gray flash on tap, and no
+       double-tap-to-zoom delay (pinch zoom still works). */
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  body {
+    overscroll-behavior: none;
+  }
+  /* Controls behave like an app's: a long press doesn't select their text or pop up a link
+     preview. Content (messages, lyrics) stays selectable. */
+  button,
+  a,
+  label,
+  summary,
+  [role="button"] {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
+/* Page changes: the content cross-fades while the header stays still. */
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(site-header) {
+  display: none;
+}
+::view-transition-new(site-header) {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }

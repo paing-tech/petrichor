@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Instrument_Serif, Kalam, Outfit } from "next/font/google";
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, ViewTransition } from "react";
 import { AccountMenu } from "@/components/account/account-menu";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
@@ -42,12 +42,25 @@ export const metadata: Metadata = {
     template: "%s · Petrichor",
   },
   description: "Collectible keepsakes for preserving memories through music.",
+  // Opened from the home screen on iPhone: full screen like an app, named "Petrichor".
+  appleWebApp: { capable: true, title: "Petrichor", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  // Draw edge to edge (under the notch and home bar); safe-area padding keeps content clear.
+  viewportFit: "cover",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   const siteHeader = (
     // Wordmark centered; the account menu (signed in only) sits on the right.
-    <header className="mx-auto grid w-full max-w-6xl grid-cols-[1fr_auto_1fr] items-center px-4 py-3 sm:px-6">
+    // Stays put while pages change (see the view-transition rules in globals.css), and clears
+    // the notch / status bar when the app runs full screen.
+    <header
+      className="mx-auto grid w-full max-w-6xl grid-cols-[1fr_auto_1fr] items-center px-[max(1rem,env(safe-area-inset-left))] pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 sm:px-6"
+      style={{ viewTransitionName: "site-header" }}
+    >
       {/* White on the home page's night sky while its song plays. */}
       <Link
         href="/"
@@ -69,9 +82,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} ${kalam.variable} ${outfit.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">
+      <body className="flex min-h-full flex-col pb-[env(safe-area-inset-bottom)]">
         {siteHeader}
-        <main className="flex flex-1 flex-col">{children}</main>
+        <main className="flex flex-1 flex-col">
+          {/* Pages cross-fade into each other instead of swapping at once. */}
+          <ViewTransition>{children}</ViewTransition>
+        </main>
         <Toaster theme="light" position="top-center" />
       </body>
     </html>

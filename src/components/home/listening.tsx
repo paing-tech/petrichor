@@ -64,7 +64,14 @@ export function ListeningProvider({
   // Flags the page so things outside the home page (the site header) can follow the sky.
   useEffect(() => {
     document.documentElement.toggleAttribute("data-listening", dark);
-    return () => document.documentElement.removeAttribute("data-listening");
+    // The phone's browser bars (and status bar) follow the page: black with the night sky.
+    const theme = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    const day = theme?.content;
+    if (theme && dark) theme.content = "#000000";
+    return () => {
+      document.documentElement.removeAttribute("data-listening");
+      if (theme && day) theme.content = day;
+    };
   }, [dark]);
 
   // Stop when leaving the page.

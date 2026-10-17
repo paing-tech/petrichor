@@ -14,7 +14,13 @@ import { cn } from "@/lib/utils";
 const MAX_TILT = 4;
 /** How deep the 3D space is; smaller numbers exaggerate the tilt. */
 const PERSPECTIVE = 1000;
-/** Phones: tilting the phone this many degrees from how it's held gives the full MAX_TILT. */
+/**
+ * Phones: the card is smaller there, so it turns further (degrees) in a deeper 3D space
+ * (smaller perspective, in px) for the tilt to read as clearly as on desktop.
+ */
+const PHONE_MAX_TILT = 10;
+const PHONE_PERSPECTIVE = 600;
+/** Phones: tilting the phone this many degrees from how it's held gives the full PHONE_MAX_TILT. */
 const PHONE_TILT_RANGE = 10;
 /** Phones: how quickly "how it's held" follows the phone (so the card re-centers over time). */
 const PHONE_RECENTER = 0.01;
@@ -73,12 +79,13 @@ export function TiltArtwork({
       };
       const x = clamp((side.x - base.x) / PHONE_TILT_RANGE);
       const y = clamp((side.y - base.y) / PHONE_TILT_RANGE);
-      el.style.setProperty("--tilt-x", `${-y * MAX_TILT}deg`);
-      el.style.setProperty("--tilt-y", `${x * MAX_TILT}deg`);
+      el.style.setProperty("--tilt-x", `${-y * PHONE_MAX_TILT}deg`);
+      el.style.setProperty("--tilt-y", `${x * PHONE_MAX_TILT}deg`);
       el.style.setProperty("--light-x", `${50 + x * 50}%`);
       el.style.setProperty("--light-y", `${50 + y * 50}%`);
       el.dataset.tilting = "true";
     };
+    el.style.setProperty("--tilt-perspective", `${PHONE_PERSPECTIVE}px`);
     const listen = () =>
       window.addEventListener("deviceorientation", onOrientation);
 
@@ -138,7 +145,7 @@ export function TiltArtwork({
       )}
       style={{
         ...style,
-        transform: `perspective(${PERSPECTIVE}px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg))`,
+        transform: `perspective(var(--tilt-perspective, ${PERSPECTIVE}px)) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg))`,
       }}
     >
       {children}

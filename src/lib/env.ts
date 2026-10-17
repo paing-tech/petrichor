@@ -49,3 +49,19 @@ export function getAuthEnv() {
   authEnv ??= parseEnv(authEnvSchema, "auth");
   return authEnv;
 }
+
+/**
+ * Keys for matching songs to other services (all optional): each service's tab in the card
+ * page's player appears once its key is set. YouTube: a YouTube Data API v3 key. Spotify: a
+ * developer app's client ID and secret (client-credentials flow, no user sign-in).
+ */
+export function getMusicMatchEnv() {
+  const env = process.env;
+  return {
+    youtubeApiKey: env.YOUTUBE_API_KEY || null,
+    spotify:
+      env.SPOTIFY_CLIENT_ID && env.SPOTIFY_CLIENT_SECRET
+        ? { clientId: env.SPOTIFY_CLIENT_ID, clientSecret: env.SPOTIFY_CLIENT_SECRET }
+        : null,
+  };
+}

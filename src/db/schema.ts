@@ -125,6 +125,19 @@ export const cardDeliveries = pgTable(
   ],
 );
 
+/**
+ * A song's matching track on other services, looked up once and reused by every card with
+ * that song. Keyed by the Apple Music track ID (or "manual:<title>|<artist>" for songs typed
+ * in by hand). A null ID with a checked time means "looked, not found"; it's retried later.
+ */
+export const songMatches = pgTable("song_matches", {
+  songKey: text("song_key").primaryKey(),
+  spotifyTrackId: text("spotify_track_id"),
+  spotifyCheckedAt: timestamp("spotify_checked_at", { withTimezone: true }),
+  youtubeVideoId: text("youtube_video_id"),
+  youtubeCheckedAt: timestamp("youtube_checked_at", { withTimezone: true }),
+});
+
 export type Card = typeof cards.$inferSelect;
 export type NewCard = typeof cards.$inferInsert;
 export type Profile = typeof profiles.$inferSelect;

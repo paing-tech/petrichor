@@ -23,7 +23,10 @@ export function AppleMusicEmbed({ url, title, className }: AppleMusicEmbedProps)
       loading="lazy"
       allow="autoplay *; encrypted-media *; clipboard-write"
       sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
-      className={cn("h-[175px] w-full overflow-hidden rounded-xl border-0 bg-transparent", className)}
+      // 150px is Apple's most compact layout that still shows everything uncut (its logo,
+      // Play / View in App and the "See how your data is managed" notice); any shorter
+      // clips Apple's controls or privacy notice.
+      className={cn("h-[150px] w-full overflow-hidden rounded-xl border-0 bg-transparent", className)}
     />
   );
 }

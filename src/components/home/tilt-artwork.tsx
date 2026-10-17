@@ -15,7 +15,7 @@ const MAX_TILT = 4;
 /** How deep the 3D space is; smaller numbers exaggerate the tilt. */
 const PERSPECTIVE = 1000;
 /** Phones: tilting the phone this many degrees from how it's held gives the full MAX_TILT. */
-const PHONE_TILT_RANGE = 20;
+const PHONE_TILT_RANGE = 10;
 /** Phones: how quickly "how it's held" follows the phone (so the card re-centers over time). */
 const PHONE_RECENTER = 0.01;
 

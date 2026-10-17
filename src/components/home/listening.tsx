@@ -172,7 +172,7 @@ export function FloatWhileListening({ children, className }: { children: ReactNo
     <div
       className={cn(
         "transition-[translate] ease-in-out motion-reduce:transition-none",
-        playing ? "-translate-y-[10%]" : "translate-y-0",
+        playing ? "-translate-y-[16%]" : "translate-y-0",
         className,
       )}
       style={{ transitionDuration: `${playing ? RISE_MS : SETTLE_MS}ms` }}

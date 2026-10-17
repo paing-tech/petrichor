@@ -14,6 +14,13 @@ const STAR_DENSITY_PHONE = 30;
 /** Glowing four-point sparkles: wide screens, and phones. */
 const SPARKLES = 30;
 const SPARKLES_PHONE = 10;
+/**
+ * Constellation lines between sparkles: thin, bluish white, slowly brightening and dimming
+ * between these opacities.
+ */
+const LINE_RGB = "200, 215, 255";
+const LINE_OPACITY: [min: number, max: number] = [0.1, 0.6];
+const LINE_WIDTH = 0.4;
 /** Below this window width, the phone values apply. */
 const PHONE_MAX_WIDTH = 640;
 /**
@@ -178,13 +185,14 @@ export function Starfield({ active }: { active: boolean }) {
       }
 
       // Constellation lines, breathing slowly.
-      ctx.lineWidth = 0.6;
+      ctx.lineWidth = LINE_WIDTH;
       for (const [a, b] of lines) {
         const pa = wrap(a.x, a.y, 1);
         const pb = wrap(b.x, b.y, 1);
         // Skip a line while its two stars sit on opposite edges (one has wrapped around).
         if (Math.hypot(pb.x - pa.x, pb.y - pa.y) > Math.hypot(b.x - a.x, b.y - a.y) + 1) continue;
-        ctx.strokeStyle = `rgba(200, 215, 255, ${0.06 + 0.05 * Math.sin(t * 0.5 + a.phase)})`;
+        const [low, high] = LINE_OPACITY;
+        ctx.strokeStyle = `rgba(${LINE_RGB}, ${low + (high - low) * (0.5 + 0.5 * Math.sin(t * 0.5 + a.phase))})`;
         ctx.beginPath();
         ctx.moveTo(pa.x, pa.y);
         ctx.lineTo(pb.x, pb.y);

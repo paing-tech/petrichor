@@ -95,7 +95,7 @@ export default function Home({ searchParams }: PageProps<"/">) {
       <div className="flex flex-1 flex-col items-center justify-center px-4">
         {/* Artwork size: grows with the screen height (leaving room for the header and the
           buttons below), from 300px up to 600px wide. */}
-        <div className="@container flex w-full max-w-[clamp(300px,calc((100svh-230px)*0.74),600px)] flex-col items-center">
+        <div className="@container flex w-[85%] sm:w-full max-w-[clamp(300px,calc((100svh-230px)*0.74),600px)] flex-col items-center">
           <TiltArtwork
             className="relative w-full"
             style={{ aspectRatio: `${VIEW.width} / ${VIEW.height}` }}

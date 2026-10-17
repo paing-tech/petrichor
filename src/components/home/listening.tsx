@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 // so every control drives the same player.
 
 /** How long she takes to rise while the song plays. */
-const RISE_MS = 12000;
+const RISE_MS = 20000;
 /** How long she takes to settle back down after the song stops; then the page returns. */
 const SETTLE_MS = 1000;
 /** Pressing "previous" this far into a song restarts it instead of going back a track. */
@@ -172,7 +172,7 @@ export function FloatWhileListening({ children, className }: { children: ReactNo
     <div
       className={cn(
         "transition-[translate] ease-in-out motion-reduce:transition-none",
-        playing ? "-translate-y-[6%]" : "translate-y-0",
+        playing ? "-translate-y-[10%]" : "translate-y-0",
         className,
       )}
       style={{ transitionDuration: `${playing ? RISE_MS : SETTLE_MS}ms` }}
@@ -184,8 +184,10 @@ export function FloatWhileListening({ children, className }: { children: ReactNo
 
 /** Brightness at the peak of each pulse (1 is normal). */
 const PULSE_BRIGHTNESS = 2;
-/** After the rise, one pulse: bright → normal → bright. */
+/** After the rise, one pulse: bright → normal → bright (not counting the pause). */
 const PULSE_MS = 12000;
+/** How long each pulse rests at normal brightness before brightening again. */
+const PULSE_REST_MS = 4000;
 
 /**
  * While the song plays, brightens its contents in step with the rise (normal → brightest as
@@ -212,11 +214,19 @@ export function BrightenWhileListening({ children, className }: { children: Reac
       pulse.current = rise;
       rise.onfinish = () => {
         if (pulse.current !== rise) return;
-        pulse.current = el.animate([{ filter: bright }, { filter: "brightness(1)" }, { filter: bright }], {
-          duration: PULSE_MS,
-          iterations: Infinity,
-          easing: "ease-in-out",
-        });
+        // Dim to normal, rest there, brighten again; each stretch eases in and out.
+        const cycle = PULSE_MS + PULSE_REST_MS;
+        const dimmed = PULSE_MS / 2 / cycle;
+        const rested = (PULSE_MS / 2 + PULSE_REST_MS) / cycle;
+        pulse.current = el.animate(
+          [
+            { filter: bright, offset: 0, easing: "ease-in-out" },
+            { filter: "brightness(1)", offset: dimmed },
+            { filter: "brightness(1)", offset: rested, easing: "ease-in-out" },
+            { filter: bright, offset: 1 },
+          ],
+          { duration: cycle, iterations: Infinity },
+        );
         rise.cancel();
       };
     } else if (pulse.current) {

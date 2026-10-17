@@ -18,8 +18,8 @@ const PERSPECTIVE = 1000;
  * Phones: the card is smaller there, so it turns further (degrees) in a deeper 3D space
  * (smaller perspective, in px) for the tilt to read as clearly as on desktop.
  */
-const PHONE_MAX_TILT = 20;
-const PHONE_PERSPECTIVE = 400;
+const PHONE_MAX_TILT = 10;
+const PHONE_PERSPECTIVE = 600;
 /** Phones: tilting the phone this many degrees from how it's held gives the full PHONE_MAX_TILT. */
 const PHONE_TILT_RANGE = 10;
 /** Phones: how quickly "how it's held" follows the phone (so the card re-centers over time). */

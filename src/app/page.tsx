@@ -6,7 +6,10 @@ import {
   HomeActions,
   HomeActionsFallback,
 } from "@/components/home/home-actions";
-import { AudioPlayButton } from "@/components/home/audio-play-button";
+import {
+  AudioPlayButton,
+  NowPlaying,
+} from "@/components/home/audio-play-button";
 import {
   HideWhileListening,
   ListeningBackdrop,
@@ -54,8 +57,12 @@ const pct = (value: number, of: number) => `${(value / of) * 100}%`;
 export default function Home({ searchParams }: PageProps<"/">) {
   return (
     // Anchored to the top (not centered) so the artwork stays put when the sign-in form opens.
-    <ListeningProvider>
+    <ListeningProvider src="/audio/ethereal-levitation.m4a">
       <ListeningBackdrop />
+      <NowPlaying
+        title={SAMPLE_CARD.songTitle}
+        artist={SAMPLE_CARD.artistName}
+      />
       <div className="flex flex-1 flex-col items-center px-4">
         {/* Artwork size: grows with the screen height (leaving room for the header and the
           buttons below), from 300px up to 600px wide. */}
@@ -105,17 +112,17 @@ export default function Home({ searchParams }: PageProps<"/">) {
                 width: pct(CARD.width, VIEW.width),
               }}
             >
-              <TodayCard
-                card={SAMPLE_CARD}
-                bare
-                className="max-w-none"
-                titleAccessory={
-                  <AudioPlayButton
-                    src="/audio/ethereal-levitation.m4a"
-                    label="the song"
-                  />
-                }
-              />
+              {/* While the song plays, the title and artist move to the bottom-left corner. */}
+              <HideWhileListening>
+                <TodayCard
+                  card={SAMPLE_CARD}
+                  bare
+                  className="max-w-none"
+                  titleAccessory={
+                    <AudioPlayButton label={SAMPLE_CARD.songTitle} />
+                  }
+                />
+              </HideWhileListening>
             </div>
           </TiltArtwork>
           {/* Starts 8px below the glow (the artwork's white margin under it is pulled up). */}

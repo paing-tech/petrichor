@@ -2,7 +2,6 @@
 
 import { useSyncExternalStore, type ComponentProps } from "react";
 import { CollectibleCard } from "@/components/collectible-card";
-import { useListening } from "@/components/home/listening";
 
 const subscribeNoop = () => () => {};
 
@@ -20,10 +19,7 @@ function localToday() {
  */
 export function TodayCard({ card, ...props }: ComponentProps<typeof CollectibleCard>) {
   const today = useSyncExternalStore(subscribeNoop, localToday, () => null);
-  const listening = useListening()?.playing ?? false;
   // A plain YYYY-MM-DD read as UTC prints exactly that day.
   const dated = today ? { ...card, createdAt: today, timeZone: "UTC" } : card;
-  // While the song plays (on black): only the title and artist, in white.
-  const shown = listening ? { ...dated, cardColor: "#000000" } : dated;
-  return <CollectibleCard card={shown} songOnly={listening} {...props} />;
+  return <CollectibleCard card={dated} {...props} />;
 }

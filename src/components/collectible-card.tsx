@@ -39,11 +39,6 @@ type CollectibleCardProps = {
    */
   titleAccessory?: ReactNode;
   /**
-   * Shows only the song title, artist and title accessory; everything else fades out but
-   * keeps its space, so the title and artist stay exactly where they were.
-   */
-  songOnly?: boolean;
-  /**
    * Text only: no background, photo or shadow, for laying over artwork that already
    * draws the card. `card.cardColor` should still be the artwork's color, to pick the ink.
    */
@@ -147,16 +142,7 @@ export function formatCardDate(date: Date | string, timeZone?: string | null) {
   });
 }
 
-export function CollectibleCard({
-  card,
-  className,
-  photoOverlay,
-  titleAccessory,
-  bare = false,
-  songOnly = false,
-}: CollectibleCardProps) {
-  // Hides everything that isn't the song title or artist (the article fades the change).
-  const extra = songOnly ? "opacity-0" : undefined;
+export function CollectibleCard({ card, className, photoOverlay, titleAccessory, bare = false }: CollectibleCardProps) {
   const title = titleLayout(card.songTitle);
   const song = songLayout(title.fontSize);
   const cardColor = card.cardColor ?? DEFAULT_CARD_COLOR;
@@ -167,7 +153,7 @@ export function CollectibleCard({
       <article
         aria-label={`${card.songTitle} by ${card.artistName}`}
         className={cn(
-          "absolute inset-0 overflow-hidden text-(--ink) motion-safe:[&_*]:transition-[color,opacity] motion-safe:[&_*]:duration-700",
+          "absolute inset-0 overflow-hidden text-(--ink)",
           !bare && "shadow-[0_1px_2px_rgba(0,0,0,0.06),0_12px_40px_-12px_rgba(40,30,20,0.35)] ring-1 ring-black/5",
         )}
         style={
@@ -198,10 +184,7 @@ export function CollectibleCard({
             is clipped only horizontally, so descenders below the trimmed box still show. */}
         {card.moment && (
           <p
-            className={cn(
-              "font-outfit absolute -translate-y-1/2 overflow-x-clip text-right leading-none text-ellipsis whitespace-nowrap",
-              extra,
-            )}
+            className="font-outfit absolute -translate-y-1/2 overflow-x-clip text-right leading-none text-ellipsis whitespace-nowrap"
             style={{
               textBox: "trim-both cap alphabetic",
               top: u(MOMENT_CENTER),
@@ -219,7 +202,7 @@ export function CollectibleCard({
           style={{ top: u(304), left: u(SIDE_PADDING), right: u(SIDE_PADDING), bottom: u(28) }}
         >
           {/* Safety net: if text still overflows (e.g. very wide glyphs), the message gives way first. */}
-          <div className={cn("flex min-h-0 shrink flex-col", extra)}>
+          <div className="flex min-h-0 shrink flex-col">
             {card.message && (
               <p
                 className={cn(
@@ -261,13 +244,13 @@ export function CollectibleCard({
             </p>
             <div className="flex items-baseline justify-between" style={{ gap: u(16), marginTop: u(song.rowMargin) }}>
               <p
-                className={cn("font-garamond line-clamp-2 min-w-0 flex-1 whitespace-pre-line text-(--ink-soft) italic", extra)}
+                className="font-garamond line-clamp-2 min-w-0 flex-1 whitespace-pre-line text-(--ink-soft) italic"
                 style={{ fontSize: u(LYRICS_SIZE), lineHeight: u(ROW_LINE) }}
               >
                 {card.lyricsExcerpt}
               </p>
               <p
-                className={cn("font-outfit shrink-0 text-right font-normal", extra)}
+                className="font-outfit shrink-0 text-right font-normal"
                 style={{ fontSize: u(EDITION_SIZE), lineHeight: u(ROW_LINE) }}
               >
                 {card.editionNumber ?? 1} of {card.editionSize ?? 1}
@@ -285,7 +268,7 @@ export function CollectibleCard({
         {/* Shown only once the card exists; no placeholder while creating. */}
         {card.cardId && (
           <p
-            className={cn("font-outfit absolute inset-x-0 text-center text-(--ink-faint)", extra)}
+            className="font-outfit absolute inset-x-0 text-center text-(--ink-faint)"
             style={{ bottom: u(10), fontSize: u(7.5), letterSpacing: "0.04em" }}
           >
             {card.cardId}

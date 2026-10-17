@@ -1,21 +1,47 @@
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 // "Listening" mode on the home page: while the sample song plays, the page goes black and
-// only the glowing figure, the song title and the artist stay, until it's paused.
+// only the glowing figure and a now-playing corner (title, artist, pause) remain, until
+// it's paused or ends. The provider owns the one <audio>, so every play button controls it.
 
-type Listening = { playing: boolean; setPlaying: (playing: boolean) => void };
+type Listening = { playing: boolean; toggle: () => void };
 
 const ListeningContext = createContext<Listening | null>(null);
 
-export function ListeningProvider({ children }: { children: ReactNode }) {
+export function ListeningProvider({ src, children }: { src: string; children: ReactNode }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
-  return <ListeningContext.Provider value={{ playing, setPlaying }}>{children}</ListeningContext.Provider>;
+
+  // Stop when leaving the page.
+  useEffect(() => () => audioRef.current?.pause(), []);
+
+  function toggle() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) void audio.play().catch(() => setPlaying(false));
+    else audio.pause();
+  }
+
+  return (
+    <ListeningContext.Provider value={{ playing, toggle }}>
+      {children}
+      {/* Downloads only on the first press. */}
+      <audio
+        ref={audioRef}
+        src={src}
+        preload="none"
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => setPlaying(false)}
+      />
+    </ListeningContext.Provider>
+  );
 }
 
-/** The listening state, or null outside a ListeningProvider. */
+/** The listening state and play/pause, or null outside a ListeningProvider. */
 export function useListening() {
   return useContext(ListeningContext);
 }

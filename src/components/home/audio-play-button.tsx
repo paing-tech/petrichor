@@ -89,7 +89,9 @@ export function NowPlaying() {
   return (
     <div
       className={cn(
-        "fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-6 z-10 w-64 text-white transition-[opacity,translate] duration-700 ease-out motion-reduce:transition-none sm:bottom-8 sm:left-8",
+        // Phones: full width with the same 24px margin each side, so the progress bar reaches
+        // across. Larger screens: a 256px block in the corner.
+        "fixed right-6 bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-6 z-10 text-white transition-[opacity,translate] duration-700 ease-out motion-reduce:transition-none sm:right-auto sm:bottom-8 sm:left-8 sm:w-64",
         shown ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0",
       )}
       inert={!shown}

@@ -33,6 +33,7 @@ export function HomeActions({ collectionHref, next = "/keepsakes", startOpen = f
   // The code step has its own "Use a different email", so Back steps aside for it.
   const [step, setStep] = useState<"email" | "code">("email");
   const formRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const [formHeight, setFormHeight] = useState(ROW_HEIGHT);
 
   // Track the form's natural height (it changes when it moves on to the code step).
@@ -56,7 +57,7 @@ export function HomeActions({ collectionHref, next = "/keepsakes", startOpen = f
   }
 
   return (
-    <div className="grid w-full max-w-77">
+    <div ref={rootRef} className="grid w-full max-w-77 pb-6">
       {/* Create, folding away: its row (and the gap under it) closes as it fades. */}
       <div
         className={cn("grid transition-[grid-template-rows,opacity]", EASE, open ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr]")}
@@ -73,7 +74,12 @@ export function HomeActions({ collectionHref, next = "/keepsakes", startOpen = f
       <div
         className={cn("relative transition-[height]", EASE, settled ? "overflow-visible" : "overflow-hidden")}
         style={{ height: open ? formHeight : ROW_HEIGHT }}
-        onTransitionEnd={(e) => e.target === e.currentTarget && setSettled(open)}
+        onTransitionEnd={(e) => {
+          if (e.target !== e.currentTarget) return;
+          setSettled(open);
+          // Once unfolded, bring the whole form (down to Back) into view if it runs past the screen.
+          if (open) rootRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }}
       >
         <div ref={formRef} inert={!open}>
           <SignInForm next={next} onStepChange={setStep} />

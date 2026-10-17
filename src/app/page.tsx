@@ -88,11 +88,11 @@ const CARD_RADIUS = `${((18 / 390) * CARD.width) / 10}cqw`;
 
 export default function Home({ searchParams }: PageProps<"/">) {
   return (
-    // Anchored to the top (not centered) so the artwork stays put when the sign-in form opens.
     <ListeningProvider tracks={TRACKS}>
       <ListeningBackdrop />
       <NowPlaying />
-      <div className="flex flex-1 flex-col items-center px-4">
+      {/* Centered on the screen: the card and its two buttons, as a group. */}
+      <div className="flex flex-1 flex-col items-center justify-center px-4">
         {/* Artwork size: grows with the screen height (leaving room for the header and the
           buttons below), from 300px up to 600px wide. */}
         <div className="@container flex w-full max-w-[clamp(300px,calc((100svh-230px)*0.74),600px)] flex-col items-center">
@@ -168,8 +168,10 @@ export default function Home({ searchParams }: PageProps<"/">) {
             </div>
           </TiltArtwork>
           {/* Starts 8px below the glow (the artwork's white margin under it is pulled up). */}
+          {/* Fixed to the two buttons' height (44 + 12 + 44px), so the centering counts only
+              them: the sign-in form unfolds below without moving the card. */}
           <div
-            className="relative flex w-full flex-col items-center"
+            className="relative flex h-25 w-full flex-col items-center"
             style={{
               marginTop: `calc(-20px - 100cqw * ${(VIEW.top + VIEW.height - GLOW_BOTTOM) / VIEW.width})`,
             }}

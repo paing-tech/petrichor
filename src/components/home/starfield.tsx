@@ -4,13 +4,25 @@ import { useEffect, useRef } from "react";
 
 // A night sky for the home page's listening mode: twinkling tiny stars, a few glowing
 // four-point sparkles (taller than wide) joined by faint constellation lines, and every
-// few seconds a falling star trailing a soft glow. Drawn on a canvas; runs only while
-// `active`, and stays still for anyone who prefers reduced motion.
+// few seconds a falling star trailing a soft glow. Scrolling or dragging pans the sky
+// (wrapping around, so it never runs out). Drawn on a canvas; runs only while `active`, and
+// stays still for anyone who prefers reduced motion.
 
-/** Tiny stars per 10,000 px² of window. */
+/** Tiny stars per 10,000 px² of window: wide screens, and phones (narrower than 640px). */
 const STAR_DENSITY = 10;
-/** Glowing four-point sparkles. */
+const STAR_DENSITY_PHONE = 30;
+/** Glowing four-point sparkles: wide screens, and phones. */
 const SPARKLES = 30;
+const SPARKLES_PHONE = 10;
+/** Below this window width, the phone values apply. */
+const PHONE_MAX_WIDTH = 640;
+/**
+ * Scrolling (wheel / trackpad) or dragging a finger pans the sky. Sparkles move with it 1:1;
+ * tiny stars move this much, so they read as farther away.
+ */
+const FAR_STARS_PAN = 0.55;
+/** After a finger lets go, the sky keeps gliding and slows by this much per frame. */
+const PAN_GLIDE = 0.98;
 /** Seconds between falling stars (random within the range). */
 const FALL_EVERY: [number, number] = [2.5, 6];
 /** A sparkle's spikes are this much longer up/down than left/right. */
@@ -66,7 +78,9 @@ export function Starfield({ active }: { active: boolean }) {
       canvas.height = Math.round(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      stars = Array.from({ length: Math.round(((width * height) / 10000) * STAR_DENSITY) }, () => ({
+      const phone = width < PHONE_MAX_WIDTH;
+      const density = phone ? STAR_DENSITY_PHONE : STAR_DENSITY;
+      stars = Array.from({ length: Math.round(((width * height) / 10000) * density) }, () => ({
         x: rand(0, width),
         y: rand(0, height),
         r: rand(0.3, 1.1),
@@ -74,7 +88,7 @@ export function Starfield({ active }: { active: boolean }) {
         speed: rand(0.6, 2.2),
         phase: rand(0, Math.PI * 2),
       }));
-      sparkles = Array.from({ length: SPARKLES }, () => ({
+      sparkles = Array.from({ length: phone ? SPARKLES_PHONE : SPARKLES }, () => ({
         x: rand(0, width),
         y: rand(0, height),
         size: rand(2.5, 6),
@@ -94,6 +108,53 @@ export function Starfield({ active }: { active: boolean }) {
     build();
     window.addEventListener("resize", build);
 
+    // Panning: wheel/trackpad and finger drags move the sky. While it's showing, they don't
+    // scroll (or bounce) the page.
+    const pan = { x: 0, y: 0, vx: 0, vy: 0 };
+    let touch: { x: number; y: number; t: number } | null = null;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (still) return;
+      // Scrolling down moves the sky up, like scrolling content.
+      const scale = e.deltaMode === 1 ? 16 : 1;
+      pan.x -= e.deltaX * scale;
+      pan.y -= e.deltaY * scale;
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      const p = e.touches[0];
+      touch = { x: p.clientX, y: p.clientY, t: performance.now() };
+      pan.vx = pan.vy = 0;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!touch) return;
+      e.preventDefault();
+      if (still) return;
+      // The sky follows the finger.
+      const p = e.touches[0];
+      const now = performance.now();
+      const dx = p.clientX - touch.x;
+      const dy = p.clientY - touch.y;
+      const frames = Math.max(1, (now - touch.t) / (1000 / 60));
+      pan.x += dx;
+      pan.y += dy;
+      pan.vx = dx / frames;
+      pan.vy = dy / frames;
+      touch = { x: p.clientX, y: p.clientY, t: now };
+    };
+    const onTouchEnd = () => {
+      touch = null;
+    };
+    window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd);
+    window.addEventListener("touchcancel", onTouchEnd);
+    /** A point shifted by the pan (times `depth`), wrapped back onto the screen. */
+    const wrap = (x: number, y: number, depth: number) => ({
+      x: (((x + pan.x * depth) % width) + width) % width,
+      y: (((y + pan.y * depth) % height) + height) % height,
+    });
+
     const fallers: Faller[] = [];
     let nextFall = rand(0.8, 2);
 
@@ -106,21 +167,36 @@ export function Starfield({ active }: { active: boolean }) {
       t += dt;
       ctx.clearRect(0, 0, width, height);
 
+      // Keep gliding after a flick, slowing down.
+      if (!touch && (pan.vx || pan.vy)) {
+        const frames = dt * 60;
+        pan.x += pan.vx * frames;
+        pan.y += pan.vy * frames;
+        pan.vx *= PAN_GLIDE ** frames;
+        pan.vy *= PAN_GLIDE ** frames;
+        if (Math.abs(pan.vx) < 0.05 && Math.abs(pan.vy) < 0.05) pan.vx = pan.vy = 0;
+      }
+
       // Constellation lines, breathing slowly.
       ctx.lineWidth = 0.6;
       for (const [a, b] of lines) {
+        const pa = wrap(a.x, a.y, 1);
+        const pb = wrap(b.x, b.y, 1);
+        // Skip a line while its two stars sit on opposite edges (one has wrapped around).
+        if (Math.hypot(pb.x - pa.x, pb.y - pa.y) > Math.hypot(b.x - a.x, b.y - a.y) + 1) continue;
         ctx.strokeStyle = `rgba(200, 215, 255, ${0.06 + 0.05 * Math.sin(t * 0.5 + a.phase)})`;
         ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
+        ctx.moveTo(pa.x, pa.y);
+        ctx.lineTo(pb.x, pb.y);
         ctx.stroke();
       }
 
       ctx.fillStyle = "#fff";
       for (const s of stars) {
         ctx.globalAlpha = Math.max(0, s.base * (0.55 + 0.45 * Math.sin(t * s.speed + s.phase)));
+        const p = wrap(s.x, s.y, FAR_STARS_PAN);
         ctx.beginPath();
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, s.r, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
@@ -128,7 +204,8 @@ export function Starfield({ active }: { active: boolean }) {
       for (const s of sparkles) {
         // Blink: mostly soft, now and then bright.
         const glow = 0.35 + 0.65 * Math.pow((Math.sin(t * s.speed + s.phase) + 1) / 2, 3);
-        drawSparkle(ctx, s.x, s.y, s.size, s.size * STRETCH, glow);
+        const p = wrap(s.x, s.y, 1);
+        drawSparkle(ctx, p.x, p.y, s.size, s.size * STRETCH, glow);
       }
 
       if (!still) {
@@ -193,6 +270,11 @@ export function Starfield({ active }: { active: boolean }) {
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", build);
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("touchcancel", onTouchEnd);
     };
   }, [active]);
 

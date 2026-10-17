@@ -9,10 +9,13 @@ export const LIMITS = {
   songTitle: 200,
   artistName: 200,
   lyricsExcerpt: 100,
-  message: 120,
+  message: 160,
   senderName: 40,
   moment: 40,
 } as const;
+
+/** The card shows four lines of message; more line breaks would push text past them. */
+export const MESSAGE_MAX_LINES = 4;
 
 /**
  * The most numbered copies one card can be created as. Requests for more go
@@ -54,7 +57,10 @@ export const cardFieldsSchema = z.object({
   songTitle: requiredText("Song title", LIMITS.songTitle),
   artistName: requiredText("Artist name", LIMITS.artistName),
   lyricsExcerpt: optionalText("Lyrics", LIMITS.lyricsExcerpt),
-  message: optionalText("Message", LIMITS.message),
+  message: optionalText("Message", LIMITS.message).refine(
+    (v) => v === null || v.split("\n").length <= MESSAGE_MAX_LINES,
+    `Message can be up to ${MESSAGE_MAX_LINES} lines`,
+  ),
   senderName: optionalText("Your name", LIMITS.senderName),
   moment: optionalText("Moment", LIMITS.moment),
 });

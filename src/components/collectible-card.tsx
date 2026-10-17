@@ -59,26 +59,39 @@ const u = (px: number) => `calc(var(--u) * ${px})`;
 const PHOTO_HEIGHT = 293;
 /**
  * The photo's fade into the card color: [position as % of the photo height, card-color opacity].
- * Three stops before it turns solid.
+ * It starts clear, reaches 20% halfway, then turns solid.
  */
 const PHOTO_FADE = [
-  [66, 0],
-  [85, 0.45],
-  [96, 0.85],
-  [100, 1],
+  [58, 0],
+  [75, 0.2],
+  [96, 1],
 ] as const;
-/** The moment is centered on the third fade stop, where the photo is almost solid card color. */
-const MOMENT_CENTER = (PHOTO_HEIGHT * PHOTO_FADE[2][0]) / 100;
+// The fade's shape matches the Figma gradient (0% → 20% at the midpoint → 100%), spread
+// over 58–92% of the photo: solid card color from about 270 units down, so there's clear
+// card between the image and the message, which starts at 284.
+/**
+ * The moment is centered inside the fade, 90% of the way down the photo (between its second
+ * and third stops, about two-thirds card color).
+ */
+const MOMENT_CENTER = PHOTO_HEIGHT * 0.85;
+
+/**
+ * The card's fade into `color` as a background for the whole card (not just the photo area):
+ * transparent at the top, the same stops as the photo's fade, then solid below it. For laying
+ * over artwork that should blend into the card exactly as a photo would.
+ */
+export function cardFadeBackground(color: string) {
+  const rgb = hexToRgb(color).join(", ");
+  const card = (at: number) => ((PHOTO_HEIGHT * at) / 100 / (BASE_WIDTH * (4 / 3))) * 100;
+  return `linear-gradient(to bottom, ${PHOTO_FADE.map(([at, alpha]) => `rgba(${rgb}, ${alpha}) ${card(at)}%`).join(", ")})`;
+}
 const SIDE_PADDING = 38;
 
-// Long titles step down in size so the layout stays fixed: titles up to 26
-// characters take one line and leave the message three; longer titles wrap to
-// two smaller lines and the message gets two.
-function titleLayout(title: string) {
-  if (title.length <= 18) return { fontSize: 31, messageLines: 3 };
-  if (title.length <= 26) return { fontSize: 26, messageLines: 3 };
-  return { fontSize: 21, messageLines: 2 };
-}
+/** The handwritten message and signature share this size and line spacing (four lines fit). */
+const MESSAGE_SIZE = 16;
+const MESSAGE_LINE_HEIGHT = 1.3;
+/** Every song title is this size, on one line (long ones end with "…"), so the message always keeps three lines. */
+const TITLE_SIZE = 20;
 
 /**
  * Prints the date in the sender's time zone, so a card made on the morning of
@@ -106,17 +119,19 @@ const belowBaseline = (m: FontMetrics, size: number, lineHeight: number) =>
   halfLeading(m, size, lineHeight) + m.descent * size;
 
 /**
- * The song block uses one visible gap (baseline of one line to the capitals of
- * the next) between title and artist, artist and the lyrics row, and the two
- * lyrics lines. "1 of 1" and the date share the lyrics' line spacing, so each
- * sits on the same baseline as a lyrics line.
+ * The song block uses one visible gap (baseline of one line to the capitals of the next)
+ * between the title and artist, the artist and the lyrics row, and the two lyrics lines.
+ * "1 of 1" and the date share the lyrics' line spacing, so each sits on the same baseline
+ * as a lyrics line.
  */
-const SONG_GAP = 10;
+const SONG_GAP = 12;
 const TITLE_LINE_HEIGHT = 1.06;
-const ARTIST_SIZE = 12;
+/** Every Outfit line on the card (moment, artist, "1 of 1", date, card ID) shares this size. */
+const OUTFIT_SIZE = 12;
+const ARTIST_SIZE = OUTFIT_SIZE;
 const ARTIST_LINE = ARTIST_SIZE * 1.2;
-const LYRICS_SIZE = 12;
-const EDITION_SIZE = 12;
+const LYRICS_SIZE = 14;
+const EDITION_SIZE = OUTFIT_SIZE;
 /** Line pitch shared by the lyrics (Instrument Serif italic) and the edition ("1 of 1") / date column. */
 const ROW_LINE = SONG_GAP + FONT_METRICS.instrumentSerif.capHeight * LYRICS_SIZE;
 
@@ -154,8 +169,7 @@ export function CollectibleCard({
   inkColor,
   bare = false,
 }: CollectibleCardProps) {
-  const title = titleLayout(card.songTitle);
-  const song = songLayout(title.fontSize);
+  const song = songLayout(TITLE_SIZE);
   const cardColor = card.cardColor ?? DEFAULT_CARD_COLOR;
   const ink = cardInk(cardColor);
 
@@ -201,7 +215,7 @@ export function CollectibleCard({
               top: u(MOMENT_CENTER),
               right: u(SIDE_PADDING),
               maxWidth: u(160),
-              fontSize: u(8),
+              fontSize: u(OUTFIT_SIZE),
             }}
           >
             {card.moment}
@@ -210,17 +224,15 @@ export function CollectibleCard({
 
         <div
           className="absolute flex flex-col"
-          style={{ top: u(304), left: u(SIDE_PADDING), right: u(SIDE_PADDING), bottom: u(28) }}
+          style={{ top: u(280), left: u(SIDE_PADDING), right: u(SIDE_PADDING), bottom: u(28) }}
         >
           {/* Safety net: if text still overflows (e.g. very wide glyphs), the message gives way first. */}
           <div className="flex min-h-0 shrink flex-col">
             {card.message && (
               <p
-                className={cn(
-                  "font-hand min-h-0 overflow-hidden font-light whitespace-pre-line",
-                  title.messageLines === 3 ? "line-clamp-3" : "line-clamp-2",
-                )}
-                style={{ fontSize: u(15), lineHeight: 1.36 }}
+                // Up to four lines, then "…".
+                className="font-hand line-clamp-4 min-h-0 overflow-hidden font-light whitespace-pre-line"
+                style={{ fontSize: u(MESSAGE_SIZE), lineHeight: MESSAGE_LINE_HEIGHT }}
               >
                 {card.message}
               </p>
@@ -229,7 +241,7 @@ export function CollectibleCard({
               <p
                 // Handwritten, like the message above it.
                 className="font-hand shrink-0 truncate text-right font-light"
-                style={{ fontSize: u(17), lineHeight: 1.3, marginTop: u(6) }}
+                style={{ fontSize: u(MESSAGE_SIZE), lineHeight: MESSAGE_LINE_HEIGHT, marginTop: u(4) }}
               >
                 {card.senderName}
               </p>
@@ -239,10 +251,10 @@ export function CollectibleCard({
           <div className="flex-1" style={{ minHeight: u(8) }} />
 
           <div className="shrink-0">
-            <div className="flex items-center" style={{ gap: u(10) }}>
+            <div className="flex items-center" style={{ gap: u(4) }}>
               <h2
-                className="line-clamp-2 min-w-0 font-serif"
-                style={{ fontSize: u(title.fontSize), lineHeight: u(song.titleLine), letterSpacing: "-0.01em" }}
+                className="min-w-0 truncate font-serif"
+                style={{ fontSize: u(TITLE_SIZE), lineHeight: u(song.titleLine), letterSpacing: "-0.01em" }}
               >
                 {card.songTitle}
               </h2>
@@ -281,7 +293,7 @@ export function CollectibleCard({
         {card.cardId && (
           <p
             className="font-outfit absolute inset-x-0 text-center text-(--ink-faint)"
-            style={{ bottom: u(10), fontSize: u(7.5), letterSpacing: "0.04em" }}
+            style={{ bottom: u(10), fontSize: u(OUTFIT_SIZE), letterSpacing: "0.04em" }}
           >
             {card.cardId}
           </p>

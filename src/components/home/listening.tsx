@@ -247,16 +247,14 @@ export function HideWhileListening({ children, className }: { children: ReactNod
   );
 }
 
-/** How long her fade slides away when the song starts. */
-const REVEAL_MS = 2500;
-/** How long it slides back: the same as the card fading back in over her (FADE's 700ms). */
+/** How long the fade slides back as the card returns over her (FADE's 700ms). */
 const COVER_MS = 700;
 
 /**
- * Sets `--reveal` for its contents: 0% normally, 60% in night-sky mode (sliding over
- * REVEAL_MS). It stays at 60% while she settles back down, so she's whole until the card
- * returns, then slides back with the card (COVER_MS). Add it to a mask's gradient stops to
- * push a fade-out past the bottom of the image, so the whole figure appears.
+ * Sets `--reveal` for its contents: 0% normally, 60% in night-sky mode. The fade disappears
+ * at once when the song starts (her whole body shows as the card fades away), stays gone
+ * while she settles back down, then slides back with the card (COVER_MS). Add it to a
+ * mask's gradient stops to push a fade-out past the bottom of the image.
  */
 export function RevealWhileListening({ children, className }: { children: ReactNode; className?: string }) {
   const dark = useListening()?.dark ?? false;
@@ -267,7 +265,7 @@ export function RevealWhileListening({ children, className }: { children: ReactN
         {
           "--reveal": dark ? "60%" : "0%",
           transitionProperty: "--reveal",
-          transitionDuration: `${dark ? REVEAL_MS : COVER_MS}ms`,
+          transitionDuration: `${dark ? 0 : COVER_MS}ms`,
         } as CSSProperties
       }
     >

@@ -42,6 +42,7 @@ import {
   cardFieldsSchema,
   fieldErrors,
   LIMITS,
+  MESSAGE_MAX_LINES,
   validatePhotoFile,
   type CardFieldErrors,
 } from "@/lib/validation";
@@ -75,6 +76,12 @@ const EMPTY_VALUES: FormValues = {
   senderName: "",
   moment: "",
 };
+
+/** Keeps at most `maxLines` lines: line breaks past the limit become spaces. */
+function capLineBreaks(text: string, maxLines: number) {
+  const lines = text.split("\n");
+  return lines.length <= maxLines ? text : [...lines.slice(0, maxLines - 1), lines.slice(maxLines - 1).join(" ")].join("\n");
+}
 
 const FIELD_ORDER: FieldName[] = ["songTitle", "artistName", "lyricsExcerpt", "message", "senderName", "moment"];
 
@@ -218,7 +225,9 @@ export function CreateCardFlow() {
 
   function handleChange(field: FieldName) {
     return (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const next = { ...values, [field]: e.target.value };
+      // The card fits four lines of message: extra line breaks become spaces.
+      const value = field === "message" ? capLineBreaks(e.target.value, MESSAGE_MAX_LINES) : e.target.value;
+      const next = { ...values, [field]: value };
       setValues(next);
       if (validateLive) validate(next);
     };

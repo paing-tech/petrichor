@@ -1,7 +1,10 @@
 import { Suspense } from "react";
 import Image from "next/image";
 import { redirect } from "next/navigation";
-import type { CollectibleCardData } from "@/components/collectible-card";
+import {
+  cardFadeBackground,
+  type CollectibleCardData,
+} from "@/components/collectible-card";
 import {
   HomeActions,
   HomeActionsFallback,
@@ -138,7 +141,8 @@ export default function Home({ searchParams }: PageProps<"/">) {
                 style={{
                   ...cardBox,
                   borderRadius: CARD_RADIUS,
-                  background: `linear-gradient(to bottom, ${CARD_GREEN}00 34%, ${CARD_GREEN} 50%)`,
+                  // The same fade as any card's photo, so the moment sits inside it just the same.
+                  background: cardFadeBackground(CARD_GREEN),
                 }}
               />
             </HideWhileListening>
@@ -151,13 +155,12 @@ export default function Home({ searchParams }: PageProps<"/">) {
                   className="max-w-none"
                   inkColor="#FFFFFF"
                   titleAccessory={
-                    // No ring; 27 card units ≈ the now-playing corner's 22px icon on a laptop,
-                    // and just under the title's line height so the layout holds.
+                    // No ring; 20 card units, just under the title's line height (title size 20).
                     <AudioPlayButton
                       label={SAMPLE_CARD.songTitle}
                       ring={false}
-                      size="calc(var(--u) * 27)"
-                      iconSize="calc(var(--u) * 27)"
+                      size="calc(var(--u) * 20)"
+                      iconSize="calc(var(--u) * 20)"
                     />
                   }
                 />

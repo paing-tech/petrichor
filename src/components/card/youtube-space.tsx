@@ -47,21 +47,26 @@ const FIGURE_RISE_EASE_S = 3;
 const FIGURE_MAX_ELEVATION = 80;
 /**
  * Following her, the camera holds still while she drifts up; once she's FOLLOW_CATCH_AT of
- * the way from the centre to the top of the view, it glides (over about FOLLOW_GLIDE_S) to put
- * her FOLLOW_REST below the centre, and she drifts up again. Sideways it always keeps her centred.
+ * the way from the centre to the top of the view, it makes one smooth camera move (ease in,
+ * ease out, FOLLOW_GLIDE_S long) that puts her FOLLOW_REST below the centre, and she drifts up
+ * again. Turning Follow on starts with the same kind of move from wherever the view is.
  */
 const FOLLOW_CATCH_AT = 0.3;
 const FOLLOW_REST = 0.12;
-const FOLLOW_GLIDE_S = 0.9;
-/** How much of the screen's height the figure fills when faced. */
-const FIGURE_FILL = 0.72;
+const FOLLOW_GLIDE_S = 3;
+/**
+ * Her size, as a multiple of her size on the home page (1 = the same). The home page's rule,
+ * from src/app/page.tsx: its artwork frame is min(screen width − 32px (85% of that on phones),
+ * clamp(300px, (screen height − 230px) × 0.74, 600px)) wide, and she is 1.0264 × that frame.
+ */
+const FIGURE_SCALE = 1;
 /**
  * The virtual camera's focal length, as a multiple of the screen's longer side (CSS
  * perspective). Longer = a narrower, more natural view; shorter = a fisheye look.
  */
 const FOCAL_PER_SCREEN = 1.15;
 /** How much of the screen the player fills when looked at straight on. */
-const FILL = 0.86;
+const FILL = 0.65;
 /** Degrees turned per px scrolled (trackpad / wheel) and per px swiped. */
 const SCROLL_SPEED = 0.08;
 const SWIPE_SPEED = 0.15;
@@ -140,6 +145,10 @@ function uprightRoll(mo: View) {
   return (roll * 180) / Math.PI;
 }
 
+/** Slow start, quick middle, soft landing (0 → 1). */
+const easeInOutCubic = (t: number) =>
+  t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
+
 /** The heading (degrees right) and elevation (degrees up) of a point, from the viewer. */
 function anglesOf([x, y, z]: [number, number, number]) {
   return {
@@ -158,21 +167,19 @@ function facingViewer([x, y, z]: [number, number, number]): View {
   return multiply(rotateY(-yaw), rotateX(-pitch));
 }
 
-/** Sends a command to the YouTube player (it listens because of enablejsapi=1). */
-function youtube(iframe: HTMLIFrameElement | null, func: string) {
-  iframe?.contentWindow?.postMessage(
-    JSON.stringify({ event: "command", func, args: [] }),
-    "*",
-  );
-}
-
 export function YouTubeSpace({
   videoId,
   title,
+  songTitle,
+  artist,
   footer,
 }: {
   videoId: string;
+  /** The player's accessible name. */
   title: string;
+  /** Shown in the bottom-left corner of the full-screen view, as on the home page. */
+  songTitle: string;
+  artist: string;
   /** Shown beside the "Full screen" button, e.g. a link to the YouTube Music app. */
   footer?: ReactNode;
 }) {
@@ -190,12 +197,8 @@ export function YouTubeSpace({
   const risePlaying = useRef(false);
   const lens = useRef({ focal: 0, figureDistance: 0 });
   const [hint, setHint] = useState(true);
-  // Over the player, a clear layer takes scrolls and swipes (YouTube's frame would swallow
-  // them). A click or tap on it plays / pauses, then it steps aside so YouTube's own controls
-  // work, until the pointer is back on the sky.
-  const [shield, setShield] = useState(true);
-  const playing = useRef(false);
-  // The same, as state: the figure rises and brightens while the song plays.
+  // Whether YouTube reports the song playing (read only; the player is never controlled or
+  // covered, per YouTube's policies): the figure rises and brightens while it plays.
   const [songPlaying, setSongPlaying] = useState(false);
   // The zoom the viewer chose (for the buttons), and the one shown, which eases toward it.
   const [zoom, setZoom] = useState(1);
@@ -250,7 +253,6 @@ export function YouTubeSpace({
     zoomTarget.current = zoomShown.current = 1;
     setZoom(1);
     setHint(true);
-    setShield(true);
     setOpen(true);
     // Real full screen where the browser allows it (not iPhone Safari); the space works either way.
     void document.documentElement.requestFullscreen?.().catch(() => {});
@@ -276,7 +278,6 @@ export function YouTubeSpace({
           (data?.event === "onStateChange" ? data.info : undefined);
         // 1 playing; 2 paused; 0 ended (buffering and the rest keep the last state).
         if (state === 1 || state === 2 || state === 0) {
-          playing.current = state === 1;
           setSongPlaying(state === 1);
         }
       } catch {
@@ -331,12 +332,13 @@ export function YouTubeSpace({
       focal = Math.max(width, height) * FOCAL_PER_SCREEN;
       const screenWidth = Math.min(width * FILL, (height * FILL * 16) / 9);
       baseDistance = (focal * WORLD_WIDTH) / screenWidth;
-      // The figure fills FIGURE_FILL of the screen's height (or its width, if narrower),
-      // leaving room above for her rise.
-      const figureScreenHeight = Math.min(
-        height * FIGURE_FILL,
-        (width * FIGURE_FILL * 1536) / 1024,
+      // Her size: the same as on the home page (times FIGURE_SCALE).
+      const homeFrame = Math.min(
+        (width - 32) * (width < 640 ? 0.85 : 1),
+        Math.max(300, Math.min((height - 230) * 0.74, 600)),
       );
+      const figureScreenHeight =
+        ((homeFrame * 1.0264 * 1536) / 1024) * FIGURE_SCALE;
       figureDistance = (focal * FIGURE_HEIGHT) / figureScreenHeight;
       lens.current = { focal, figureDistance };
     };
@@ -414,9 +416,6 @@ export function YouTubeSpace({
       }
       sensorLast = now;
     };
-    // Back on the sky (any pointer event that reaches this page is off the player): the clear
-    // layer over the player returns, so scrolling there turns the view again.
-    const onPointerOverPage = () => setShield(true);
     window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("touchstart", onTouchStart, { passive: true });
     window.addEventListener("touchmove", onTouchMove, { passive: false });
@@ -424,8 +423,6 @@ export function YouTubeSpace({
     window.addEventListener("touchcancel", onTouchEnd);
     window.addEventListener("keydown", onKey);
     window.addEventListener("deviceorientation", onOrientation);
-    window.addEventListener("pointermove", onPointerOverPage);
-    window.addEventListener("pointerdown", onPointerOverPage);
     let wasFullscreen = false;
     const onFullscreenChange = () => {
       // Leaving the browser's full screen (e.g. with Esc) closes the space too.
@@ -467,8 +464,16 @@ export function YouTubeSpace({
     let raf = 0;
     let last = performance.now();
     let riseSpeed = 0;
+    // Her glide home after a pause: where it started and when.
+    let settle: { from: number; start: number } | null = null;
     // The following camera: its heading and elevation, and whether it's gliding to catch up.
-    let follow: { yaw: number; pitch: number; catching: boolean } | null = null;
+    let follow: {
+      yaw: number;
+      pitch: number;
+      move: { from: { yaw: number; pitch: number }; start: number } | null;
+      /** While she glides home: how far below her the camera stays, so she holds still on screen. */
+      descend: number | null;
+    } | null = null;
     const draw = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
@@ -481,10 +486,15 @@ export function YouTubeSpace({
         figureRise.current += riseSpeed * dt;
       } else {
         riseSpeed = 0;
-        // Exponential glide: most of the way back within FIGURE_SETTLE_MS.
-        figureRise.current *= Math.exp((-5 * dt * 1000) / FIGURE_SETTLE_MS);
-        if (figureRise.current < 0.5) figureRise.current = 0;
+        // Paused or ended: one smooth glide home over FIGURE_SETTLE_MS (ease in, ease out).
+        if (figureRise.current > 0) {
+          settle ??= { from: figureRise.current, start: now };
+          const t = Math.min(1, (now - settle.start) / FIGURE_SETTLE_MS);
+          figureRise.current = settle.from * (1 - easeInOutCubic(t));
+          if (t >= 1) figureRise.current = 0;
+        }
       }
+      if (risePlaying.current || figureRise.current === 0) settle = null;
       if (
         !touch &&
         (Math.abs(glide.yaw) > 0.01 || Math.abs(glide.pitch) > 0.01)
@@ -510,23 +520,51 @@ export function YouTubeSpace({
       ];
       if (modeRef.current === "lock") faceDirection([0, 0, -1]);
       if (modeRef.current === "follow") {
-        // Start from wherever the viewer is looking: its forward direction is the view's third row, reversed.
-        const v = view.current;
-        follow ??= { ...anglesOf([-v[6], -v[7], -v[8]]), catching: true };
         const her = anglesOf(figureAt);
         const halfView = (Math.atan(height / 2 / focal) * 180) / Math.PI;
-        const ease = 1 - Math.exp(-dt / (FOLLOW_GLIDE_S / 3));
-        // Sideways: keep her centred (the shorter way round).
-        follow.yaw += (((her.yaw - follow.yaw + 540) % 360) - 180) * ease;
-        // Up and down: hold, then glide to catch up when she nears the top (or bottom, as she settles).
-        const offset = her.pitch - follow.pitch;
-        if (Math.abs(offset) > halfView * FOLLOW_CATCH_AT)
-          follow.catching = true;
-        if (follow.catching) {
-          const target = her.pitch + halfView * FOLLOW_REST;
-          follow.pitch += (target - follow.pitch) * ease;
-          // Caught up (within a sliver; she's still moving): hold again and let her drift.
-          if (Math.abs(target - follow.pitch) < 0.4) follow.catching = false;
+        const target = () => ({
+          yaw: her.yaw,
+          pitch: her.pitch + halfView * FOLLOW_REST,
+        });
+        if (!follow) {
+          // Start from wherever the viewer is looking (the view's third row, reversed is
+          // forward), with a camera move to her.
+          const v = view.current;
+          const from = anglesOf([-v[6], -v[7], -v[8]]);
+          follow = { ...from, move: { from, start: now }, descend: null };
+        }
+        // She's gliding home after a pause: the camera comes down with her, keeping her exactly
+        // where she is on screen (the sky drifts past instead), and holds once she's home.
+        if (settle && follow.descend === null && !follow.move)
+          follow.descend = her.pitch - follow.pitch;
+        if (!settle) follow.descend = null;
+        // Holding still while she drifts up; a new camera move once she nears the top of the view.
+        if (
+          follow.descend === null &&
+          !follow.move &&
+          Math.abs(her.pitch - follow.pitch) > halfView * FOLLOW_CATCH_AT
+        )
+          follow.move = {
+            from: { yaw: follow.yaw, pitch: follow.pitch },
+            start: now,
+          };
+        if (follow.move) {
+          // Film-like: starts gently, speeds through the middle, settles softly — aimed at
+          // where she is now, so it lands on her exactly as it ends.
+          const t = Math.min(
+            1,
+            (now - follow.move.start) / (FOLLOW_GLIDE_S * 1000),
+          );
+          const e = easeInOutCubic(t);
+          const to = target();
+          const { from } = follow.move;
+          follow.yaw = from.yaw + (((to.yaw - from.yaw + 540) % 360) - 180) * e;
+          follow.pitch = from.pitch + (to.pitch - from.pitch) * e;
+          if (t >= 1) follow.move = null;
+        } else {
+          follow.yaw = her.yaw; // she rises straight up: stay centred on her sideways
+          if (follow.descend !== null)
+            follow.pitch = her.pitch - follow.descend;
         }
         faceAngles(follow.yaw, follow.pitch);
       } else follow = null;
@@ -554,8 +592,6 @@ export function YouTubeSpace({
       window.removeEventListener("touchcancel", onTouchEnd);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("deviceorientation", onOrientation);
-      window.removeEventListener("pointermove", onPointerOverPage);
-      window.removeEventListener("pointerdown", onPointerOverPage);
       document.removeEventListener("fullscreenchange", onFullscreenChange);
       document.body.style.overflow = overflow;
       frame.style.transform = "";
@@ -595,7 +631,16 @@ export function YouTubeSpace({
               draggable={false}
             />
           </div>
-          <div className="absolute top-[max(1rem,env(safe-area-inset-top))] right-4 z-[62] flex gap-2">
+          {/* The wordmark, exactly where the site header shows it, in white, as on the home
+              page while its song plays. */}
+          <p
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 z-[62] pt-[max(0.75rem,env(safe-area-inset-top))] text-center font-serif text-2xl tracking-tight text-white"
+          >
+            Petrichor
+          </p>
+          {/* Controls: top-right beside the wordmark; on phones, just below it (no room beside). */}
+          <div className="absolute top-[calc(max(0.75rem,env(safe-area-inset-top))+2.75rem)] right-4 z-[62] flex gap-2 sm:top-[max(1rem,env(safe-area-inset-top))]">
             {/* The player: zoom out / in, face it, lock the view on it. */}
             <div className={pillClass}>
               <PillButton
@@ -649,9 +694,19 @@ export function YouTubeSpace({
               <XIcon className="size-5" />
             </button>
           </div>
+          {/* The song, bottom-left, styled like the home page's now-playing corner. */}
+          <div className="pointer-events-none absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-6 z-[62] max-w-[calc(100%-3rem)] text-white sm:bottom-8 sm:left-8 sm:max-w-sm">
+            <p className="truncate font-serif text-3xl leading-tight tracking-tight">
+              {songTitle}
+            </p>
+            <p className="font-outfit mt-0.5 truncate text-sm text-white/70">
+              {artist}
+            </p>
+          </div>
           <p
             className={cn(
-              "pointer-events-none absolute inset-x-0 bottom-[max(1.5rem,env(safe-area-inset-bottom))] z-[62] text-center text-sm text-white/60 transition-opacity duration-700",
+              // Phones: above the song title in the corner; wider screens: bottom centre beside it.
+              "pointer-events-none absolute inset-x-0 bottom-[calc(max(1.5rem,env(safe-area-inset-bottom))+4.5rem)] z-[62] text-center text-sm text-white/60 transition-opacity duration-700 sm:bottom-8",
               !hint && "opacity-0",
             )}
           >
@@ -689,24 +744,6 @@ export function YouTubeSpace({
             open ? "h-full" : "aspect-video min-h-[200px] rounded-xl",
           )}
         />
-        {open && shield && (
-          <button
-            type="button"
-            aria-label={`Play or pause ${title}`}
-            className="absolute inset-0 cursor-pointer"
-            onClick={(e) => {
-              e.stopPropagation();
-              youtube(
-                iframeRef.current,
-                playing.current ? "pauseVideo" : "playVideo",
-              );
-              playing.current = !playing.current;
-              // Step aside so YouTube's own controls (seek, volume…) can be used.
-              setShield(false);
-            }}
-            onPointerDown={(e) => e.stopPropagation()}
-          />
-        )}
       </div>
       <div className="flex items-center justify-between gap-3">
         <button

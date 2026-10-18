@@ -32,7 +32,11 @@ export type ListenSources = {
 };
 
 const STORAGE_KEY = "petrichor:listen-service";
-const LABELS: Record<ListenService, string> = { apple: "Apple Music", spotify: "Spotify", youtube: "YouTube" };
+const LABELS: Record<ListenService, string> = {
+  apple: "Apple Music",
+  spotify: "Spotify",
+  youtube: "YouTube",
+};
 /** Space kept below the open player when fitting the card, in px. */
 const BOTTOM_MARGIN = 16;
 /** The card never shrinks below this width, in px. */
@@ -56,7 +60,9 @@ export function ListenLayout({ children }: { children: ReactNode }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   return (
-    <LayoutContext.Provider value={{ open, setOpen, cardRef, panelRef, cardWidth, setCardWidth }}>
+    <LayoutContext.Provider
+      value={{ open, setOpen, cardRef, panelRef, cardWidth, setCardWidth }}
+    >
       {children}
     </LayoutContext.Provider>
   );
@@ -88,7 +94,11 @@ const readSaved = () => {
 export function ListenPanel({ sources }: { sources: ListenSources }) {
   const layout = useContext(LayoutContext);
   const available = (["apple", "spotify", "youtube"] as const).filter((s) =>
-    s === "apple" ? !!sources.appleMusicUrl : s === "spotify" ? !!sources.spotifyTrackId : !!sources.youtubeVideoId,
+    s === "apple"
+      ? !!sources.appleMusicUrl
+      : s === "spotify"
+        ? !!sources.spotifyTrackId
+        : !!sources.youtubeVideoId,
   );
   const saved = useSyncExternalStore(subscribeNoop, readSaved, () => null);
   const [picked, setPicked] = useState<ListenService | null>(null);
@@ -96,7 +106,10 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
   // (Apple's embed plays previews on other sites, even for subscribers; Spotify's plays full
   // songs only on desktop when signed in). After that, the viewer's own choice.
   const fallback = available.find((s) => s === "youtube") ?? available[0];
-  const service = [picked, saved].find((s): s is ListenService => !!s && available.includes(s)) ?? fallback;
+  const service =
+    [picked, saved].find(
+      (s): s is ListenService => !!s && available.includes(s),
+    ) ?? fallback;
 
   const open = layout?.open ?? false;
 
@@ -121,7 +134,11 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
     const below = panel.getBoundingClientRect().bottom - cardRect.bottom; // caption + gaps + player
     const room = window.innerHeight - cardTop - below - BOTTOM_MARGIN;
     const naturalHeight = (Math.min(naturalWidth, 420) * 4) / 3;
-    layout.setCardWidth(room >= naturalHeight ? null : Math.max(MIN_CARD_WIDTH, Math.floor((room * 3) / 4)));
+    layout.setCardWidth(
+      room >= naturalHeight
+        ? null
+        : Math.max(MIN_CARD_WIDTH, Math.floor((room * 3) / 4)),
+    );
   }, [layout]);
 
   useEffect(() => {
@@ -146,7 +163,12 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
 
   if (!open) {
     return (
-      <Button size="lg" variant="outline" className="bg-background h-11 w-full" onClick={() => layout?.setOpen(true)}>
+      <Button
+        size="lg"
+        variant="outline"
+        className="bg-background h-11 w-full"
+        onClick={() => layout?.setOpen(true)}
+      >
         <PlayIcon className="fill-current" /> Listen
       </Button>
     );
@@ -156,7 +178,11 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
     <div ref={layout?.panelRef} className="grid w-full scroll-mb-4 gap-2">
       <div className="flex items-center gap-1">
         {available.length > 1 ? (
-          <div role="tablist" aria-label="Listen on" className="bg-muted flex flex-1 gap-1 rounded-full p-1">
+          <div
+            role="tablist"
+            aria-label="Listen on"
+            className="bg-muted flex flex-1 gap-1 rounded-full p-1"
+          >
             {available.map((s) => (
               <button
                 key={s}
@@ -166,7 +192,9 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
                 onClick={() => choose(s)}
                 className={cn(
                   "h-8 flex-1 rounded-full text-sm font-medium transition-colors",
-                  s === service ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                  s === service
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {LABELS[s]}
@@ -174,21 +202,36 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
             ))}
           </div>
         ) : (
-          <p className="text-muted-foreground flex-1 text-sm">Listening on {LABELS[service]}</p>
+          <p className="text-muted-foreground flex-1 text-sm">
+            Listening on {LABELS[service]}
+          </p>
         )}
-        <Button variant="ghost" size="icon-sm" aria-label="Close player" onClick={() => layout?.setOpen(false)}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Close player"
+          onClick={() => layout?.setOpen(false)}
+        >
           <XIcon />
         </Button>
       </div>
       <Player service={service} sources={sources} />
       {/* Apple's player has its own "View in App"; Spotify gets a link to its app here, and
           YouTube shows its link beside its "Full screen" button. */}
-      {service === "spotify" && <OpenInApp service={service} sources={sources} />}
+      {service === "spotify" && (
+        <OpenInApp service={service} sources={sources} />
+      )}
     </div>
   );
 }
 
-function Player({ service, sources }: { service: ListenService; sources: ListenSources }) {
+function Player({
+  service,
+  sources,
+}: {
+  service: ListenService;
+  sources: ListenSources;
+}) {
   const common = "w-full rounded-xl border-0 bg-transparent";
   const title = `${sources.title} by ${sources.artist} on ${LABELS[service]}`;
   if (service === "apple" && sources.appleMusicUrl) {
@@ -224,6 +267,8 @@ function Player({ service, sources }: { service: ListenService; sources: ListenS
         key="youtube"
         videoId={sources.youtubeVideoId}
         title={title}
+        songTitle={sources.title}
+        artist={sources.artist}
         footer={<OpenInApp service="youtube" sources={sources} />}
       />
     );
@@ -232,7 +277,13 @@ function Player({ service, sources }: { service: ListenService; sources: ListenS
 }
 
 /** Under the player: the same song in that service's app (full songs for its subscribers). */
-function OpenInApp({ service, sources }: { service: ListenService; sources: ListenSources }) {
+function OpenInApp({
+  service,
+  sources,
+}: {
+  service: ListenService;
+  sources: ListenSources;
+}) {
   const query = encodeURIComponent(`${sources.title} ${sources.artist}`);
   const href =
     service === "apple"
@@ -252,7 +303,8 @@ function OpenInApp({ service, sources }: { service: ListenService; sources: List
       rel="noopener noreferrer"
       className="text-muted-foreground hover:text-foreground inline-flex items-center justify-self-end gap-1 text-xs"
     >
-      Open in {service === "youtube" ? "YouTube Music" : LABELS[service]} <ArrowUpRightIcon className="size-3" />
+      Open in {service === "youtube" ? "YouTube Music" : LABELS[service]}{" "}
+      <ArrowUpRightIcon className="size-3" />
     </a>
   );
 }

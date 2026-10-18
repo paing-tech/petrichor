@@ -145,6 +145,9 @@ function uprightRoll(mo: View) {
   return (roll * 180) / Math.PI;
 }
 
+/** The controls fade away after this long without a tap (or, on computers, mouse movement). */
+const CONTROLS_IDLE_MS = 3000;
+
 /** Slow start, quick middle, soft landing (0 → 1). */
 const easeInOutCubic = (t: number) =>
   t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
@@ -197,6 +200,8 @@ export function YouTubeSpace({
   const risePlaying = useRef(false);
   const lens = useRef({ focal: 0, figureDistance: 0 });
   const [hint, setHint] = useState(true);
+  // The controls fade out when left alone, and come back with any tap.
+  const [controlsShown, setControlsShown] = useState(true);
   // Whether YouTube reports the song playing (read only; the player is never controlled or
   // covered, per YouTube's policies): the figure rises and brightens while it plays.
   const [songPlaying, setSongPlaying] = useState(false);
@@ -312,6 +317,36 @@ export function YouTubeSpace({
       });
     };
   }, [open, songPlaying]);
+
+  // Hide the controls after CONTROLS_IDLE_MS of no taps; any tap anywhere (or moving the mouse)
+  // brings them back and restarts the wait.
+  useEffect(() => {
+    if (!open) return;
+    let timer = 0;
+    const wake = () => {
+      setControlsShown(true);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(
+        () => setControlsShown(false),
+        CONTROLS_IDLE_MS,
+      );
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (e.pointerType === "mouse") wake();
+    };
+    wake();
+    window.addEventListener("pointerdown", wake);
+    window.addEventListener("touchstart", wake, { passive: true });
+    window.addEventListener("keydown", wake);
+    window.addEventListener("pointermove", onPointerMove);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("pointerdown", wake);
+      window.removeEventListener("touchstart", wake);
+      window.removeEventListener("keydown", wake);
+      window.removeEventListener("pointermove", onPointerMove);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -599,8 +634,9 @@ export function YouTubeSpace({
     };
   }, [open, close, faceDirection]);
 
+  // Phones: a vertical column down the right edge; wider screens: one row along the top.
   const pillClass =
-    "flex items-center rounded-full bg-white/10 p-0.5 backdrop-blur";
+    "flex flex-col items-center rounded-full bg-white/10 p-0.5 backdrop-blur sm:flex-row";
   const controlClass =
     "flex size-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur transition-colors hover:bg-white/20 disabled:opacity-30";
 
@@ -639,8 +675,16 @@ export function YouTubeSpace({
           >
             Petrichor
           </p>
-          {/* Controls: top-right beside the wordmark; on phones, just below it (no room beside). */}
-          <div className="absolute top-[calc(max(0.75rem,env(safe-area-inset-top))+2.75rem)] right-4 z-[62] flex gap-2 sm:top-[max(1rem,env(safe-area-inset-top))]">
+          {/* Controls: on phones a column down the right edge, close (✕) first, level with the
+              wordmark; wider screens: a row along the top right, close last. They fade away after
+              CONTROLS_IDLE_MS without a tap, and come back with the next tap anywhere. */}
+          <div
+            className={cn(
+              "absolute top-[max(0.75rem,env(safe-area-inset-top))] right-4 z-[62] flex flex-col items-end gap-2 transition-opacity duration-500 sm:top-[max(1rem,env(safe-area-inset-top))] sm:flex-row sm:items-center",
+              !controlsShown && "pointer-events-none opacity-0",
+            )}
+            aria-hidden={!controlsShown}
+          >
             {/* The player: zoom out / in, face it, lock the view on it. */}
             <div className={pillClass}>
               <PillButton
@@ -689,7 +733,7 @@ export function YouTubeSpace({
               type="button"
               onClick={close}
               aria-label="Close full screen"
-              className={controlClass}
+              className={cn(controlClass, "order-first sm:order-last")}
             >
               <XIcon className="size-5" />
             </button>
@@ -801,7 +845,7 @@ function PillButton({
       <span
         aria-hidden
         className={cn(
-          "pointer-events-none absolute top-full left-1/2 mt-2 -translate-x-1/2 rounded-full bg-black/70 px-2 py-0.5 text-[11px] whitespace-nowrap text-white opacity-0 transition-opacity",
+          "pointer-events-none absolute top-1/2 right-full mr-2 -translate-y-1/2 rounded-full bg-black/70 px-2 py-0.5 text-[11px] whitespace-nowrap text-white opacity-0 transition-opacity sm:top-full sm:right-auto sm:left-1/2 sm:mt-2 sm:mr-0 sm:-translate-x-1/2 sm:translate-y-0",
           "group-hover/pill:opacity-100",
           flash && "opacity-100",
         )}

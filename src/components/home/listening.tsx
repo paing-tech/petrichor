@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 // so every control drives the same player.
 
 /** How long she takes to rise while the song plays. */
-const RISE_MS = 20000;
+export const RISE_MS = 20000;
 /** How long she takes to settle back down after the song stops; then the page returns. */
 const SETTLE_MS = 1000;
 /** Pressing "previous" this far into a song restarts it instead of going back a track. */
@@ -231,6 +231,44 @@ const PULSE_REST_MS = 4000;
  * normal and up to brightest again, over and over. When it stops, eases back to normal from
  * wherever it was, over SETTLE_MS.
  */
+/**
+ * Brightens an element in step with her rise (normal → brightest over RISE_MS, the rise's
+ * easing), then pulses: slowly back to normal, a rest, and up again, over and over. Returns a
+ * handle to stop it. Shared by the home page and the card page's full-screen space.
+ */
+export function brightenAndPulse(el: HTMLElement) {
+  const bright = `brightness(${PULSE_BRIGHTNESS})`;
+  let animation: Animation = el.animate([{ filter: "brightness(1)" }, { filter: bright }], {
+    duration: RISE_MS,
+    // Tailwind's ease-in-out (FloatWhileListening's curve), so brightness tracks height.
+    easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+    fill: "forwards",
+  });
+  const rise = animation;
+  rise.onfinish = () => {
+    if (animation !== rise) return;
+    // Dim to normal, rest there, brighten again; each stretch eases in and out.
+    const cycle = PULSE_MS + PULSE_REST_MS;
+    const dimmed = PULSE_MS / 2 / cycle;
+    const rested = (PULSE_MS / 2 + PULSE_REST_MS) / cycle;
+    animation = el.animate(
+      [
+        { filter: bright, offset: 0, easing: "ease-in-out" },
+        { filter: "brightness(1)", offset: dimmed },
+        { filter: "brightness(1)", offset: rested, easing: "ease-in-out" },
+        { filter: bright, offset: 1 },
+      ],
+      { duration: cycle, iterations: Infinity },
+    );
+    rise.cancel();
+  };
+  return {
+    stop: () => {
+      animation.cancel();
+    },
+  };
+}
+
 export function BrightenWhileListening({
   children,
   className,
@@ -240,45 +278,18 @@ export function BrightenWhileListening({
 }) {
   const playing = useListening()?.playing ?? false;
   const ref = useRef<HTMLDivElement>(null);
-  const pulse = useRef<Animation | null>(null);
+  const pulse = useRef<ReturnType<typeof brightenAndPulse> | null>(null);
 
   useEffect(() => {
     const el = ref.current;
     if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches)
       return;
-    const bright = `brightness(${PULSE_BRIGHTNESS})`;
     if (playing) {
-      const rise = el.animate(
-        [{ filter: "brightness(1)" }, { filter: bright }],
-        {
-          duration: RISE_MS,
-          // Tailwind's ease-in-out (FloatWhileListening's curve), so brightness tracks height.
-          easing: "cubic-bezier(0.4, 0, 0.2, 1)",
-          fill: "forwards",
-        },
-      );
-      pulse.current = rise;
-      rise.onfinish = () => {
-        if (pulse.current !== rise) return;
-        // Dim to normal, rest there, brighten again; each stretch eases in and out.
-        const cycle = PULSE_MS + PULSE_REST_MS;
-        const dimmed = PULSE_MS / 2 / cycle;
-        const rested = (PULSE_MS / 2 + PULSE_REST_MS) / cycle;
-        pulse.current = el.animate(
-          [
-            { filter: bright, offset: 0, easing: "ease-in-out" },
-            { filter: "brightness(1)", offset: dimmed },
-            { filter: "brightness(1)", offset: rested, easing: "ease-in-out" },
-            { filter: bright, offset: 1 },
-          ],
-          { duration: cycle, iterations: Infinity },
-        );
-        rise.cancel();
-      };
+      pulse.current = brightenAndPulse(el);
     } else if (pulse.current) {
       // Hand over from the pulse's current brightness to a smooth fade back to normal.
       const current = getComputedStyle(el).filter;
-      pulse.current.cancel();
+      pulse.current.stop();
       pulse.current = null;
       el.animate([{ filter: current }, { filter: "brightness(1)" }], {
         duration: SETTLE_MS,
@@ -287,7 +298,7 @@ export function BrightenWhileListening({
     }
   }, [playing]);
 
-  useEffect(() => () => pulse.current?.cancel(), []);
+  useEffect(() => () => pulse.current?.stop(), []);
 
   return (
     <div ref={ref} className={className}>

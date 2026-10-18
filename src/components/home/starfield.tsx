@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 // A night sky for the home page's listening mode: twinkling tiny stars, a few glowing
 // four-point sparkles (taller than wide) joined by faint constellation lines, and every
@@ -61,7 +61,14 @@ function drawSparkle(ctx: CanvasRenderingContext2D, x: number, y: number, h: num
   ctx.fill();
 }
 
-export function Starfield({ active }: { active: boolean }) {
+export function Starfield({
+  active,
+  panRef,
+}: {
+  active: boolean;
+  /** Pans the sky from outside (e.g. a view the visitor turns); its own scroll/swipe handling is then off. */
+  panRef?: RefObject<{ x: number; y: number }>;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -151,16 +158,21 @@ export function Starfield({ active }: { active: boolean }) {
     const onTouchEnd = () => {
       touch = null;
     };
-    window.addEventListener("wheel", onWheel, { passive: false });
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: false });
-    window.addEventListener("touchend", onTouchEnd);
-    window.addEventListener("touchcancel", onTouchEnd);
+    if (!panRef) {
+      window.addEventListener("wheel", onWheel, { passive: false });
+      window.addEventListener("touchstart", onTouchStart, { passive: true });
+      window.addEventListener("touchmove", onTouchMove, { passive: false });
+      window.addEventListener("touchend", onTouchEnd);
+      window.addEventListener("touchcancel", onTouchEnd);
+    }
     /** A point shifted by the pan (times `depth`), wrapped back onto the screen. */
-    const wrap = (x: number, y: number, depth: number) => ({
-      x: (((x + pan.x * depth) % width) + width) % width,
-      y: (((y + pan.y * depth) % height) + height) % height,
-    });
+    const wrap = (x: number, y: number, depth: number) => {
+      const p = panRef?.current ?? pan;
+      return {
+        x: (((x + p.x * depth) % width) + width) % width,
+        y: (((y + p.y * depth) % height) + height) % height,
+      };
+    };
 
     const fallers: Faller[] = [];
     let nextFall = rand(0.8, 2);
@@ -284,7 +296,7 @@ export function Starfield({ active }: { active: boolean }) {
       window.removeEventListener("touchend", onTouchEnd);
       window.removeEventListener("touchcancel", onTouchEnd);
     };
-  }, [active]);
+  }, [active, panRef]);
 
   return <canvas ref={canvasRef} aria-hidden className="absolute inset-0 size-full" />;
 }

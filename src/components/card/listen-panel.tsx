@@ -83,7 +83,6 @@ const readSaved = () => {
     return null;
   }
 };
-const isAppleDevice = () => /iPhone|iPad|Macintosh/.test(navigator.userAgent);
 
 export function ListenPanel({ sources }: { sources: ListenSources }) {
   const layout = useContext(LayoutContext);
@@ -92,10 +91,10 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
   );
   const saved = useSyncExternalStore(subscribeNoop, readSaved, () => null);
   const [picked, setPicked] = useState<ListenService | null>(null);
-  const fallback =
-    available.includes("apple") && typeof navigator !== "undefined" && isAppleDevice()
-      ? "apple"
-      : (available.find((s) => s === "youtube") ?? available[0]);
+  // First visit: YouTube, the only player that plays the full song in the page for everyone
+  // (Apple's embed plays previews on other sites, even for subscribers; Spotify's plays full
+  // songs only on desktop when signed in). After that, the viewer's own choice.
+  const fallback = available.find((s) => s === "youtube") ?? available[0];
   const service = [picked, saved].find((s): s is ListenService => !!s && available.includes(s)) ?? fallback;
 
   const open = layout?.open ?? false;
@@ -198,8 +197,9 @@ function Player({ service, sources }: { service: ListenService; sources: ListenS
         key="apple"
         src={src}
         title={title}
-        allow="autoplay *; encrypted-media *; clipboard-write"
-        sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
+        // Apple's own embed settings, without a sandbox: its "Sign In" opens an Apple ID popup,
+        // and a sandbox would carry its limits into that popup and can break subscriber sign-in.
+        allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write; storage-access *"
         // Apple's most compact layout that still shows everything (see AppleMusicEmbed).
         className={cn(common, "h-[150px] overflow-hidden")}
       />

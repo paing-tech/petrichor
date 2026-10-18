@@ -1,6 +1,5 @@
 import { cache, Suspense, type ReactNode } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BadgeCheckIcon, ExternalLinkIcon } from "lucide-react";
 import {
@@ -14,7 +13,7 @@ import {
   KeepCard,
 } from "@/components/card/ownership-actions";
 import { CollectibleCard } from "@/components/collectible-card";
-import { ShareActions } from "@/components/share-actions";
+import { HeaderShare } from "@/components/card/header-share";
 import { Button } from "@/components/ui/button";
 import { appleMusicSearchUrl, spotifySearchUrl } from "@/lib/apple-music";
 import { getAccount } from "@/lib/auth/account";
@@ -100,14 +99,12 @@ async function CardView({ params, searchParams }: PageProps<"/c/[cardId]">) {
         <Suspense fallback={<ListenPanel sources={baseSources(card)} />}>
           <Listen card={card} />
         </Suspense>
-        <ShareActions
-          path={`/c/${card.cardId}`}
-          title={`${card.songTitle} — a Petrichor card`}
-        />
-        <Button asChild variant="link" className="text-muted-foreground">
-          <Link href="/create">Make your own card</Link>
-        </Button>
       </div>
+      {/* Sharing lives in the header, beside the account avatar. */}
+      <HeaderShare
+        path={`/c/${card.cardId}`}
+        title={`${card.songTitle} — a Petrichor card`}
+      />
     </ListenLayout>
   );
 }

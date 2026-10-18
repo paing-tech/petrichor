@@ -9,8 +9,9 @@ type AppleMusicEmbedProps = {
 };
 
 /**
- * Apple's official embedded player. It plays a 30-second preview for anyone
- * and the full song for signed-in subscribers.
+ * Apple's official embedded player. On sites other than Apple's it plays a preview (up to
+ * 90 seconds), even for signed-in subscribers, who get "Add" and "View in App" for the full
+ * song in Apple Music.
  */
 export function AppleMusicEmbed({ url, title, className }: AppleMusicEmbedProps) {
   const src = appleMusicEmbedUrl(url);
@@ -21,8 +22,9 @@ export function AppleMusicEmbed({ url, title, className }: AppleMusicEmbedProps)
       src={src}
       title={`Listen to ${title} on Apple Music`}
       loading="lazy"
-      allow="autoplay *; encrypted-media *; clipboard-write"
-      sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
+      // Apple's own embed settings, without a sandbox: its "Sign In" opens an Apple ID popup,
+      // and a sandbox would carry its limits into that popup and can break subscriber sign-in.
+      allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write; storage-access *"
       // 150px is Apple's most compact layout that still shows everything uncut (its logo,
       // Play / View in App and the "See how your data is managed" notice); any shorter
       // clips Apple's controls or privacy notice.

@@ -69,7 +69,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         Petrichor
       </Link>
       {/* Hidden (and out of the tab order) on the home page's night sky while its song plays. */}
-      <div className="flex justify-end transition-[opacity,visibility] duration-700 [html[data-listening]_&]:invisible [html[data-listening]_&]:opacity-0">
+      <div className="flex items-center justify-end gap-2 transition-[opacity,visibility] duration-700 [html[data-listening]_&]:invisible [html[data-listening]_&]:opacity-0">
+        {/* Page-specific actions (e.g. a card page's share button) are placed here. */}
+        <div id="header-actions" className="flex items-center" />
         <Suspense fallback={null}>
           <AccountMenu />
         </Suspense>

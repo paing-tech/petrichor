@@ -14,6 +14,7 @@ import {
 import { ArrowUpRightIcon, PlayIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { appleMusicEmbedUrl } from "@/lib/apple-music";
+import { YouTubeSpace } from "@/components/card/youtube-space";
 import { cn } from "@/lib/utils";
 
 // The card page's player: a "Listen" button under the card that opens one service's
@@ -180,8 +181,9 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
         </Button>
       </div>
       <Player service={service} sources={sources} />
-      {/* Apple's player has its own "View in App"; the others get a link to their app. */}
-      {service !== "apple" && <OpenInApp service={service} sources={sources} />}
+      {/* Apple's player has its own "View in App"; Spotify gets a link to its app here, and
+          YouTube shows its link beside its "Full screen" button. */}
+      {service === "spotify" && <OpenInApp service={service} sources={sources} />}
     </div>
   );
 }
@@ -218,14 +220,11 @@ function Player({ service, sources }: { service: ListenService; sources: ListenS
   }
   if (service === "youtube" && sources.youtubeVideoId) {
     return (
-      <iframe
+      <YouTubeSpace
         key="youtube"
-        src={`https://www.youtube-nocookie.com/embed/${sources.youtubeVideoId}?playsinline=1&rel=0`}
+        videoId={sources.youtubeVideoId}
         title={title}
-        allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-        allowFullScreen
-        // YouTube requires its player to be at least 200 × 200px.
-        className={cn(common, "aspect-video min-h-[200px]")}
+        footer={<OpenInApp service="youtube" sources={sources} />}
       />
     );
   }

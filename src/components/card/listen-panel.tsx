@@ -175,7 +175,7 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
   }
 
   return (
-    <div ref={layout?.panelRef} className="grid w-full scroll-mb-4 gap-2">
+    <div ref={layout?.panelRef} className="grid w-full scroll-mb-4 grid-cols-1 gap-2">
       <div className="flex items-center gap-1">
         {available.length > 1 ? (
           <div

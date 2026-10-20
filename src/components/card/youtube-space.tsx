@@ -759,13 +759,14 @@ export function YouTubeSpace({
         </div>
       )}
       {/* The player: inline in the panel, or (in the space) fixed at the screen's centre and
-          placed in 3D each frame. */}
+          placed in 3D each frame. Inline on phones it's a fixed 356 × 200 (16:9 at YouTube's
+          200px minimum height), centred even where the column is a little narrower. */}
       <div
         ref={frameRef}
         className={cn(
           open
             ? "fixed top-1/2 left-1/2 z-[61] overflow-hidden rounded-2xl shadow-[0_0_80px_rgba(255,255,255,0.08)]"
-            : "relative w-full",
+            : "relative left-1/2 w-[356px] max-w-[calc(100vw-16px)] -translate-x-1/2 sm:left-0 sm:w-full sm:max-w-none sm:translate-x-0",
         )}
         style={open ? { width: WORLD_WIDTH, height: WORLD_HEIGHT } : undefined}
       >
@@ -785,7 +786,7 @@ export function YouTubeSpace({
           // YouTube requires its player to be at least 200 × 200px.
           className={cn(
             "block w-full border-0 bg-transparent",
-            open ? "h-full" : "aspect-video min-h-[200px] rounded-xl",
+            open ? "h-full" : "h-[200px] rounded-xl sm:h-auto sm:aspect-video sm:min-h-[200px]",
           )}
         />
       </div>

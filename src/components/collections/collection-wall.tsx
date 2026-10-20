@@ -1,12 +1,24 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { LoaderCircleIcon, SquareIcon } from "lucide-react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
+import { AnimatePresence, cubicBezier, motion } from "motion/react";
+import { LoaderCircleIcon, MinusIcon, PlusIcon, SquareIcon } from "lucide-react";
 import { toast } from "sonner";
 import { updatePhotoCaption } from "@/app/collections/actions";
-import { InfiniteMasonry, type MasonryItem } from "@/components/collections/infinite-masonry";
-import { GridItem } from "@/components/ui/infinite-drag-scroll";
+import { AutoHide } from "@/components/collections/auto-hide";
+import {
+  InfiniteMasonry,
+  type MasonryHandle,
+  type MasonryItem,
+} from "@/components/collections/infinite-masonry";
 import type { CollectionPhoto } from "@/lib/collections";
 import { cn } from "@/lib/utils";
 import { PHOTO_CAPTION_MAX } from "@/lib/validation";
@@ -17,8 +29,29 @@ import { PHOTO_CAPTION_MAX } from "@/lib/validation";
  * are all equal.
  */
 const COLUMNS = 4;
-/** Column width and the gap (between columns, between photos): phones, then wider screens. */
-const WALL_SIZES = "[--column-width:9rem] [--gap:2.75rem] md:[--column-width:18rem] md:[--gap:5rem]";
+/**
+ * Column width and the gap (between columns, between photos): phones, then wider screens, at
+ * the starting zoom. Both scale with the zoom (pinch, Ctrl/⌘ + scroll, or the − / + buttons).
+ */
+const WALL_SIZES =
+  "[--column-width:calc(9rem*var(--zoom))] [--gap:calc(2.75rem*var(--zoom))] md:[--column-width:calc(18rem*var(--zoom))] md:[--gap:calc(5rem*var(--zoom))]";
+/** Each tap of − or + zooms the wall by this much. */
+const ZOOM_STEP = 1.25;
+/**
+ * When the wall opens, its photos grow in one by one (in random order, over about a second).
+ * Photos added later (more repeats as you zoom out) just appear.
+ */
+const ENTRANCE_MS = 1500;
+const tileEntrance = {
+  hidden: { opacity: 0, scale: 0.3 },
+  shown: () => ({
+    opacity: 1,
+    scale: 1,
+    transition: { delay: Math.random() * 0.8 + 0.2, duration: 1.4, ease: cubicBezier(0.18, 0.71, 0.11, 1) },
+  }),
+};
+/** True while the wall is opening, so tiles mounted then play the entrance. */
+const OpeningContext = createContext(true);
 /** Fewer photos than this are repeated, so each column has a few to cycle through. */
 const MIN_TILES = COLUMNS * 3;
 /** The gap between photos, as a fraction of the column's width (to keep columns even). */
@@ -60,6 +93,12 @@ export function CollectionWall({ photos }: { photos: CollectionPhoto[] }) {
   });
   // Tells a tap from the end of a drag, or from a tap that stops the wall gliding.
   const press = useRef({ x: 0, y: 0, glidingUntil: 0, wasGliding: false });
+  const wall = useRef<MasonryHandle>(null);
+  const [opening, setOpening] = useState(true);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setOpening(false), ENTRANCE_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   if (photos.length === 0) return null;
   const tiles = Array.from(
@@ -79,7 +118,7 @@ export function CollectionWall({ photos }: { photos: CollectionPhoto[] }) {
     column.map(({ photo, key }) => ({
       key,
       content: (
-        <GridItem className="relative h-auto" style={{ aspectRatio: `${photo.width} / ${photo.height}` }}>
+        <Tile ratio={`${photo.width} / ${photo.height}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={photo.previewUrl}
@@ -101,7 +140,7 @@ export function CollectionWall({ photos }: { photos: CollectionPhoto[] }) {
               setOpen(photo);
             }}
           />
-        </GridItem>
+        </Tile>
       ),
     })),
   );
@@ -125,8 +164,33 @@ export function CollectionWall({ photos }: { photos: CollectionPhoto[] }) {
           press.current.glidingUntil = performance.now() + GLIDE_MS;
         }}
       >
-        <InfiniteMasonry columns={items} className={cn("bg-(--wall)", WALL_SIZES)} />
+        <OpeningContext value={opening}>
+          <InfiniteMasonry ref={wall} columns={items} className={cn("bg-(--wall)", WALL_SIZES)} />
+        </OpeningContext>
       </motion.div>
+      {/* Zoom buttons on wider screens (phones pinch), fading away like the other controls. */}
+      {!open && (
+        <AutoHide className="absolute right-[max(1rem,env(safe-area-inset-right))] bottom-[max(1rem,env(safe-area-inset-bottom))] hidden sm:block">
+          <div className="flex items-center rounded-full bg-(--wall-ink)/10 p-0.5 text-(--wall-ink) backdrop-blur">
+            <button
+              type="button"
+              aria-label="Zoom out"
+              onClick={() => wall.current?.zoomBy(1 / ZOOM_STEP)}
+              className="grid size-9 place-items-center rounded-full transition-colors hover:bg-(--wall-ink)/10"
+            >
+              <MinusIcon className="size-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Zoom in"
+              onClick={() => wall.current?.zoomBy(ZOOM_STEP)}
+              className="grid size-9 place-items-center rounded-full transition-colors hover:bg-(--wall-ink)/10"
+            >
+              <PlusIcon className="size-4" />
+            </button>
+          </div>
+        </AutoHide>
+      )}
       <AnimatePresence>
         {open && (
           <FocusedPhoto
@@ -146,6 +210,23 @@ export function CollectionWall({ photos }: { photos: CollectionPhoto[] }) {
         )}
       </AnimatePresence>
     </>
+  );
+}
+
+/** A photo on the wall, at its own shape; grows in if it appears while the wall is opening. */
+function Tile({ ratio, children }: { ratio: string; children: ReactNode }) {
+  const opening = useContext(OpeningContext);
+  const [entrance] = useState(opening);
+  return (
+    <motion.div
+      className="relative overflow-hidden rounded-sm will-change-transform hover:cursor-pointer"
+      style={{ aspectRatio: ratio }}
+      variants={tileEntrance}
+      initial={entrance ? "hidden" : false}
+      animate="shown"
+    >
+      {children}
+    </motion.div>
   );
 }
 

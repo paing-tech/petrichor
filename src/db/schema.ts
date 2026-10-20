@@ -138,6 +138,51 @@ export const songMatches = pgTable("song_matches", {
   youtubeCheckedAt: timestamp("youtube_checked_at", { withTimezone: true }),
 });
 
+/** A set of photos an account keeps together ("Japan trip"). Only its owner can see it. */
+export const collections = pgTable(
+  "collections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerUserId: uuid("owner_user_id")
+      .notNull()
+      .references(() => authUsers.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Mirrors COLLECTION_TITLE_MAX in src/lib/validation.ts; change both together.
+    check("collections_title_length", sql`char_length(${table.title}) between 1 and 60`),
+    index("collections_owner_idx").on(table.ownerUserId, table.createdAt),
+  ],
+);
+
+/**
+ * A photo in a collection, stored twice: the original file exactly as uploaded (its own
+ * size, shape and quality) and a smaller preview for browsing. Width and height are the
+ * original's, upright, so layouts can keep its shape before it loads.
+ */
+export const collectionPhotos = pgTable(
+  "collection_photos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    collectionId: uuid("collection_id")
+      .notNull()
+      .references(() => collections.id, { onDelete: "cascade" }),
+    originalKey: text("original_key").notNull(),
+    previewKey: text("preview_key").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    // Order within the collection, from 0.
+    position: integer("position").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("collection_photos_size", sql`${table.width} > 0 and ${table.height} > 0`),
+    index("collection_photos_collection_idx").on(table.collectionId, table.position),
+  ],
+);
+
 export type Card = typeof cards.$inferSelect;
 export type NewCard = typeof cards.$inferInsert;
 export type Profile = typeof profiles.$inferSelect;

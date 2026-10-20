@@ -18,7 +18,7 @@ export function afterSignInPath(profile: Profile | null, next: string) {
 }
 
 /** Only same-site paths are allowed as post-sign-in destinations. */
-export function safeNextPath(value: string | string[] | undefined, fallback = "/keepsakes") {
+export function safeNextPath(value: string | string[] | undefined, fallback = "/") {
   const next = Array.isArray(value) ? value[0] : value;
   return next && next.startsWith("/") && !next.startsWith("//") ? next : fallback;
 }

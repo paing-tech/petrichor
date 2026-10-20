@@ -786,7 +786,7 @@ export function YouTubeSpace({
           // YouTube requires its player to be at least 200 × 200px.
           className={cn(
             "block w-full border-0 bg-transparent",
-            open ? "h-full" : "h-[200px] rounded-xl sm:h-auto sm:aspect-video sm:min-h-[200px]",
+            open ? "h-full" : "h-[200px] sm:h-auto sm:aspect-video sm:min-h-[200px]",
           )}
         />
       </div>

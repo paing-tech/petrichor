@@ -150,6 +150,67 @@ export function fieldErrors(error: z.ZodError): CardFieldErrors {
   return errors;
 }
 
+// Collections -----------------------------------------------------------------
+
+/** Mirrors the collections_title_length check in src/db/schema.ts; change both together. */
+export const COLLECTION_TITLE_MAX = 60;
+/** The most photos one collection holds. */
+export const MAX_COLLECTION_PHOTOS = 100;
+/** Collection photos are kept at their original size and quality, up to this. */
+export const MAX_ORIGINAL_BYTES = 40 * 1024 * 1024;
+
+export const COLLECTION_PHOTO_KEY_PATTERN =
+  /^collections\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp)$/;
+
+const photoContentType = z.enum(Object.keys(PHOTO_TYPES) as [PhotoContentType, ...PhotoContentType[]], {
+  error: "Photo must be a JPEG, PNG, or WebP image",
+});
+
+/** Upload slots for a batch of photos: an original and a preview for each. */
+export const collectionUploadRequestSchema = z.object({
+  files: z
+    .array(
+      z.object({
+        contentType: photoContentType,
+        size: z
+          .number()
+          .int()
+          .positive("Photo is empty")
+          .max(MAX_ORIGINAL_BYTES, "Each photo must be 40 MB or smaller"),
+      }),
+    )
+    .min(1, "Choose at least one photo")
+    .max(MAX_COLLECTION_PHOTOS * 2, `You can add up to ${MAX_COLLECTION_PHOTOS} photos`),
+});
+
+const collectionPhotoSchema = z.object({
+  originalKey: z.string().regex(COLLECTION_PHOTO_KEY_PATTERN, "Invalid photo reference"),
+  previewKey: z.string().regex(COLLECTION_PHOTO_KEY_PATTERN, "Invalid photo reference"),
+  width: z.number().int().min(1).max(100_000),
+  height: z.number().int().min(1).max(100_000),
+});
+
+export type CollectionPhotoInput = z.input<typeof collectionPhotoSchema>;
+
+const collectionPhotos = z
+  .array(collectionPhotoSchema)
+  .min(1, "Choose at least one photo")
+  .max(MAX_COLLECTION_PHOTOS, `A collection can hold up to ${MAX_COLLECTION_PHOTOS} photos`);
+
+export const createCollectionSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1, "Give your collection a name")
+    .max(COLLECTION_TITLE_MAX, `Name must be ${COLLECTION_TITLE_MAX} characters or fewer`),
+  photos: collectionPhotos,
+});
+
+export const addCollectionPhotosSchema = z.object({
+  collectionId: z.uuid(),
+  photos: collectionPhotos,
+});
+
 // Accounts --------------------------------------------------------------------
 
 export const USERNAME_PATTERN = /^[a-z0-9._]{3,20}$/;

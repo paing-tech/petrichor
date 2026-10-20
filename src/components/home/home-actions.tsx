@@ -26,7 +26,7 @@ type HomeActionsProps = {
  * Google" as it glides up, and the rest of the form unfolds below. Back reverses it.
  * Signed-in visitors get their collection instead.
  */
-export function HomeActions({ collectionHref, next = "/keepsakes", startOpen = false }: HomeActionsProps) {
+export function HomeActions({ collectionHref, next = "/", startOpen = false }: HomeActionsProps) {
   const [open, setOpen] = useState(startOpen);
   // Once fully open, the form stops clipping, so focus rings at its edges show.
   const [settled, setSettled] = useState(startOpen);

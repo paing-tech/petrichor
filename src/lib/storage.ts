@@ -30,9 +30,14 @@ function getClient() {
 /**
  * Presigns a single-object PUT. Content-Type and Content-Length are signed,
  * so the browser must upload exactly the type and size that were validated.
+ * Card photos go in "uploads/", collection photos in "collections/".
  */
-export async function createPhotoUploadUrl(contentType: PhotoContentType, size: number) {
-  const key = `uploads/${randomUUID()}.${PHOTO_TYPES[contentType]}`;
+export async function createPhotoUploadUrl(
+  contentType: PhotoContentType,
+  size: number,
+  folder: "uploads" | "collections" = "uploads",
+) {
+  const key = `${folder}/${randomUUID()}.${PHOTO_TYPES[contentType]}`;
   const uploadUrl = await getSignedUrl(
     getClient(),
     new PutObjectCommand({
@@ -57,7 +62,7 @@ export function getPhotoPublicUrl(key: string) {
  * Confirms an uploaded object exists, is within the size limit, and that its
  * bytes really are the image format its extension claims.
  */
-export async function verifyUploadedPhoto(key: string): Promise<boolean> {
+export async function verifyUploadedPhoto(key: string, maxBytes = MAX_UPLOAD_BYTES): Promise<boolean> {
   const { R2_BUCKET_NAME } = getStorageEnv();
   let header: Uint8Array;
   let totalSize: number;
@@ -75,7 +80,7 @@ export async function verifyUploadedPhoto(key: string): Promise<boolean> {
   const extension = key.split(".").pop();
   const valid =
     Number.isFinite(totalSize) &&
-    totalSize <= MAX_UPLOAD_BYTES &&
+    totalSize <= maxBytes &&
     matchesSignature(header, extension);
 
   if (!valid) {

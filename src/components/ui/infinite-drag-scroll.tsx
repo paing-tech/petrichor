@@ -106,7 +106,7 @@ export const DraggableContainer = ({
         <motion.div className="h-dvh overflow-hidden">
           <motion.div
             className={cn(
-              "grid h-fit w-fit cursor-grab grid-cols-[repeat(2,1fr)] bg-[#141414] active:cursor-grabbing will-change-transform",
+              "grid h-fit w-fit cursor-grab grid-cols-[repeat(2,1fr)] bg-[#000000] active:cursor-grabbing will-change-transform",
               className,
             )}
             drag
@@ -137,7 +137,7 @@ const gridItemStyles = cva(
     variants: {
       variant: {
         default: "rounded-sm",
-        masonry: "even:mt-[60%] rounded-sm ",
+        masonry: "even:mt-[30%] rounded-sm ",
         polaroid:
           "border-10 border-b-28 border-white shadow-xl even:rotate-3 odd:-rotate-2 hover:rotate-0 transition-transform ease-out duration-300 even:mt-[60%]",
       },
@@ -176,7 +176,7 @@ const gridBodyStyles = cva("grid grid-cols-[repeat(6,1fr)] h-fit w-fit", {
   variants: {
     variant: {
       default: "gap-14 p-7 md:gap-28 md:p-14",
-      masonry: "gap-x-14 px-7 md:gap-x-28 md:px-14",
+      masonry: "gap-x-11 px-5.5 md:gap-x-20 md:px-10",
       polaroid: "gap-x-14 px-7 md:gap-x-28 md:px-14",
     },
   },

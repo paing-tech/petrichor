@@ -48,7 +48,7 @@ export function AddPhotosButton({ collectionId }: { collectionId: string }) {
         type="button"
         onClick={() => inputRef.current?.click()}
         disabled={status !== null}
-        className="pointer-events-auto inline-flex h-10 items-center gap-2 rounded-full bg-white/10 px-4 text-sm text-white backdrop-blur transition-colors hover:bg-white/20 disabled:opacity-70"
+        className="pointer-events-auto inline-flex h-10 items-center gap-2 rounded-full bg-(--wall-ink)/10 px-4 text-sm text-(--wall-ink) backdrop-blur transition-colors hover:bg-(--wall-ink)/20 disabled:opacity-70"
       >
         <ImagePlusIcon className="size-4" />
         {status ?? "Add photos"}

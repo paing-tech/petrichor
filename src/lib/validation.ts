@@ -206,6 +206,19 @@ export const createCollectionSchema = z.object({
   photos: collectionPhotos,
 });
 
+/** Mirrors the collection_photos_caption_length check in src/db/schema.ts; change both together. */
+export const PHOTO_CAPTION_MAX = 150;
+
+export const photoCaptionSchema = z.object({
+  photoId: z.uuid(),
+  // Empty means no caption, stored as NULL.
+  caption: z
+    .string()
+    .trim()
+    .max(PHOTO_CAPTION_MAX, `Caption must be ${PHOTO_CAPTION_MAX} characters or fewer`)
+    .transform((v) => v || null),
+});
+
 export const addCollectionPhotosSchema = z.object({
   collectionId: z.uuid(),
   photos: collectionPhotos,

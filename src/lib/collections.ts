@@ -12,6 +12,7 @@ export type CollectionPhoto = {
   originalUrl: string;
   width: number;
   height: number;
+  caption: string | null;
 };
 
 export type CollectionSummary = {
@@ -19,7 +20,7 @@ export type CollectionSummary = {
   title: string;
   photoCount: number;
   /** The first photo, shown as the collection's cover. */
-  cover: Omit<CollectionPhoto, "originalUrl"> | null;
+  cover: Omit<CollectionPhoto, "originalUrl" | "caption"> | null;
 };
 
 export type CollectionDetail = {
@@ -97,6 +98,7 @@ export async function getCollection(
       previewKey: collectionPhotos.previewKey,
       width: collectionPhotos.width,
       height: collectionPhotos.height,
+      caption: collectionPhotos.caption,
     })
     .from(collectionPhotos)
     .where(eq(collectionPhotos.collectionId, collectionId))
@@ -104,12 +106,13 @@ export async function getCollection(
 
   return {
     ...collection,
-    photos: photos.map(({ id, originalKey, previewKey, width, height }) => ({
+    photos: photos.map(({ id, originalKey, previewKey, width, height, caption }) => ({
       id,
       previewUrl: getPhotoPublicUrl(previewKey),
       originalUrl: getPhotoPublicUrl(originalKey),
       width,
       height,
+      caption,
     })),
   };
 }
@@ -166,4 +169,27 @@ export async function appendCollectionPhotos(
       .set({ updatedAt: sql`now()` })
       .where(eq(collections.id, collectionId)),
   ]);
+}
+
+/** Sets (or, with null, clears) a photo's caption; false if it isn't this account's photo. */
+export async function setPhotoCaption(
+  photoId: string,
+  ownerUserId: string,
+  caption: string | null,
+): Promise<boolean> {
+  const db = getDb();
+  const updated = await db
+    .update(collectionPhotos)
+    .set({ caption })
+    .where(
+      and(
+        eq(collectionPhotos.id, photoId),
+        inArray(
+          collectionPhotos.collectionId,
+          db.select({ id: collections.id }).from(collections).where(eq(collections.ownerUserId, ownerUserId)),
+        ),
+      ),
+    )
+    .returning({ id: collectionPhotos.id });
+  return updated.length > 0;
 }

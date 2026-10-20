@@ -175,10 +175,14 @@ export const collectionPhotos = pgTable(
     height: integer("height").notNull(),
     // Order within the collection, from 0.
     position: integer("position").notNull(),
+    // A line under the photo when it's opened; NULL when there isn't one.
+    caption: text("caption"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     check("collection_photos_size", sql`${table.width} > 0 and ${table.height} > 0`),
+    // Mirrors PHOTO_CAPTION_MAX in src/lib/validation.ts; change both together.
+    check("collection_photos_caption_length", sql`char_length(${table.caption}) <= 150`),
     index("collection_photos_collection_idx").on(table.collectionId, table.position),
   ],
 );

@@ -1,0 +1,2 @@
+ALTER TABLE "collection_photos" ADD COLUMN "caption" text;--> statement-breakpoint
+ALTER TABLE "collection_photos" ADD CONSTRAINT "collection_photos_caption_length" CHECK (char_length("collection_photos"."caption") <= 150);

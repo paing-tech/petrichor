@@ -92,6 +92,13 @@
       "when": 1792525546649,
       "tag": "0012_collections",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792532895988,
+      "tag": "0013_photo_captions",
+      "breakpoints": true
     }
   ]
 }

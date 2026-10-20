@@ -5,6 +5,7 @@ import {
   appendCollectionPhotos,
   getOwnedCollectionSize,
   insertCollection,
+  setPhotoCaption,
 } from "@/lib/collections";
 import { createPhotoUploadUrl, verifyUploadedPhoto } from "@/lib/storage";
 import {
@@ -13,6 +14,7 @@ import {
   createCollectionSchema,
   MAX_COLLECTION_PHOTOS,
   MAX_ORIGINAL_BYTES,
+  photoCaptionSchema,
   type CollectionPhotoInput,
 } from "@/lib/validation";
 
@@ -110,5 +112,24 @@ export async function addCollectionPhotos(input: {
   } catch (error) {
     console.error("Failed to add collection photos", error);
     return { ok: false, error: "We couldn't save these photos. Please try again." };
+  }
+}
+
+export async function updatePhotoCaption(input: {
+  photoId: string;
+  caption: string;
+}): Promise<ActionResult<{ caption: string | null }>> {
+  const ownerUserId = await requireOwner();
+  if (!ownerUserId) return { ok: false, error: "Sign in to edit captions." };
+  const parsed = photoCaptionSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  try {
+    const saved = await setPhotoCaption(parsed.data.photoId, ownerUserId, parsed.data.caption);
+    if (!saved) return { ok: false, error: "This photo couldn't be found." };
+    return { ok: true, caption: parsed.data.caption };
+  } catch (error) {
+    console.error("Failed to save caption", error);
+    return { ok: false, error: "We couldn't save the caption. Please try again." };
   }
 }

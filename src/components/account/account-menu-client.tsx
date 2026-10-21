@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOutIcon, SettingsIcon, SparklesIcon } from "lucide-react";
+import { LibraryIcon, LogOutIcon, SettingsIcon, SparklesIcon } from "lucide-react";
 import { UserAvatar } from "@/components/account/user-avatar";
 import {
   DropdownMenu,
@@ -46,6 +46,11 @@ export function AccountMenuClient({ displayName, username, avatarUrl }: AccountM
         <DropdownMenuItem asChild>
           <Link href="/keepsakes">
             <SparklesIcon /> My keepsakes
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/library">
+            <LibraryIcon /> Music Library
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>

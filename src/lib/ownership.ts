@@ -160,6 +160,15 @@ export async function listCollection(userId: string) {
     .orderBy(desc(sql`(select max(o.acquired_at) from card_ownerships o where o.card_id = ${cards.id} and o.user_id = ${userId})`));
 }
 
+/** The user's collection for the Music Library: newest first, with the song's Apple Music link for matching. */
+export async function listLibrary(userId: string) {
+  return getDb()
+    .select({ ...cardContent, appleMusicUrl: cards.appleMusicUrl })
+    .from(cards)
+    .where(eq(cards.ownerUserId, userId))
+    .orderBy(desc(sql`(select max(o.acquired_at) from card_ownerships o where o.card_id = ${cards.id} and o.user_id = ${userId})`));
+}
+
 const senderProfiles = alias(profiles, "sender_profile");
 
 /** Cards sent to the user that are waiting for them to accept or decline. */

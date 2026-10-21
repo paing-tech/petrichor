@@ -38,7 +38,7 @@ export function MusicLibrary({ tracks }: { tracks: LibraryTrack[] }) {
             allowFullScreen
             // YouTube requires its player to be at least 200px tall.
             // Edge to edge on phones; rounded from small tablets up.
-            className="aspect-video min-h-[200px] w-full border-0 bg-black sm:rounded-xl"
+            className="aspect-square min-h-[200px] w-full border-0 bg-black sm:rounded-xl"
           />
           <div className="flex items-baseline justify-between gap-3 px-4 sm:px-0">
             <div className="min-w-0">

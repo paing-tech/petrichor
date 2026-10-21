@@ -1,17 +1,17 @@
 import type { CSSProperties } from "react";
 import { MAX_UPLOAD_BYTES } from "@/lib/validation";
 
-// The card's photo area is 390 × 293. The editor, the live preview and the
-// exported image all use the same crop rectangle, so what the sender frames is
+// The card's photo area is 4:5 (portrait), across the top of its front. The editor, the live
+// preview and the exported image all use the same crop rectangle, so what the sender frames is
 // exactly what gets uploaded.
 
-export const PHOTO_ASPECT = 390 / 293;
+export const PHOTO_ASPECT = 4 / 5;
 export const MIN_ZOOM = 1;
 export const MAX_ZOOM = 3;
 /**
- * Exported width: 6.5× the card's 390px photo area. Cards are collectibles that
- * can be saved as images and printed; 2560px covers a large export or a 300 dpi
- * print with room to spare. Photos are never enlarged past their own resolution.
+ * Exported width (the height follows at 4:5, 3200px). Cards are collectibles that can be saved
+ * as images and printed; this covers a large export or a 300 dpi print with room to spare.
+ * Photos are never enlarged past their own resolution.
  */
 const EXPORT_WIDTH = 2560;
 /** JPEG qualities to try in order; lower ones are only used if a very detailed photo would exceed the upload cap. */

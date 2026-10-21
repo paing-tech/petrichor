@@ -3,19 +3,18 @@ import { CARD_COLOR_PATTERN } from "@/lib/card-color";
 
 // Shared by the client form and the server actions; keep free of server-only imports.
 
-// Message and lyrics limits are sized so the text fits the card without truncation.
+// The message limit is sized so the text fits the card's back without truncation.
 export const LIMITS = {
   // Catalog titles like "Song (feat. …) [Remastered 2009]" can run long.
   songTitle: 200,
   artistName: 200,
-  lyricsExcerpt: 100,
-  message: 160,
+  message: 300,
   senderName: 40,
   moment: 40,
 } as const;
 
-/** The card shows four lines of message; more line breaks would push text past them. */
-export const MESSAGE_MAX_LINES = 4;
+/** The card's back shows ten lines of message; more line breaks would push text past them. */
+export const MESSAGE_MAX_LINES = 10;
 
 /**
  * The most numbered copies one card can be created as. Requests for more go
@@ -56,7 +55,6 @@ const optionalText = (label: string, max: number) =>
 export const cardFieldsSchema = z.object({
   songTitle: requiredText("Song title", LIMITS.songTitle),
   artistName: requiredText("Artist name", LIMITS.artistName),
-  lyricsExcerpt: optionalText("Lyrics", LIMITS.lyricsExcerpt),
   message: optionalText("Message", LIMITS.message).refine(
     (v) => v === null || v.split("\n").length <= MESSAGE_MAX_LINES,
     `Message can be up to ${MESSAGE_MAX_LINES} lines`,

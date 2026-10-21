@@ -12,6 +12,7 @@ import {
   KeepCard,
 } from "@/components/card/ownership-actions";
 import { CollectibleCard } from "@/components/collectible-card";
+import { FlipCard } from "@/components/flip-card";
 import { HeaderShare } from "@/components/card/header-share";
 import { Button } from "@/components/ui/button";
 import { appleMusicSearchUrl, spotifySearchUrl } from "@/lib/apple-music";
@@ -71,9 +72,13 @@ async function CardView({ params, searchParams }: PageProps<"/c/[cardId]">) {
 
   return (
     <>
-      <div className="flex w-full justify-center">
-        <CollectibleCard card={card} className="max-w-[420px]" />
-      </div>
+      {/* The front (photo and song) turns over to the message on the back. */}
+      <FlipCard
+        className="max-w-[360px]"
+        hint={card.message || card.senderName ? "Tap the card to read the message" : "Tap the card to see its back"}
+        front={<CollectibleCard card={card} className="max-w-none" />}
+        back={<CollectibleCard card={card} face="back" className="max-w-none" />}
+      />
 
       {/* A caption row under the card: its owner on the left (left-aligned with the card's
           edge), "Verified by Petrichor" on the right. Ownership changes, so it's read per

@@ -9,10 +9,9 @@ export type CollectibleCardData = {
   photoUrl?: string | null;
   /** Preview only: shows part of an uncropped photo. Saved cards store the already-cropped image. */
   photoCrop?: PhotoCrop | null;
-  lyricsExcerpt?: string | null;
   message?: string | null;
   senderName?: string | null;
-  /** The occasion, e.g. "Birthday party" or a place; shown top-right under the photo. */
+  /** The occasion, e.g. "Birthday party" or a place; shown at the foot of the photo. */
   moment?: string | null;
   cardId?: string | null;
   /** This copy's number and the edition's size, printed as "2 of 3"; defaults to 1 of 1. */
@@ -28,9 +27,16 @@ export type CollectibleCardData = {
   photoAreaColor?: string | null;
 };
 
+export type CardFace = "front" | "back";
+
 type CollectibleCardProps = {
   card: CollectibleCardData;
   className?: string;
+  /**
+   * Which side to draw. The front: the photo, the moment, the song and the edition. The back:
+   * the handwritten message and signature, the date and the card ID. (FlipCard shows both.)
+   */
+  face?: CardFace;
   /** Laid over the photo area, e.g. the framing layer while customizing. */
   photoOverlay?: ReactNode;
   /**
@@ -39,8 +45,8 @@ type CollectibleCardProps = {
    */
   titleAccessory?: ReactNode;
   /**
-   * One color for all of the card's text (title, artist, lyrics, message, card ID…) instead of
-   * the ink picked from `card.cardColor` with its softer shades. The title accessory follows it.
+   * One color for all of the card's text (title, artist, message, card ID…) instead of the ink
+   * picked from `card.cardColor` with its softer shades. The title accessory follows it.
    */
   inkColor?: string;
   /**
@@ -50,30 +56,45 @@ type CollectibleCardProps = {
   bare?: boolean;
 };
 
-// The card is designed on a 390 × 520 canvas. Every measurement is expressed in
-// canvas pixels and converted with `u()`, which scales against the card's own
-// width via container query units, so the layout stays identical at any size.
+// The card is a trading card (63 × 88 mm, like Pokémon cards), designed on a canvas 390 units
+// wide.
+// Every measurement is expressed in canvas units and converted with `u()`, which scales
+// against the card's own width via container query units, so the layout stays identical at
+// any size.
 const BASE_WIDTH = 390;
+/** Height ÷ width: a trading card's 88 ÷ 63. */
+export const CARD_RATIO = 88 / 63;
+const CARD_HEIGHT = BASE_WIDTH * CARD_RATIO;
 const u = (px: number) => `calc(var(--u) * ${px})`;
 
-const PHOTO_HEIGHT = 293;
+/** The photo fills the top of the front at 4:5. */
+const PHOTO_HEIGHT = (BASE_WIDTH * 5) / 4;
+/** The photo fades into the card color between these points (% of the photo's height). */
+const FADE_START = 80;
+const FADE_END = 95;
+const FADE_STEPS = 12;
+/** Smoothstep: starts and ends gently, so the fade has no visible edge (an "easing gradient"). */
+const ease = (t: number) => t * t * (3 - 2 * t);
 /**
- * The photo's fade into the card color: [position as % of the photo height, card-color opacity].
- * It starts clear, reaches 20% halfway, then turns solid.
+ * The photo's fade into the card color: [position as % of the photo height, card-color opacity],
+ * stops along an eased curve from clear at FADE_START to solid at FADE_END.
  */
-const PHOTO_FADE = [
-  [58, 0],
-  [75, 0.2],
-  [96, 1],
-] as const;
-// The fade's shape matches the Figma gradient (0% → 20% at the midpoint → 100%), spread
-// over 58–92% of the photo: solid card color from about 270 units down, so there's clear
-// card between the image and the message, which starts at 284.
+const PHOTO_FADE = Array.from({ length: FADE_STEPS + 1 }, (_, i) => {
+  const t = i / FADE_STEPS;
+  return [FADE_START + t * (FADE_END - FADE_START), ease(t)] as const;
+});
+/** The moment sits inside the fade, near the photo's foot, on the right, clear of the title. */
+const MOMENT_CENTER = PHOTO_HEIGHT * 0.92;
+/** Corner radius, in proportion to a trading card's (about 3 mm on 63 mm). */
+const CORNER_RADIUS = 19;
+const SIDE_PADDING = 28;
 /**
- * The moment is centered inside the fade, 90% of the way down the photo (between its second
- * and third stops, about two-thirds card color).
+ * The song block (title, then artist and edition) is centred between the line where the photo's
+ * fade turns nearly solid (its 90% stop) and the card's bottom edge, measured from the title's
+ * capitals and the artist's baseline, so the space above the title equals the space below the
+ * artist.
  */
-const MOMENT_CENTER = PHOTO_HEIGHT * 0.85;
+const SONG_AREA_TOP = PHOTO_HEIGHT * 0.9;
 
 /**
  * The card's fade into `color` as a background for the whole card (not just the photo area):
@@ -82,76 +103,49 @@ const MOMENT_CENTER = PHOTO_HEIGHT * 0.85;
  */
 export function cardFadeBackground(color: string) {
   const rgb = hexToRgb(color).join(", ");
-  const card = (at: number) => ((PHOTO_HEIGHT * at) / 100 / (BASE_WIDTH * (4 / 3))) * 100;
+  const card = (at: number) => ((PHOTO_HEIGHT * at) / 100 / CARD_HEIGHT) * 100;
   return `linear-gradient(to bottom, ${PHOTO_FADE.map(([at, alpha]) => `rgba(${rgb}, ${alpha}) ${card(at)}%`).join(", ")})`;
 }
-const SIDE_PADDING = 38;
 
-/** The handwritten message and signature share this size and line spacing (four lines fit). */
-const MESSAGE_SIZE = 16;
-const MESSAGE_LINE_HEIGHT = 1.3;
-/** Every song title is this size, on one line (long ones end with "…"), so the message always keeps three lines. */
-const TITLE_SIZE = 20;
+/** The song title, on one line (long ones end with "…"). */
+const TITLE_SIZE = 28;
+const TITLE_LINE_HEIGHT = 1.1;
+/** Every Outfit line on the card (moment, artist, edition, date) shares this size. */
+const OUTFIT_SIZE = 14;
+const OUTFIT_LINE_HEIGHT = 1.3;
+
+/**
+ * Vertical metrics (in em) of the card fonts, measured in the browser. With them a line can be
+ * trimmed to its letters (from the top of its capitals to its baseline), so spacing is measured
+ * between visible letters rather than line boxes, in every browser.
+ */
+type FontMetrics = { ascent: number; descent: number; capHeight: number };
+const INSTRUMENT_SERIF: FontMetrics = { ascent: 0.99, descent: 0.31, capHeight: 0.72 };
+const OUTFIT: FontMetrics = { ascent: 1, descent: 0.26, capHeight: 0.694 };
+
+/** Negative margins that trim a line box (at `size` units and a unitless `lineHeight`) to its capitals and baseline. */
+function trimToLetters(font: FontMetrics, size: number, lineHeight: number): CSSProperties {
+  const halfLeading = (lineHeight * size - (font.ascent + font.descent) * size) / 2;
+  return {
+    marginTop: u(-(halfLeading + (font.ascent - font.capHeight) * size)),
+    marginBottom: u(-(halfLeading + font.descent * size)),
+  };
+}
+/** Space between the title's baseline and the capitals of the artist / edition row. */
+const TITLE_GAP = 12;
+
+/** The back: the handwritten message and signature, with room for a longer note. */
+const BACK_PADDING = 34;
+const MESSAGE_SIZE = 19;
+const MESSAGE_LINE_HEIGHT = 1.45;
+/** Matches MESSAGE_MAX_LINES in src/lib/validation.ts. */
+const MESSAGE_LINES = 10;
+const CARD_ID_SIZE = 10.5;
 
 /**
  * Prints the date in the sender's time zone, so a card made on the morning of
  * Oct 12 in Singapore says Oct 12 for every viewer, wherever they are.
  */
-// Vertical metrics (in em) of the card fonts, measured in the browser. They let
-// the song block space lines by their visible letters instead of their line boxes.
-type FontMetrics = { ascent: number; descent: number; capHeight: number };
-const FONT_METRICS = {
-  instrumentSerif: { ascent: 0.99, descent: 0.31, capHeight: 0.72 },
-  outfit: { ascent: 1, descent: 0.26, capHeight: 0.694 },
-} satisfies Record<string, FontMetrics>;
-
-/** Half-leading: the space a line box adds above and below the font's own ascent and descent. */
-const halfLeading = (m: FontMetrics, size: number, lineHeight: number) =>
-  (lineHeight - (m.ascent + m.descent) * size) / 2;
-/** From the top of a line box down to the top of its capitals. */
-const capTopOffset = (m: FontMetrics, size: number, lineHeight: number) =>
-  halfLeading(m, size, lineHeight) + (m.ascent - m.capHeight) * size;
-/** From the top of a line box down to its baseline. */
-const baselineOffset = (m: FontMetrics, size: number, lineHeight: number) =>
-  halfLeading(m, size, lineHeight) + m.ascent * size;
-/** From a baseline down to the bottom of its line box. */
-const belowBaseline = (m: FontMetrics, size: number, lineHeight: number) =>
-  halfLeading(m, size, lineHeight) + m.descent * size;
-
-/**
- * The song block uses one visible gap (baseline of one line to the capitals of the next)
- * between the title and artist, the artist and the lyrics row, and the two lyrics lines.
- * "1 of 1" and the date share the lyrics' line spacing, so each sits on the same baseline
- * as a lyrics line.
- */
-const SONG_GAP = 12;
-const TITLE_LINE_HEIGHT = 1.06;
-/** Every Outfit line on the card (moment, artist, "1 of 1", date, card ID) shares this size. */
-const OUTFIT_SIZE = 12;
-const ARTIST_SIZE = OUTFIT_SIZE;
-const ARTIST_LINE = ARTIST_SIZE * 1.2;
-const LYRICS_SIZE = 14;
-const EDITION_SIZE = OUTFIT_SIZE;
-/** Line pitch shared by the lyrics (Instrument Serif italic) and the edition ("1 of 1") / date column. */
-const ROW_LINE = SONG_GAP + FONT_METRICS.instrumentSerif.capHeight * LYRICS_SIZE;
-
-function songLayout(titleSize: number) {
-  const { instrumentSerif: serif, outfit } = FONT_METRICS;
-  const titleLine = titleSize * TITLE_LINE_HEIGHT;
-  // The row aligns its two columns on their first baselines (flex items-baseline),
-  // so its top is set by whichever column's baseline sits lower in its line box.
-  const lyricsBaseline = baselineOffset(serif, LYRICS_SIZE, ROW_LINE);
-  const editionBaseline = baselineOffset(outfit, EDITION_SIZE, ROW_LINE);
-  const rowBaseline = Math.max(lyricsBaseline, editionBaseline);
-  // The row's visible top is its tallest capital.
-  const rowCapTop = rowBaseline - Math.max(serif.capHeight * LYRICS_SIZE, outfit.capHeight * EDITION_SIZE);
-  return {
-    titleLine,
-    artistMargin: SONG_GAP - belowBaseline(serif, titleSize, titleLine) - capTopOffset(outfit, ARTIST_SIZE, ARTIST_LINE),
-    rowMargin: SONG_GAP - belowBaseline(outfit, ARTIST_SIZE, ARTIST_LINE) - rowCapTop,
-  };
-}
-
 export function formatCardDate(date: Date | string, timeZone?: string | null) {
   return new Date(date).toLocaleDateString("en-US", {
     month: "short",
@@ -164,19 +158,23 @@ export function formatCardDate(date: Date | string, timeZone?: string | null) {
 export function CollectibleCard({
   card,
   className,
+  face = "front",
   photoOverlay,
   titleAccessory,
   inkColor,
   bare = false,
 }: CollectibleCardProps) {
-  const song = songLayout(TITLE_SIZE);
   const cardColor = card.cardColor ?? DEFAULT_CARD_COLOR;
   const ink = cardInk(cardColor);
 
   return (
-    <div className={cn("@container relative aspect-3/4 w-full max-w-[390px]", className)}>
+    <div className={cn("@container relative aspect-[63/88] w-full max-w-[390px]", className)}>
       <article
-        aria-label={`${card.songTitle} by ${card.artistName}`}
+        aria-label={
+          face === "front"
+            ? `${card.songTitle} by ${card.artistName}`
+            : `Message on the back of ${card.songTitle}`
+        }
         className={cn(
           "absolute inset-0 overflow-hidden text-(--ink)",
           !bare && "shadow-[0_1px_2px_rgba(0,0,0,0.06),0_12px_40px_-12px_rgba(40,30,20,0.35)] ring-1 ring-black/5",
@@ -189,116 +187,151 @@ export function CollectibleCard({
             "--ink-muted": inkColor ?? ink.muted,
             "--ink-faint": inkColor ?? ink.faint,
             backgroundColor: bare ? undefined : cardColor,
-            borderRadius: u(18),
+            borderRadius: u(CORNER_RADIUS),
           } as CSSProperties
         }
       >
-        {!bare && (
-          <CardPhoto
-            photoUrl={card.photoUrl}
-            crop={card.photoCrop}
-            emptyFill={card.photoAreaColor ?? EARTH_PHOTO_AREA}
-            alt={`Photo for ${card.songTitle}`}
-            fadeColor={cardColor}
-            overlay={photoOverlay}
-          />
+        {face === "front" ? (
+          <CardFront card={card} bare={bare} cardColor={cardColor} photoOverlay={photoOverlay} titleAccessory={titleAccessory} />
+        ) : (
+          <CardBack card={card} />
         )}
+      </article>
+    </div>
+  );
+}
 
-        {/* Moment's capitals are centered on the third fade stop (text-box trims the
-            line to the capitals, and the translate centers them on `top`). Long text
-            is clipped only horizontally, so descenders below the trimmed box still show. */}
-        {card.moment && (
-          <p
-            className="font-outfit absolute -translate-y-1/2 overflow-x-clip text-right leading-none text-ellipsis whitespace-nowrap"
+function CardFront({
+  card,
+  bare,
+  cardColor,
+  photoOverlay,
+  titleAccessory,
+}: {
+  card: CollectibleCardData;
+  bare: boolean;
+  cardColor: string;
+  photoOverlay?: ReactNode;
+  titleAccessory?: ReactNode;
+}) {
+  return (
+    <>
+      {!bare && (
+        <CardPhoto
+          photoUrl={card.photoUrl}
+          crop={card.photoCrop}
+          emptyFill={card.photoAreaColor ?? EARTH_PHOTO_AREA}
+          alt={`Photo for ${card.songTitle}`}
+          fadeColor={cardColor}
+          overlay={photoOverlay}
+        />
+      )}
+
+      {/* The moment's capitals are centered on MOMENT_CENTER (text-box trims the line to the
+          capitals, and the translate centers them on `top`). Long text is clipped only
+          horizontally, so descenders below the trimmed box still show. */}
+      {card.moment && (
+        <p
+          className="font-outfit absolute -translate-y-1/2 overflow-x-clip text-right leading-none text-ellipsis whitespace-nowrap"
+          style={{
+            ...trimToLetters(OUTFIT, OUTFIT_SIZE, 1),
+            top: u(MOMENT_CENTER),
+            right: u(SIDE_PADDING),
+            maxWidth: u(200),
+            fontSize: u(OUTFIT_SIZE),
+          }}
+        >
+          {card.moment}
+        </p>
+      )}
+
+      {/* At the foot of the card: the song, and the artist with the edition beside it. */}
+      <div
+        className="absolute flex flex-col justify-center"
+        style={{ top: u(SONG_AREA_TOP), bottom: 0, left: u(SIDE_PADDING), right: u(SIDE_PADDING) }}
+      >
+        <div className="flex items-center" style={{ gap: u(6) }}>
+          <h2
+            className="min-w-0 overflow-x-clip font-serif text-ellipsis whitespace-nowrap"
             style={{
-              textBox: "trim-both cap alphabetic",
-              top: u(MOMENT_CENTER),
-              right: u(SIDE_PADDING),
-              maxWidth: u(160),
-              fontSize: u(OUTFIT_SIZE),
+              fontSize: u(TITLE_SIZE),
+              lineHeight: TITLE_LINE_HEIGHT,
+              letterSpacing: "-0.01em",
+              ...trimToLetters(INSTRUMENT_SERIF, TITLE_SIZE, TITLE_LINE_HEIGHT),
             }}
           >
-            {card.moment}
+            {card.songTitle}
+          </h2>
+          {/* Centred on the title's letters without taking up height, so a taller accessory
+              (e.g. the home page's play button) doesn't push the artist line down. */}
+          {titleAccessory && <span className="flex h-0 items-center">{titleAccessory}</span>}
+        </div>
+        <div
+          className="font-outfit flex items-baseline justify-between"
+          style={{
+            gap: u(16),
+            fontSize: u(OUTFIT_SIZE),
+            lineHeight: OUTFIT_LINE_HEIGHT,
+            ...trimToLetters(OUTFIT, OUTFIT_SIZE, OUTFIT_LINE_HEIGHT),
+            marginTop: `calc(${u(TITLE_GAP)} + ${trimToLetters(OUTFIT, OUTFIT_SIZE, OUTFIT_LINE_HEIGHT).marginTop})`,
+          }}
+        >
+          <p className="min-w-0 overflow-x-clip text-ellipsis whitespace-nowrap text-(--ink-muted)">
+            {card.artistName}
+          </p>
+          <p className="shrink-0">
+            {card.editionNumber ?? 1} of {card.editionSize ?? 1}
+          </p>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function CardBack({ card }: { card: CollectibleCardData }) {
+  return (
+    <div className="absolute flex flex-col" style={{ inset: u(BACK_PADDING) }}>
+      <div className="flex min-h-0 flex-1 flex-col">
+        {card.message && (
+          <p
+            className="font-hand min-h-0 overflow-hidden font-light whitespace-pre-line"
+            style={{
+              fontSize: u(MESSAGE_SIZE),
+              lineHeight: MESSAGE_LINE_HEIGHT,
+              display: "-webkit-box",
+              WebkitBoxOrient: "vertical",
+              WebkitLineClamp: MESSAGE_LINES,
+            }}
+          >
+            {card.message}
           </p>
         )}
+        {card.senderName && (
+          <p
+            // Handwritten, like the message above it.
+            className="font-hand shrink-0 truncate text-right font-light"
+            style={{ fontSize: u(MESSAGE_SIZE), lineHeight: MESSAGE_LINE_HEIGHT, marginTop: u(14) }}
+          >
+            {card.senderName}
+          </p>
+        )}
+      </div>
 
-        <div
-          className="absolute flex flex-col"
-          style={{ top: u(280), left: u(SIDE_PADDING), right: u(SIDE_PADDING), bottom: u(28) }}
-        >
-          {/* Safety net: if text still overflows (e.g. very wide glyphs), the message gives way first. */}
-          <div className="flex min-h-0 shrink flex-col">
-            {card.message && (
-              <p
-                // Up to four lines, then "…".
-                className="font-hand line-clamp-4 min-h-0 overflow-hidden font-light whitespace-pre-line"
-                style={{ fontSize: u(MESSAGE_SIZE), lineHeight: MESSAGE_LINE_HEIGHT }}
-              >
-                {card.message}
-              </p>
-            )}
-            {card.senderName && (
-              <p
-                // Handwritten, like the message above it.
-                className="font-hand shrink-0 truncate text-right font-light"
-                style={{ fontSize: u(MESSAGE_SIZE), lineHeight: MESSAGE_LINE_HEIGHT, marginTop: u(4) }}
-              >
-                {card.senderName}
-              </p>
-            )}
-          </div>
-
-          <div className="flex-1" style={{ minHeight: u(8) }} />
-
-          <div className="shrink-0">
-            <div className="flex items-center" style={{ gap: u(4) }}>
-              <h2
-                className="min-w-0 truncate font-serif"
-                style={{ fontSize: u(TITLE_SIZE), lineHeight: u(song.titleLine), letterSpacing: "-0.01em" }}
-              >
-                {card.songTitle}
-              </h2>
-              {titleAccessory}
-            </div>
-            <p
-              className="font-outfit line-clamp-1 text-(--ink-muted)"
-              style={{ fontSize: u(ARTIST_SIZE), lineHeight: u(ARTIST_LINE), marginTop: u(song.artistMargin) }}
-            >
-              {card.artistName}
-            </p>
-            <div className="flex items-baseline justify-between" style={{ gap: u(16), marginTop: u(song.rowMargin) }}>
-              <p
-                className="line-clamp-2 min-w-0 flex-1 font-serif whitespace-pre-line text-(--ink-soft) italic"
-                style={{ fontSize: u(LYRICS_SIZE), lineHeight: u(ROW_LINE) }}
-              >
-                {card.lyricsExcerpt}
-              </p>
-              <p
-                className="font-outfit shrink-0 text-right font-normal"
-                style={{ fontSize: u(EDITION_SIZE), lineHeight: u(ROW_LINE) }}
-              >
-                {card.editionNumber ?? 1} of {card.editionSize ?? 1}
-                {card.createdAt && (
-                  <>
-                    <br />
-                    {formatCardDate(card.createdAt, card.timeZone)}
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Shown only once the card exists; no placeholder while creating. */}
+      {/* The date it was made, and (once the card exists) its ID. */}
+      <div
+        className="font-outfit flex shrink-0 items-baseline justify-between"
+        style={{ gap: u(12), fontSize: u(OUTFIT_SIZE), paddingTop: u(16) }}
+      >
+        <p className="shrink-0">{card.createdAt ? formatCardDate(card.createdAt, card.timeZone) : null}</p>
         {card.cardId && (
           <p
-            className="font-outfit absolute inset-x-0 text-center text-(--ink-faint)"
-            style={{ bottom: u(10), fontSize: u(OUTFIT_SIZE), letterSpacing: "0.04em" }}
+            className="min-w-0 truncate text-(--ink-faint)"
+            style={{ fontSize: u(CARD_ID_SIZE), letterSpacing: "0.04em" }}
           >
             {card.cardId}
           </p>
         )}
-      </article>
+      </div>
     </div>
   );
 }
@@ -329,7 +362,7 @@ function CardPhoto({ photoUrl, crop, emptyFill, alt, fadeColor, overlay }: CardP
       ) : (
         <div aria-hidden className="size-full" style={{ background: emptyFill }} />
       )}
-      {/* Fade the bottom of the photo into the card's base color. */}
+      {/* Fade the foot of the photo into the card's base color. */}
       <div
         aria-hidden
         className="absolute inset-0"

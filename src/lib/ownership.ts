@@ -11,7 +11,6 @@ const cardContent = {
   songTitle: cards.songTitle,
   artistName: cards.artistName,
   photoUrl: cards.photoUrl,
-  lyricsExcerpt: cards.lyricsExcerpt,
   message: cards.message,
   senderName: cards.senderName,
   moment: cards.moment,

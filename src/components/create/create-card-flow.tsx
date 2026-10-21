@@ -15,7 +15,7 @@ import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, SparklesIcon, XIcon } from 
 import { toast } from "sonner";
 import { createCard, requestPhotoUpload, type CreatedCopyResult } from "@/app/create/actions";
 import { AppleMusicEmbed } from "@/components/apple-music-embed";
-import { CollectibleCard } from "@/components/collectible-card";
+import { CollectibleCard, type CardFace } from "@/components/collectible-card";
 import { AudienceField, type Audience } from "@/components/create/audience-field";
 import { CreatedCopies } from "@/components/create/created-copies";
 import { EditionField, parseEditionSize } from "@/components/create/edition-field";
@@ -25,6 +25,7 @@ import { RecipientPicker } from "@/components/create/recipient-picker";
 import { useActionsAboveKeyboard } from "@/components/create/use-actions-above-keyboard";
 import { useIsNarrow } from "@/components/create/use-is-narrow";
 import { SelectedSong, SongSearch } from "@/components/create/song-search";
+import { FlipCard } from "@/components/flip-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,7 +72,6 @@ const SONG_SEARCH_ID = "song-search";
 const EMPTY_VALUES: FormValues = {
   songTitle: "",
   artistName: "",
-  lyricsExcerpt: "",
   message: "",
   senderName: "",
   moment: "",
@@ -83,7 +83,9 @@ function capLineBreaks(text: string, maxLines: number) {
   return lines.length <= maxLines ? text : [...lines.slice(0, maxLines - 1), lines.slice(maxLines - 1).join(" ")].join("\n");
 }
 
-const FIELD_ORDER: FieldName[] = ["songTitle", "artistName", "lyricsExcerpt", "message", "senderName", "moment"];
+const FIELD_ORDER: FieldName[] = ["songTitle", "artistName", "message", "senderName", "moment"];
+/** Which side of the card a field is printed on, so the preview turns to it while editing. */
+const BACK_FIELDS: string[] = ["message", "senderName"];
 
 /**
  * Below lg the form is shown one step at a time under the card, so a step's field and
@@ -93,14 +95,13 @@ const FIELD_ORDER: FieldName[] = ["songTitle", "artistName", "lyricsExcerpt", "m
 const FORM_STEPS: { fields: FieldName[]; optional: boolean }[] = [
   { fields: [], optional: false }, // Who is this card for? (+ recipients)
   { fields: ["songTitle", "artistName"], optional: false },
-  { fields: ["lyricsExcerpt"], optional: true },
   { fields: ["message"], optional: true },
   { fields: ["senderName", "moment"], optional: true },
   { fields: [], optional: true }, // Photo & colors
   { fields: [], optional: false }, // Copies
 ];
 const LAST_FORM_STEP = FORM_STEPS.length - 1;
-const PHOTO_STEP = 5;
+const PHOTO_STEP = 4;
 const COPIES_STEP = LAST_FORM_STEP;
 const stepOfField = (field: FieldName) => FORM_STEPS.findIndex((s) => s.fields.includes(field));
 const isWideScreen = () => window.matchMedia("(min-width: 1024px)").matches;
@@ -137,6 +138,9 @@ export function CreateCardFlow() {
   const [formStep, setFormStep] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
   const narrow = useIsNarrow();
+  // Which side the live preview shows: the back on the message step (narrow screens), else the
+  // front; focusing a field, or the Front / Back switch, turns it for the current step.
+  const [sideChoice, setSideChoice] = useState<{ side: CardFace; step: number } | null>(null);
   const [anonymous, setAnonymous] = useState(false);
   const [recipients, setRecipients] = useState<PublicProfile[]>([]);
   /** The created copies in edition order, with each one's link and status. */
@@ -426,12 +430,18 @@ export function CreateCardFlow() {
     goTo("edit");
   }
 
+  const previewSide: CardFace =
+    sideChoice && sideChoice.step === formStep
+      ? sideChoice.side
+      : narrow && FORM_STEPS[formStep]?.fields.some((f) => BACK_FIELDS.includes(f))
+        ? "back"
+        : "front";
+
   const previewCard = {
     songTitle: values.songTitle.trim() || "Song title",
     artistName: values.artistName.trim() || "Artist",
     photoUrl: photo?.previewUrl,
     photoCrop: photo ? cropFromView(photo.width, photo.height, photo.view) : null,
-    lyricsExcerpt: values.lyricsExcerpt.trim(),
     message: values.message.trim(),
     senderName: signatureHidden ? "" : values.senderName.trim(),
     moment: values.moment.trim(),
@@ -473,7 +483,12 @@ export function CreateCardFlow() {
                 : "Each copy below shows where it stands and the link to send."}
           </p>
         </div>
-        <CollectibleCard card={previewCard} />
+        <FlipCard
+          className="max-w-[340px]"
+          hint="Tap the card to see its back"
+          front={<CollectibleCard card={previewCard} className="max-w-none" />}
+          back={<CollectibleCard card={previewCard} face="back" className="max-w-none" />}
+        />
         {keepAfterSignIn && (
           <Button asChild size="lg" className="h-11 w-full">
             <Link href={signInPath("/keepsakes")}>
@@ -513,7 +528,12 @@ export function CreateCardFlow() {
             Cards can&apos;t be changed after they&apos;re created.
           </p>
         </div>
-        <CollectibleCard card={previewCard} />
+        <FlipCard
+          className="max-w-[340px]"
+          hint="Tap the card to see its back"
+          front={<CollectibleCard card={previewCard} className="max-w-none" />}
+          back={<CollectibleCard card={previewCard} face="back" className="max-w-none" />}
+        />
         {song && <AppleMusicEmbed url={buildAppleMusicUrl(song)} title={song.title} />}
         <div className="flex w-full gap-2">
           <Button
@@ -547,23 +567,49 @@ export function CreateCardFlow() {
     <div className="mx-auto flex w-full max-w-6xl flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16 lg:px-6 lg:pt-10 lg:pb-16">
       <div className="px-4 pt-4 sm:px-6 lg:col-start-2 lg:row-start-1 lg:p-0">
         <div className="lg:sticky lg:top-8">
-          <div className="mx-auto w-full max-w-[280px] sm:max-w-[320px] lg:max-w-[400px]">
-            <CollectibleCard
-              card={previewCard}
-              className="max-w-none"
-              // The photo is framed right here on the card: on the Photo & colors step on
-              // narrow screens, and whenever there's a photo on wide ones.
-              photoOverlay={
-                photo && (narrow ? formStep === PHOTO_STEP : true) ? (
-                  <PhotoFramingLayer
-                    imageWidth={photo.width}
-                    imageHeight={photo.height}
-                    view={photo.view}
-                    onChange={setPhotoView}
-                  />
-                ) : undefined
+          <div className="mx-auto w-full max-w-[240px] sm:max-w-[280px] lg:max-w-[340px]">
+            <FlipCard
+              side={previewSide}
+              // Taps on the card frame the photo instead; the switch below turns it over.
+              tapToFlip={false}
+              front={
+                <CollectibleCard
+                  card={previewCard}
+                  className="max-w-none"
+                  // The photo is framed right here on the card: on the Photo & colors step on
+                  // narrow screens, and whenever there's a photo on wide ones.
+                  photoOverlay={
+                    photo && (narrow ? formStep === PHOTO_STEP : true) ? (
+                      <PhotoFramingLayer
+                        imageWidth={photo.width}
+                        imageHeight={photo.height}
+                        view={photo.view}
+                        onChange={setPhotoView}
+                      />
+                    ) : undefined
+                  }
+                />
               }
+              back={<CollectibleCard card={previewCard} face="back" className="max-w-none" />}
             />
+            <div className="mt-3 flex justify-center">
+              <div role="group" aria-label="Card side" className="bg-muted flex gap-1 rounded-full p-1 text-xs">
+                {(["front", "back"] as const).map((side) => (
+                  <button
+                    key={side}
+                    type="button"
+                    aria-pressed={previewSide === side}
+                    onClick={() => setSideChoice({ side, step: formStep })}
+                    className={cn(
+                      "h-7 rounded-full px-3 font-medium capitalize transition-colors",
+                      previewSide === side ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {side}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -572,6 +618,13 @@ export function CreateCardFlow() {
         ref={formRef}
         noValidate
         onSubmit={handlePreview}
+        // Writing the message or signature turns the preview to the back; other fields, the front.
+        onFocusCapture={(e) => {
+          const name = (e.target as HTMLElement).getAttribute("name");
+          if (name && FIELD_ORDER.includes(name as FieldName)) {
+            setSideChoice({ side: BACK_FIELDS.includes(name) ? "back" : "front", step: formStep });
+          }
+        }}
         className="flex flex-col gap-6 px-4 pt-6 pb-10 sm:px-6 lg:col-start-1 lg:row-start-1 lg:p-0"
       >
         {/* No visible title; the heading stays for screen readers and page structure. */}
@@ -630,14 +683,10 @@ export function CreateCardFlow() {
         </FormStep>
 
         <FormStep index={2} current={formStep}>
-          <TextField name="lyricsExcerpt" label="Lyrics excerpt" multiline rows={2} value={values.lyricsExcerpt} error={errors.lyricsExcerpt} onChange={handleChange("lyricsExcerpt")} placeholder="The line that says it best" />
+          <TextField name="message" label="Personal message" hint="Written on the back of the card." multiline rows={5} value={values.message} error={errors.message} onChange={handleChange("message")} placeholder="Why this song reminds you of them" />
         </FormStep>
 
         <FormStep index={3} current={formStep}>
-          <TextField name="message" label="Personal message" multiline rows={4} value={values.message} error={errors.message} onChange={handleChange("message")} placeholder="Why this song reminds you of them" />
-        </FormStep>
-
-        <FormStep index={4} current={formStep}>
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="grid gap-2">
               <TextField

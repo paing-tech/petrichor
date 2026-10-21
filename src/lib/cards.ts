@@ -12,7 +12,7 @@ import type { CardFields } from "@/lib/validation";
 // creator, owner or claim data (ownership is read separately, per request).
 export type PublicCard = Omit<
   Card,
-  "id" | "editionId" | "creatorUserId" | "ownerUserId" | "claimTokenHash"
+  "id" | "editionId" | "creatorUserId" | "ownerUserId" | "claimTokenHash" | "lyricsExcerpt"
 >;
 
 /** Card content never changes once created, so a lookup can be cached indefinitely. */
@@ -28,7 +28,6 @@ export async function getCardByCardId(cardId: string): Promise<PublicCard | null
       artistName: cards.artistName,
       photoUrl: cards.photoUrl,
       appleMusicUrl: cards.appleMusicUrl,
-      lyricsExcerpt: cards.lyricsExcerpt,
       message: cards.message,
       senderName: cards.senderName,
       moment: cards.moment,

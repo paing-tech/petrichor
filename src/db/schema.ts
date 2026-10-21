@@ -22,6 +22,7 @@ export const cards = pgTable(
     artistName: text("artist_name").notNull(),
     photoUrl: text("photo_url"),
     appleMusicUrl: text("apple_music_url"),
+    // No longer collected or shown (lyrics are the publishers' to license); kept for old cards.
     lyricsExcerpt: text("lyrics_excerpt"),
     message: text("message"),
     // The signature printed on the card, exactly as typed. NULL when the sender left

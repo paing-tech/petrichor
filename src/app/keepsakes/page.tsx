@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DeliveryResponse } from "@/components/card/ownership-actions";
 import { CollectibleCard } from "@/components/collectible-card";
+import { FlipCard } from "@/components/flip-card";
 import { ClaimSavedCards } from "@/components/keepsakes/claim-saved-cards";
 import { CreatedCardRow } from "@/components/keepsakes/created-card-row";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,13 @@ async function Keepsakes() {
           <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {pending.map(({ deliveryId, sender, card }) => (
               <li key={deliveryId} className="bg-background grid gap-3 rounded-2xl border p-4">
-                <CollectibleCard card={card} className="mx-auto max-w-[260px]" />
+                {/* Turns over to the message, to read before accepting. */}
+                <FlipCard
+                  className="mx-auto max-w-[240px]"
+                  hint="Tap to read the message"
+                  front={<CollectibleCard card={card} className="max-w-none" />}
+                  back={<CollectibleCard card={card} face="back" className="max-w-none" />}
+                />
                 <p className="text-sm">
                   From{" "}
                   {sender?.username ? (

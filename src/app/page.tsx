@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import {
+  CARD_RATIO,
   cardFadeBackground,
   type CollectibleCardData,
 } from "@/components/collectible-card";
@@ -29,8 +30,6 @@ import { afterSignInPath, getAccount, safeNextPath } from "@/lib/auth/account";
 const SAMPLE_CARD: CollectibleCardData = {
   songTitle: "Ethereal Levitation",
   artistName: "The Petrichor Studio",
-  lyricsExcerpt:
-    "No gravity, no sense of time,\nJust your soul drifting into mine.",
   message: "For the first warm morning after all that rain.",
   senderName: "Petrichor Team",
   moment: "Reverie",
@@ -48,33 +47,37 @@ const TRACKS: Track[] = [
 ];
 
 // The hero is laid out in a 1000 × 1350 frame (units scale with its width). A white card with
-// a soft green glow sits at x 160–840, y 248–1154 (3:4), its lower half washed green, and the
-// card's text sits on it.
+// a soft green glow, shaped like every Petrichor card (a trading card, 63 × 88), sits at
+// x 200–800, y 248–1086; the figure is its 4:5 "photo", washed green below it, and the card's
+// text sits on the green.
 const VIEW = { left: 0, top: 0, width: 1000, height: 1350 };
-const CARD = { left: 160, top: 248, width: 680, height: 906, bottom: 1154 };
+const CARD = { left: 200, top: 248, width: 600, height: 600 * CARD_RATIO, bottom: 248 + 600 * CARD_RATIO };
+/** The card's photo area: its top, 4:5. */
+const PHOTO_BOTTOM = CARD.top + (CARD.width * 5) / 4;
 const CARD_GREEN = "#a3b18a";
 /** Where the card's green glow fades out below it. */
-const GLOW_BOTTOM = 1250;
+const GLOW_BOTTOM = CARD.bottom + 96;
 // public/reverie.png (1024 × 1536) is the figure as a cut-out (solid body, transparent sky).
-// Scaled 1.0023 units per pixel, with her torso's centre line (x 538 px in the image) on the
-// card's centre (x 500) and her fingertips just below the card's top edge (y ≈ 305): her arms
-// reach past the card's sides and her head rises above it.
+// Scaled 0.8843 units per pixel (in proportion to the card), with her torso's centre line
+// (x 538 px in the image) on the card's centre (x 500) and her fingertips just below the
+// card's top edge: her arms reach past the card's sides and her head rises above it.
 const REVERIE = {
-  left: -39.2,
-  top: -80,
-  width: 1026.4,
-  height: 1539.5,
+  left: 24.2,
+  top: -41.4,
+  width: 905.6,
+  height: 1358.4,
   imageWidth: 1024,
   imageHeight: 1536,
 };
 /**
- * On the card, the figure fades out from her waist (y 560) to y 700, where the green lower
- * half turns solid, so her legs are hidden; while the song plays the fade slides away and
- * she appears whole. As percentages of the image's height.
+ * On the card, the figure fades out with the photo's own fade (its last fifth, down to the
+ * photo's foot), so her lower legs are hidden by the green; while the song plays the fade
+ * slides away and she appears whole. As percentages of the image's height.
  */
+const FIGURE_FADE_START = CARD.top + 0.8 * (PHOTO_BOTTOM - CARD.top);
 const FIGURE_FADE = {
-  from: ((560 - REVERIE.top) / REVERIE.height) * 100,
-  to: ((700 - REVERIE.top) / REVERIE.height) * 100,
+  from: ((FIGURE_FADE_START - REVERIE.top) / REVERIE.height) * 100,
+  to: ((PHOTO_BOTTOM - REVERIE.top) / REVERIE.height) * 100,
 };
 const pct = (value: number, of: number) => `${(value / of) * 100}%`;
 const cardBox = {
@@ -85,8 +88,8 @@ const cardBox = {
 };
 /** The point the card tilts around: its centre, within the frame. */
 const CARD_CENTER = `${pct(CARD.left + CARD.width / 2 - VIEW.left, VIEW.width)} ${pct(CARD.top + CARD.height / 2 - VIEW.top, VIEW.height)}`;
-/** The card's corner radius: 18 of the card's 390 design units, in frame widths (cqw). */
-const CARD_RADIUS = `${((18 / 390) * CARD.width) / 10}cqw`;
+/** The card's corner radius: 23 of the card's 390 design units, in frame widths (cqw). */
+const CARD_RADIUS = `${((23 / 390) * CARD.width) / 10}cqw`;
 
 export default function Home({ searchParams }: PageProps<"/">) {
   return (
@@ -163,12 +166,12 @@ export default function Home({ searchParams }: PageProps<"/">) {
                     className="max-w-none"
                     inkColor="#FFFFFF"
                     titleAccessory={
-                      // No ring; 20 card units, just under the title's line height (title size 20).
+                      // No ring; 24 card units, under the title's line height (title size 28).
                       <AudioPlayButton
                         label={SAMPLE_CARD.songTitle}
                         ring={false}
-                        size="calc(var(--u) * 20)"
-                        iconSize="calc(var(--u) * 20)"
+                        size="calc(var(--u) * 24)"
+                        iconSize="calc(var(--u) * 24)"
                       />
                     }
                   />

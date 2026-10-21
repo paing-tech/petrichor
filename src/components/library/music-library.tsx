@@ -29,7 +29,7 @@ export function MusicLibrary({ tracks }: { tracks: LibraryTrack[] }) {
   return (
     <div className="grid gap-6">
       {current?.youtubeVideoId && (
-        <div className="bg-background sticky top-0 z-10 -mx-4 grid gap-3 px-4 pt-2 pb-3 sm:mx-0 sm:px-0">
+        <div className="bg-background sticky top-0 z-10 -mx-4 grid gap-3 pt-2 pb-3 sm:mx-0">
           <iframe
             key={current.cardId}
             src={`https://www.youtube-nocookie.com/embed/${current.youtubeVideoId}?playsinline=1&rel=0${picked ? "&autoplay=1" : ""}`}
@@ -37,9 +37,10 @@ export function MusicLibrary({ tracks }: { tracks: LibraryTrack[] }) {
             allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
             allowFullScreen
             // YouTube requires its player to be at least 200px tall.
-            className="aspect-video min-h-[200px] w-full rounded-xl border-0 bg-black"
+            // Edge to edge on phones; rounded from small tablets up.
+            className="aspect-video min-h-[200px] w-full border-0 bg-black sm:rounded-xl"
           />
-          <div className="flex items-baseline justify-between gap-3">
+          <div className="flex items-baseline justify-between gap-3 px-4 sm:px-0">
             <div className="min-w-0">
               <p className="truncate font-serif text-xl">{current.songTitle}</p>
               <p className="text-muted-foreground truncate text-sm">{current.artistName}</p>

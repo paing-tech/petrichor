@@ -3,9 +3,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BadgeCheckIcon, ExternalLinkIcon } from "lucide-react";
 import {
-  CardFrame,
-  ListenLayout,
   ListenPanel,
+  ListenPanelSkeleton,
   type ListenSources,
 } from "@/components/card/listen-panel";
 import {
@@ -71,10 +70,10 @@ async function CardView({ params, searchParams }: PageProps<"/c/[cardId]">) {
   if (!card) notFound();
 
   return (
-    <ListenLayout>
-      <CardFrame>
+    <>
+      <div className="flex w-full justify-center">
         <CollectibleCard card={card} className="max-w-[420px]" />
-      </CardFrame>
+      </div>
 
       {/* A caption row under the card: its owner on the left (left-aligned with the card's
           edge), "Verified by Petrichor" on the right. Ownership changes, so it's read per
@@ -95,8 +94,8 @@ async function CardView({ params, searchParams }: PageProps<"/c/[cardId]">) {
 
       <div className="flex w-full flex-col gap-3">
         {/* The song's players are looked up per request (matches are stored as they're found);
-            until then, the button works with whatever the card already has. */}
-        <Suspense fallback={<ListenPanel sources={baseSources(card)} />}>
+            their place is held meanwhile. */}
+        <Suspense fallback={<ListenPanelSkeleton />}>
           <Listen card={card} />
         </Suspense>
       </div>
@@ -105,7 +104,7 @@ async function CardView({ params, searchParams }: PageProps<"/c/[cardId]">) {
         path={`/c/${card.cardId}`}
         title={`${card.songTitle} — a Petrichor card`}
       />
-    </ListenLayout>
+    </>
   );
 }
 

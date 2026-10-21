@@ -67,12 +67,21 @@ const FIGURE_SCALE = 1;
 const FOCAL_PER_SCREEN = 1.15;
 /** How much of the screen the player fills when looked at straight on. */
 const FILL = 0.65;
+/**
+ * YouTube requires its player to show at least 200px tall (and wide): at 16:9 that's 356px
+ * wide. On phones the player starts at least this big (wider than FILL), and zooming out
+ * stops there.
+ */
+const MIN_PLAYER_WIDTH = (200 * 16) / 9;
 /** Degrees turned per px scrolled (trackpad / wheel) and per px swiped. */
 const SCROLL_SPEED = 0.08;
 const SWIPE_SPEED = 0.15;
 /** After a swipe, the view keeps gliding and slows by this much per frame. */
 const GLIDE = 0.92;
-/** Zoom: each press scales the player by ZOOM_STEP, between these limits (1 = FILL). */
+/**
+ * Zoom: each press scales the player by ZOOM_STEP, between these limits (1 = FILL), but never
+ * below YouTube's minimum size (MIN_PLAYER_WIDTH).
+ */
 const ZOOM_STEP = 1.25;
 const MIN_ZOOM = 0.4;
 const MAX_ZOOM = 2.5;
@@ -176,6 +185,7 @@ export function YouTubeSpace({
   songTitle,
   artist,
   footer,
+  trigger,
 }: {
   videoId: string;
   /** The player's accessible name. */
@@ -185,6 +195,11 @@ export function YouTubeSpace({
   artist: string;
   /** Shown beside the "Full screen" button, e.g. a link to the YouTube Music app. */
   footer?: ReactNode;
+  /**
+   * Replaces the inline player and its "Full screen" button with this, given a function that
+   * opens the space; the player then appears only in the space.
+   */
+  trigger?: (openSpace: () => void) => ReactNode;
 }) {
   const origin = useOrigin();
   const [open, setOpen] = useState(false);
@@ -217,6 +232,9 @@ export function YouTubeSpace({
   }
   const zoomTarget = useRef(1);
   const zoomShown = useRef(1);
+  // The smallest zoom that keeps the player at YouTube's minimum size on this screen.
+  const [minZoom, setMinZoom] = useState(MIN_ZOOM);
+  const minZoomRef = useRef(MIN_ZOOM);
 
   /**
    * Turns the view to face a point (space px from the viewer: x right, y down, z toward the
@@ -237,7 +255,7 @@ export function YouTubeSpace({
 
   function zoomBy(factor: number) {
     const next = Math.max(
-      MIN_ZOOM,
+      minZoomRef.current,
       Math.min(MAX_ZOOM, zoomTarget.current * factor),
     );
     zoomTarget.current = next;
@@ -365,8 +383,17 @@ export function YouTubeSpace({
       width = window.innerWidth;
       height = window.innerHeight;
       focal = Math.max(width, height) * FOCAL_PER_SCREEN;
-      const screenWidth = Math.min(width * FILL, (height * FILL * 16) / 9);
+      const screenWidth = Math.max(
+        MIN_PLAYER_WIDTH,
+        Math.min(width * FILL, (height * FILL * 16) / 9),
+      );
       baseDistance = (focal * WORLD_WIDTH) / screenWidth;
+      minZoomRef.current = Math.max(MIN_ZOOM, MIN_PLAYER_WIDTH / screenWidth);
+      setMinZoom(minZoomRef.current);
+      if (zoomTarget.current < minZoomRef.current) {
+        zoomTarget.current = minZoomRef.current;
+        setZoom(minZoomRef.current);
+      }
       // Her size: the same as on the home page (times FIGURE_SCALE).
       const homeFrame = Math.min(
         (width - 32) * (width < 640 ? 0.85 : 1),
@@ -690,7 +717,7 @@ export function YouTubeSpace({
               <PillButton
                 label="Smaller"
                 onClick={() => zoomBy(1 / ZOOM_STEP)}
-                disabled={zoom <= MIN_ZOOM + 0.001}
+                disabled={zoom <= minZoom + 0.001}
               >
                 <ZoomOutIcon className="size-4" />
               </PillButton>
@@ -758,48 +785,59 @@ export function YouTubeSpace({
           </p>
         </div>
       )}
-      {/* The player: inline in the panel, or (in the space) fixed at the screen's centre and
-          placed in 3D each frame. Inline on phones it's a fixed 356 × 200 (16:9 at YouTube's
-          200px minimum height), centred even where the column is a little narrower. */}
-      <div
-        ref={frameRef}
-        className={cn(
-          open
-            ? "fixed top-1/2 left-1/2 z-[61] overflow-hidden rounded-2xl shadow-[0_0_80px_rgba(255,255,255,0.08)]"
-            : "relative left-1/2 w-[356px] max-w-[calc(100vw-16px)] -translate-x-1/2 sm:left-0 sm:w-full sm:max-w-none sm:translate-x-0",
-        )}
-        style={open ? { width: WORLD_WIDTH, height: WORLD_HEIGHT } : undefined}
-      >
-        <iframe
-          ref={iframeRef}
-          src={`https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&rel=0&enablejsapi=1${origin ? `&origin=${encodeURIComponent(origin)}` : ""}`}
-          title={title}
-          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-          allowFullScreen
-          // Ask the player to report its state (playing / paused) to this page.
-          onLoad={() =>
-            iframeRef.current?.contentWindow?.postMessage(
-              JSON.stringify({ event: "listening", id: videoId }),
-              "*",
-            )
-          }
-          // YouTube requires its player to be at least 200 × 200px.
+      {/* The player: inline in the panel (unless a trigger replaces it), or (in the space)
+          fixed at the screen's centre and placed in 3D each frame. Inline on phones it's a fixed
+          356 × 200 (16:9 at YouTube's 200px minimum height), centred even where the column is a
+          little narrower. */}
+      {(open || !trigger) && (
+        <div
+          ref={frameRef}
           className={cn(
-            "block w-full border-0 bg-transparent",
-            open ? "h-full" : "h-[200px] sm:h-auto sm:aspect-video sm:min-h-[200px]",
+            open
+              ? "fixed top-1/2 left-1/2 z-[61] overflow-hidden rounded-2xl shadow-[0_0_80px_rgba(255,255,255,0.08)]"
+              : "relative left-1/2 w-[356px] max-w-[calc(100vw-16px)] -translate-x-1/2 sm:left-0 sm:w-full sm:max-w-none sm:translate-x-0",
           )}
-        />
-      </div>
-      <div className="flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={enter}
-          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
+          style={
+            open ? { width: WORLD_WIDTH, height: WORLD_HEIGHT } : undefined
+          }
         >
-          <Maximize2Icon className="size-3" /> Full screen
-        </button>
-        {footer}
-      </div>
+          <iframe
+            ref={iframeRef}
+            src={`https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&rel=0&enablejsapi=1${origin ? `&origin=${encodeURIComponent(origin)}` : ""}`}
+            title={title}
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            allowFullScreen
+            // Ask the player to report its state (playing / paused) to this page.
+            onLoad={() =>
+              iframeRef.current?.contentWindow?.postMessage(
+                JSON.stringify({ event: "listening", id: videoId }),
+                "*",
+              )
+            }
+            // YouTube requires its player to be at least 200 × 200px.
+            className={cn(
+              "block w-full border-0 bg-transparent",
+              open
+                ? "h-full"
+                : "h-[200px] sm:h-auto sm:aspect-video sm:min-h-[200px]",
+            )}
+          />
+        </div>
+      )}
+      {trigger ? (
+        trigger(enter)
+      ) : (
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={enter}
+            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
+          >
+            <Maximize2Icon className="size-3" /> Full screen
+          </button>
+          {footer}
+        </div>
+      )}
     </>
   );
 }

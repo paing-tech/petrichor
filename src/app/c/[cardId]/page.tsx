@@ -74,7 +74,7 @@ async function CardView({ params, searchParams }: PageProps<"/c/[cardId]">) {
     <>
       {/* The front (photo and song) turns over to the message on the back. */}
       <FlipCard
-        className="max-w-[360px]"
+        className="w-full"
         hint={card.message || card.senderName ? "Tap the card to read the message" : "Tap the card to see its back"}
         front={<CollectibleCard card={card} className="max-w-none" />}
         back={<CollectibleCard card={card} face="back" className="max-w-none" />}

@@ -16,7 +16,8 @@ export type ListenSources = {
   youtubeVideoId: string | null;
 };
 
-const SPOTIFY_HEIGHT = "h-[152px]";
+/** Spotify's compact player height (its sizes are 80, 152 and 352px); not cropped, per its terms. */
+const SPOTIFY_HEIGHT = "h-[80px]";
 
 export function ListenPanel({ sources }: { sources: ListenSources }) {
   // Nothing to play here: the song's own page on Apple Music, if there is one.

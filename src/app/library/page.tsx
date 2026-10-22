@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { DarkPage } from "@/components/dark-page";
 import { MusicLibrary, type LibraryTrack } from "@/components/library/music-library";
 import { Button } from "@/components/ui/button";
 import { getAccount } from "@/lib/auth/account";
@@ -15,8 +16,9 @@ export const metadata: Metadata = { title: "Music Library", robots: { index: fal
 /** Every song from the keepsakes in the user's collection, playable here through YouTube. */
 export default function LibraryPage() {
   return (
-    // data-dark-page turns the whole page, header included, black (see globals.css).
-    <div data-dark-page className="flex-1 text-white">
+    <div className="flex-1 text-white">
+      {/* The whole page, header included, is black while this page shows. */}
+      <DarkPage />
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 pt-4 pb-16 sm:px-6">
         <Suspense fallback={<h1 className="font-serif text-4xl tracking-tight">Music Library</h1>}>
           <Library />

@@ -64,7 +64,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       {/* White on the home page's night sky while its song plays. */}
       <Link
         href="/"
-        className="col-start-2 font-serif text-2xl tracking-tight transition-colors duration-700 [body:has([data-dark-page])_&]:text-white [html[data-listening]_&]:text-white"
+        className="col-start-2 font-serif text-2xl tracking-tight transition-colors duration-700 [html[data-dark-page]_&]:text-white [html[data-listening]_&]:text-white"
       >
         Petrichor
       </Link>

@@ -1,7 +1,7 @@
 import { cache, Suspense, type ReactNode } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { BadgeCheckIcon, ExternalLinkIcon } from "lucide-react";
+import { ExternalLinkIcon } from "lucide-react";
 import {
   ListenPanel,
   ListenPanelSkeleton,
@@ -60,7 +60,7 @@ export default function CardPage({
   searchParams,
 }: PageProps<"/c/[cardId]">) {
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col items-center gap-8 px-4 pb-16">
+    <div className="mx-auto flex w-full max-w-md flex-col items-center gap-2 px-6 pb-16">
       <Suspense fallback={<CardSkeleton />}>
         <CardView params={params} searchParams={searchParams} />
       </Suspense>
@@ -79,24 +79,20 @@ async function CardView({ params, searchParams }: PageProps<"/c/[cardId]">) {
       <ListeningCard>
         <FlipCard
           className="w-full"
-          hint={card.message || card.senderName ? "Tap the card to read the message" : "Tap the card to see its back"}
           front={<CollectibleCard card={card} className="max-w-none" />}
           back={<CollectibleCard card={card} face="back" className="max-w-none" />}
         />
       </ListeningCard>
 
-      {/* A caption row under the card: its owner on the left (left-aligned with the card's
-          edge), "Verified by Petrichor" on the right. Ownership changes, so it's read per
-          request, separately from the cached card. */}
-      {/* Hidden while the song plays here (listening mode), with the keep / accept actions. */}
-      <div className="-mt-4 flex w-full items-center justify-between gap-3 [html[data-listening]_&]:hidden">
+      {/* Under the card: its owner's @username, left-aligned with the card's edge. Ownership
+          changes, so it's read per request, separately from the cached card. Hidden while the
+          song plays here (listening mode), with the keep / accept actions. */}
+      {/* 8px under the card, indented like the card's text (28 of its 390 units: 7.18% of its
+          width, which this row shares). */}
+      <div className="flex w-full items-center gap-3 pl-[7.18%] [html[data-listening]_&]:hidden">
         <Suspense fallback={<span className="h-5" />}>
           <OwnerCaption cardId={card.cardId} />
         </Suspense>
-        <p className="bg-muted text-muted-foreground inline-flex shrink-0 items-center gap-1 rounded-full px-[10px] py-0.5 text-xs font-medium">
-          <BadgeCheckIcon className="size-3.5" aria-hidden /> Verified by
-          Petrichor
-        </p>
       </div>
 
       <div className="contents [html[data-listening]_&]:hidden">
@@ -105,7 +101,7 @@ async function CardView({ params, searchParams }: PageProps<"/c/[cardId]">) {
         </Suspense>
       </div>
 
-      <div className="flex w-full flex-col gap-3">
+      <div className="flex w-full flex-col">
         {/* The song's players are looked up per request (matches are stored as they're found);
             their place is held meanwhile. */}
         <Suspense fallback={<ListenPanelSkeleton />}>
@@ -171,16 +167,13 @@ async function Listen({ card }: { card: CardSong }) {
   return <ListenPanel sources={sources} />;
 }
 
-/** The left of the caption row: who owns the card, or that nobody has kept it yet. */
+/** Under the card: its owner's @username (small); nothing while nobody has kept it. */
 async function OwnerCaption({ cardId }: { cardId: string }) {
   const ownership = await loadOwnership(cardId);
-  if (!ownership) return null;
-  if (!ownership.owner)
-    return <p className="text-muted-foreground text-sm">Not kept yet</p>;
+  if (!ownership?.owner) return null;
   return (
-    <p className="min-w-0 truncate text-sm">
-      <span className="text-muted-foreground">Owned by</span>{" "}
-      <span className="font-medium">{ownership.owner.displayName}</span>
+    <p className="font-outfit text-muted-foreground min-w-0 truncate text-sm">
+      @{ownership.owner.username}
     </p>
   );
 }

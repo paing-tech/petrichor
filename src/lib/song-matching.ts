@@ -126,26 +126,80 @@ async function findOnSpotify(song: Song, credentials: { clientId: string; client
   return match?.id ?? null;
 }
 
-/** A YouTube video of this song that can be played in an embed (prefers official audio). */
+/** How close (seconds) a "Topic" audio upload must be to the Apple Music track's length. */
+const YOUTUBE_DURATION_TOLERANCE_S = 5;
+/** Uploads that aren't the song as released, unless the song's own title says so. */
+const NOT_THE_RELEASE =
+  /\b(live|cover|covers|karaoke|instrumental|remix|sped ?up|slowed|nightcore|reverb|8d|reaction|lyrics?|transition|mashup|acoustic|demo|tour|concert|livestream|fan ?made|tiktok)\b/i;
+
+/** "PT4M1S" → 241. */
+function isoDurationSeconds(iso: string) {
+  const [, h = "0", m = "0", sec = "0"] = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(iso) ?? [];
+  return Number(h) * 3600 + Number(m) * 60 + Number(sec);
+}
+
+type YouTubeVideo = {
+  id: string;
+  snippet: { title: string; channelTitle: string };
+  contentDetails: { duration: string };
+  status: { embeddable: boolean };
+};
+
+/**
+ * An official YouTube video of this song that can be played in an embed, or null. Prefers the
+ * artist's official music video, then the artist's "Topic" audio (same length as the Apple Music
+ * track), then the artist's own official audio or visualizer. Never falls back to other uploads
+ * (fans' re-uploads, live versions, lyric videos): no player is better than the wrong song.
+ */
 async function findOnYouTube(song: Song, apiKey: string) {
-  const params = new URLSearchParams({
+  const durationMs = await appleDurationMs(song.appleMusicUrl);
+  const search = new URLSearchParams({
     part: "snippet",
-    q: `${song.artist} - ${song.title}`,
+    q: `${song.artist} ${song.title}`,
     type: "video",
-    videoCategoryId: "10", // Music
     videoEmbeddable: "true",
-    videoSyndicated: "true", // playable outside youtube.com
-    maxResults: "5",
+    maxResults: "15",
     key: apiKey,
   });
-  const response = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
-  if (!response.ok) throw new Error(`YouTube search failed (${response.status})`);
-  const body = (await response.json()) as { items?: { id: { videoId: string }; snippet: { channelTitle: string } }[] };
-  const items = body.items ?? [];
-  // The artist's auto-generated "… - Topic" channel carries the official audio; then the
-  // artist's own channel; then YouTube's best match.
-  const artist = leadArtist(song.artist);
-  const topic = items.find((i) => normalize(i.snippet.channelTitle).startsWith(artist) && /topic$/i.test(i.snippet.channelTitle));
-  const own = items.find((i) => normalize(i.snippet.channelTitle).includes(artist));
-  return (topic ?? own ?? items[0])?.id.videoId ?? null;
+  const searchResponse = await fetch(`https://www.googleapis.com/youtube/v3/search?${search}`);
+  if (!searchResponse.ok) throw new Error(`YouTube search failed (${searchResponse.status})`);
+  const found = (await searchResponse.json()) as { items?: { id: { videoId?: string } }[] };
+  const ids = (found.items ?? []).flatMap((item) => (item.id.videoId ? [item.id.videoId] : []));
+  if (ids.length === 0) return null;
+
+  // The candidates' details: channel, title, length, and whether they can be embedded.
+  const details = new URLSearchParams({ part: "snippet,contentDetails,status", id: ids.join(","), key: apiKey });
+  const detailsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?${details}`);
+  if (!detailsResponse.ok) throw new Error(`YouTube videos lookup failed (${detailsResponse.status})`);
+  const videos = ((await detailsResponse.json()) as { items?: YouTubeVideo[] }).items ?? [];
+
+  const artist = leadArtist(song.artist).replace(/\s+/g, "");
+  const title = normalize(song.title);
+  const titleAllows = (word: RegExp) => word.test(song.title);
+  const candidates = videos
+    .filter((video) => video.status.embeddable)
+    .filter((video) => normalize(video.snippet.title).includes(title))
+    .filter((video) => !NOT_THE_RELEASE.test(video.snippet.title) || titleAllows(NOT_THE_RELEASE))
+    // Keep YouTube's relevance order within each tier.
+    .sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+
+  const channel = (video: YouTubeVideo) => normalize(video.snippet.channelTitle).replace(/\s+/g, "");
+  const isTopic = (video: YouTubeVideo) =>
+    channel(video) === `${artist}topic` || /^(.*) - topic$/i.test(video.snippet.channelTitle) && channel(video).startsWith(artist);
+  // The artist's own channel (named after them, or their VEVO channel), not a fan's.
+  const isArtists = (video: YouTubeVideo) => channel(video) === artist || channel(video) === `${artist}vevo` || channel(video) === `${artist}official`;
+  const sameLength = (video: YouTubeVideo) =>
+    durationMs === null ||
+    Math.abs(isoDurationSeconds(video.contentDetails.duration) - durationMs / 1000) <= YOUTUBE_DURATION_TOLERANCE_S;
+
+  // Uploads on the artist's VEVO channel are the label's own, whatever their title says.
+  const officialVideo = candidates.find(
+    (video) =>
+      isArtists(video) && (/official (music )?video/i.test(video.snippet.title) || channel(video) === `${artist}vevo`),
+  );
+  const topicAudio = candidates.find((video) => isTopic(video) && sameLength(video));
+  const officialAudio = candidates.find(
+    (video) => isArtists(video) && /official (audio|visuali[sz]er)|\(audio\)|\(visuali[sz]er\)/i.test(video.snippet.title),
+  );
+  return (officialVideo ?? topicAudio ?? officialAudio)?.id ?? null;
 }

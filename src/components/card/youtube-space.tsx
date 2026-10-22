@@ -73,6 +73,8 @@ const FILL = 0.65;
  * stops there.
  */
 const MIN_PLAYER_WIDTH = (200 * 16) / 9;
+/** The inline player's height when it takes the video's shape (YouTube's minimum). */
+const INLINE_HEIGHT = 200;
 /** Degrees turned per px scrolled (trackpad / wheel) and per px swiped. */
 const SCROLL_SPEED = 0.08;
 const SWIPE_SPEED = 0.15;
@@ -206,8 +208,9 @@ export function YouTubeSpace({
   /** Shows the inline player even with a `trigger` (which then only replaces the controls). */
   showInline?: boolean;
   /**
-   * The inline player's shape (width ÷ height), e.g. the video's own; it then fills its column
-   * at that shape, at least 200px tall. Without it the inline player is 16:9.
+   * The inline player's shape (width ÷ height), e.g. the video's own; it's then 200px tall (the
+   * smallest YouTube allows), centred, at that shape: 200 × 200 square, 356 × 200 at 16:9.
+   * Without it the inline player is 16:9 across its column.
    */
   inlineAspect?: number;
   /** Starts the song as soon as the player loads (pass only after the viewer asked to play). */
@@ -808,11 +811,15 @@ export function YouTubeSpace({
             open
               ? "fixed top-1/2 left-1/2 z-[61] overflow-hidden rounded-2xl shadow-[0_0_80px_rgba(255,255,255,0.08)]"
               : inlineAspect
-                ? "relative w-full"
+                ? "relative mx-auto"
                 : "relative left-1/2 w-[356px] max-w-[calc(100vw-16px)] -translate-x-1/2 sm:left-0 sm:w-full sm:max-w-none sm:translate-x-0",
           )}
           style={
-            open ? { width: WORLD_WIDTH, height: WORLD_HEIGHT } : undefined
+            open
+              ? { width: WORLD_WIDTH, height: WORLD_HEIGHT }
+              : inlineAspect
+                ? { width: INLINE_HEIGHT * inlineAspect, height: INLINE_HEIGHT }
+                : undefined
           }
         >
           <iframe
@@ -834,10 +841,9 @@ export function YouTubeSpace({
               open
                 ? "h-full"
                 : inlineAspect
-                  ? "min-h-[200px] rounded-xl"
+                  ? "h-full rounded-xl"
                   : "h-[200px] sm:h-auto sm:aspect-video sm:min-h-[200px]",
             )}
-            style={!open && inlineAspect ? { aspectRatio: inlineAspect } : undefined}
           />
         </div>
       )}

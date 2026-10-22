@@ -13,6 +13,7 @@ import {
 } from "@/components/card/ownership-actions";
 import { CollectibleCard } from "@/components/collectible-card";
 import { FlipCard } from "@/components/flip-card";
+import { ListeningCard } from "@/components/card/listening-card";
 import { HeaderShare } from "@/components/card/header-share";
 import { Button } from "@/components/ui/button";
 import { appleMusicSearchUrl, spotifySearchUrl } from "@/lib/apple-music";
@@ -73,13 +74,16 @@ async function CardView({ params, searchParams }: PageProps<"/c/[cardId]">) {
 
   return (
     <>
-      {/* The front (photo and song) turns over to the message on the back. */}
-      <FlipCard
-        className="w-full"
-        hint={card.message || card.senderName ? "Tap the card to read the message" : "Tap the card to see its back"}
-        front={<CollectibleCard card={card} className="max-w-none" />}
-        back={<CollectibleCard card={card} face="back" className="max-w-none" />}
-      />
+      {/* The front (photo and song) turns over to the message on the back. While the song
+          plays here, the card waits small in the corner (see ListeningCard). */}
+      <ListeningCard>
+        <FlipCard
+          className="w-full"
+          hint={card.message || card.senderName ? "Tap the card to read the message" : "Tap the card to see its back"}
+          front={<CollectibleCard card={card} className="max-w-none" />}
+          back={<CollectibleCard card={card} face="back" className="max-w-none" />}
+        />
+      </ListeningCard>
 
       {/* A caption row under the card: its owner on the left (left-aligned with the card's
           edge), "Verified by Petrichor" on the right. Ownership changes, so it's read per

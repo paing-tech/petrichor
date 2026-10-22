@@ -70,7 +70,7 @@ export function FlipCard({
         )}
       </div>
       {hint && tapToFlip && !flipped && (
-        <p className="text-muted-foreground mt-3 text-center text-xs">{hint}</p>
+        <p className="text-muted-foreground mt-3 text-center text-xs [html[data-listening]_&]:hidden">{hint}</p>
       )}
     </div>
   );

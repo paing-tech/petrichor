@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowUpRightIcon, Maximize2Icon, PlayIcon, XIcon } from "lucide-react";
+import { ArrowUpRightIcon, PlayIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { YouTubeSpace } from "@/components/card/youtube-space";
+import { ListeningPlayer } from "@/components/card/listening-player";
 
 // The card page's player, under the card: Spotify's player (full songs on desktop for
 // signed-in Premium listeners, previews otherwise) and a play button. Playing turns the page
-// black (listening mode): Spotify and the caption row give way to the song's YouTube video,
-// which can open full screen in the night-sky space.
+// black (listening mode): Spotify and the caption row give way to the song's YouTube video in
+// the middle, with its controls in the corner and the card waiting small beside them.
 
 export type ListenSources = {
   title: string;
@@ -23,7 +23,8 @@ export type ListenSources = {
 /** Spotify's compact player height (its sizes are 80, 152 and 352px); not cropped, per its terms. */
 const SPOTIFY_HEIGHT = "h-[80px]";
 /** The video plays at its own shape, from square (art tracks) to 16:9 (music videos). */
-const playerAspect = (aspect: number | null) => Math.min(16 / 9, Math.max(1, aspect ?? 16 / 9));
+const playerAspect = (aspect: number | null) =>
+  Math.min(16 / 9, Math.max(1, aspect ?? 16 / 9));
 
 export function ListenPanel({ sources }: { sources: ListenSources }) {
   const [playing, setPlaying] = useState(false);
@@ -33,7 +34,9 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
   useEffect(() => {
     if (!playing) return;
     document.documentElement.setAttribute("data-listening", "");
-    const theme = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    const theme = document.querySelector<HTMLMetaElement>(
+      'meta[name="theme-color"]',
+    );
     const day = theme?.content;
     if (theme) theme.content = "#000000";
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -46,8 +49,17 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
   // Nothing to play here: the song's own page on Apple Music, if there is one.
   if (!sources.spotifyTrackId && !sources.youtubeVideoId) {
     return sources.appleMusicUrl ? (
-      <Button asChild size="lg" variant="outline" className="bg-background h-11 w-full">
-        <a href={sources.appleMusicUrl} target="_blank" rel="noopener noreferrer">
+      <Button
+        asChild
+        size="lg"
+        variant="outline"
+        className="bg-background h-11 w-full"
+      >
+        <a
+          href={sources.appleMusicUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           Listen on Apple Music <ArrowUpRightIcon />
         </a>
       </Button>
@@ -56,35 +68,13 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
 
   if (playing && sources.youtubeVideoId) {
     return (
-      <div className="grid w-full grid-cols-1 gap-3 text-white">
-        <YouTubeSpace
-          videoId={sources.youtubeVideoId}
-          title={`${sources.title} by ${sources.artist} on YouTube`}
-          songTitle={sources.title}
-          artist={sources.artist}
-          showInline
-          inlineAspect={playerAspect(sources.youtubeAspect)}
-          autoplay
-          trigger={(openSpace) => (
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <button
-                type="button"
-                onClick={() => setPlaying(false)}
-                className="inline-flex items-center gap-1.5 text-white/60 transition-colors hover:text-white"
-              >
-                <XIcon className="size-4" /> Close
-              </button>
-              <button
-                type="button"
-                onClick={openSpace}
-                className="inline-flex items-center gap-1.5 text-white/60 transition-colors hover:text-white"
-              >
-                <Maximize2Icon className="size-4" /> Full screen
-              </button>
-            </div>
-          )}
-        />
-      </div>
+      <ListeningPlayer
+        videoId={sources.youtubeVideoId}
+        aspect={playerAspect(sources.youtubeAspect)}
+        title={sources.title}
+        artist={sources.artist}
+        onClose={() => setPlaying(false)}
+      />
     );
   }
 

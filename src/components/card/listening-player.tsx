@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { PauseIcon, PlayIcon, XIcon } from "lucide-react";
 import { useOrigin } from "@/components/share-actions";
 import { cn } from "@/lib/utils";
@@ -9,15 +14,22 @@ import { cn } from "@/lib/utils";
 const CONTROL =
   "flex items-center justify-center rounded-full transition-opacity hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
 
-/** The player is 200px tall (YouTube's minimum) at the video's own shape: 200 × 200 to 356 × 200. */
-const PLAYER_HEIGHT = 200;
+/** YouTube requires its player to be at least 200px tall (and wide). */
+const MIN_PLAYER_HEIGHT = 200;
+/** Videos about this square or squarer are shown as squares (art tracks). */
+const SQUARE_UP_TO = 1.05;
 
 const formatTime = (seconds: number) => {
   const s = Math.max(0, Math.floor(seconds));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
 
-type Playback = { playing: boolean; time: number; at: number; duration: number };
+type Playback = {
+  playing: boolean;
+  time: number;
+  at: number;
+  duration: number;
+};
 
 /**
  * Listening mode's player: the song's YouTube video in the middle of the screen, and in the
@@ -42,7 +54,12 @@ export function ListeningPlayer({
   const origin = useOrigin();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   // What YouTube last reported: playing or not, the time then (and when we heard), the length.
-  const [playback, setPlayback] = useState<Playback>({ playing: false, time: 0, at: 0, duration: 0 });
+  const [playback, setPlayback] = useState<Playback>({
+    playing: false,
+    time: 0,
+    at: 0,
+    duration: 0,
+  });
   // While dragging the progress bar, the time being chosen.
   const [scrubbing, setScrubbing] = useState<number | null>(null);
   const [now, setNow] = useState(0);
@@ -51,16 +68,27 @@ export function ListeningPlayer({
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.source !== iframeRef.current?.contentWindow) return;
-      let data: { event?: string; info?: { playerState?: number; currentTime?: number; duration?: number } };
+      let data: {
+        event?: string;
+        info?: {
+          playerState?: number;
+          currentTime?: number;
+          duration?: number;
+        };
+      };
       try {
-        data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+        data =
+          typeof event.data === "string" ? JSON.parse(event.data) : event.data;
       } catch {
         return;
       }
       const info = data?.info;
       if (!info) return;
       setPlayback((current) => ({
-        playing: info.playerState === undefined ? current.playing : info.playerState === 1,
+        playing:
+          info.playerState === undefined
+            ? current.playing
+            : info.playerState === 1,
         time: info.currentTime ?? current.time,
         at: info.currentTime !== undefined ? performance.now() : current.at,
         duration: info.duration || current.duration,
@@ -83,50 +111,79 @@ export function ListeningPlayer({
   }, [playback.playing]);
 
   const command = (func: string, args: unknown[] = []) =>
-    iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args }), "*");
+    iframeRef.current?.contentWindow?.postMessage(
+      JSON.stringify({ event: "command", func, args }),
+      "*",
+    );
 
   const elapsed = Math.min(
     playback.duration || Infinity,
-    playback.playing ? playback.time + Math.max(0, now - playback.at) / 1000 : playback.time,
+    playback.playing
+      ? playback.time + Math.max(0, now - playback.at) / 1000
+      : playback.time,
   );
   const shown = scrubbing ?? elapsed;
-  const progress = playback.duration ? Math.min(1, shown / playback.duration) : 0;
+  const progress = playback.duration
+    ? Math.min(1, shown / playback.duration)
+    : 0;
 
   /** The time under the pointer, along the progress bar. */
   function timeAt(event: ReactPointerEvent<HTMLDivElement>) {
     const bar = event.currentTarget.getBoundingClientRect();
-    return Math.min(1, Math.max(0, (event.clientX - bar.left) / bar.width)) * playback.duration;
+    return (
+      Math.min(1, Math.max(0, (event.clientX - bar.left) / bar.width)) *
+      playback.duration
+    );
   }
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col text-white">
-      {/* The video, in the middle of the space between the header and the controls. */}
-      <div className="grid flex-1 place-items-center px-4 pt-16">
-        <iframe
-          ref={iframeRef}
-          src={`https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&rel=0&enablejsapi=1&autoplay=1${origin ? `&origin=${encodeURIComponent(origin)}` : ""}`}
-          title={`${title} by ${artist} on YouTube`}
-          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-          allowFullScreen
-          // Ask the player to report its state (play / pause, time, length) to this page.
-          onLoad={() =>
-            iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: videoId }), "*")
-          }
-          className="rounded-xl border-0 bg-black"
-          style={{ width: PLAYER_HEIGHT * aspect, height: PLAYER_HEIGHT }}
-        />
+      {/* The top half (below the header): the video, centred. Square videos fill the width within
+          the side margins; wider ones (16:9) reach the screen's edges. Either way it fits the
+          half, and never drops below YouTube's 200px minimum. */}
+      <div className="h-[50dvh] shrink-0 pt-16">
+        <div className="grid size-full place-items-center [container-type:size]">
+          <iframe
+            ref={iframeRef}
+            src={`https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&rel=0&enablejsapi=1&autoplay=1${origin ? `&origin=${encodeURIComponent(origin)}` : ""}`}
+            title={`${title} by ${artist} on YouTube`}
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            allowFullScreen
+            // Ask the player to report its state (play / pause, time, length) to this page.
+            onLoad={() =>
+              iframeRef.current?.contentWindow?.postMessage(
+                JSON.stringify({ event: "listening", id: videoId }),
+                "*",
+              )
+            }
+            className={cn(
+              "border-0 bg-black",
+              aspect <= SQUARE_UP_TO ? "rounded-xl" : "sm:rounded-xl",
+            )}
+            style={{
+              aspectRatio: aspect,
+              width: `max(${MIN_PLAYER_HEIGHT * aspect}px, min(${aspect <= SQUARE_UP_TO ? "100cqw - 3rem" : "100cqw"}, (100cqh - 1rem) * ${aspect}))`,
+            }}
+          />
+        </div>
       </div>
 
       {/* Bottom-left: the song, its controls, and the progress bar (the card waits to the right). */}
-      <div className="px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-8 sm:pb-8">
+      <div className="mt-auto px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-8 sm:pb-8">
         <div className="pr-32 sm:pr-48">
-          <p className="truncate font-serif text-3xl leading-tight tracking-tight">{title}</p>
-          <p className="font-outfit mt-0.5 truncate text-sm text-white/70">{artist}</p>
+          <p className="truncate font-serif text-3xl leading-tight tracking-tight">
+            {title}
+          </p>
+          <p className="font-outfit mt-0.5 truncate text-sm text-white/70">
+            {artist}
+          </p>
           {/* Plain icons, as on the home page's now-playing corner. */}
           <div className="mt-3 flex items-center gap-5">
             <button
               type="button"
-              onClick={() => command(playback.playing ? "pauseVideo" : "playVideo")}
+              onClick={() =>
+                command(playback.playing ? "pauseVideo" : "playVideo")
+              }
               aria-label={playback.playing ? "Pause" : "Play"}
               className={cn(CONTROL, "size-10")}
             >
@@ -137,7 +194,12 @@ export function ListeningPlayer({
                 <PlayIcon className="ml-[0.2rem] size-[1.4rem] fill-current" />
               )}
             </button>
-            <button type="button" onClick={onClose} aria-label="Close" className={cn(CONTROL, "size-8")}>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className={cn(CONTROL, "size-8")}
+            >
               <XIcon className="size-5" />
             </button>
           </div>
@@ -154,8 +216,12 @@ export function ListeningPlayer({
             aria-valuetext={`${formatTime(shown)} of ${formatTime(playback.duration)}`}
             tabIndex={0}
             onKeyDown={(event) => {
-              if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-              const to = Math.min(playback.duration, Math.max(0, elapsed + (event.key === "ArrowRight" ? 5 : -5)));
+              if (event.key !== "ArrowLeft" && event.key !== "ArrowRight")
+                return;
+              const to = Math.min(
+                playback.duration,
+                Math.max(0, elapsed + (event.key === "ArrowRight" ? 5 : -5)),
+              );
               command("seekTo", [to, true]);
               setPlayback((p) => ({ ...p, time: to, at: performance.now() }));
             }}
@@ -178,7 +244,10 @@ export function ListeningPlayer({
             className="group relative flex h-6 cursor-pointer touch-none items-center"
           >
             <div className="h-1 w-full overflow-hidden rounded-full bg-white/20">
-              <div className="h-full bg-white" style={{ width: `${progress * 100}%` }} />
+              <div
+                className="h-full bg-white"
+                style={{ width: `${progress * 100}%` }}
+              />
             </div>
             <div
               aria-hidden
@@ -188,7 +257,9 @@ export function ListeningPlayer({
           </div>
           <div className="font-outfit flex justify-between text-xs text-white/60 tabular-nums">
             <span>{formatTime(shown)}</span>
-            <span>{playback.duration ? formatTime(playback.duration) : "–:––"}</span>
+            <span>
+              {playback.duration ? formatTime(playback.duration) : "–:––"}
+            </span>
           </div>
         </div>
       </div>

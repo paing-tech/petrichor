@@ -186,6 +186,9 @@ export function YouTubeSpace({
   artist,
   footer,
   trigger,
+  showInline,
+  inlineAspect,
+  autoplay = false,
 }: {
   videoId: string;
   /** The player's accessible name. */
@@ -200,6 +203,15 @@ export function YouTubeSpace({
    * opens the space; the player then appears only in the space.
    */
   trigger?: (openSpace: () => void) => ReactNode;
+  /** Shows the inline player even with a `trigger` (which then only replaces the controls). */
+  showInline?: boolean;
+  /**
+   * The inline player's shape (width ÷ height), e.g. the video's own; it then fills its column
+   * at that shape, at least 200px tall. Without it the inline player is 16:9.
+   */
+  inlineAspect?: number;
+  /** Starts the song as soon as the player loads (pass only after the viewer asked to play). */
+  autoplay?: boolean;
 }) {
   const origin = useOrigin();
   const [open, setOpen] = useState(false);
@@ -789,13 +801,15 @@ export function YouTubeSpace({
           fixed at the screen's centre and placed in 3D each frame. Inline on phones it's a fixed
           356 × 200 (16:9 at YouTube's 200px minimum height), centred even where the column is a
           little narrower. */}
-      {(open || !trigger) && (
+      {(open || (showInline ?? !trigger)) && (
         <div
           ref={frameRef}
           className={cn(
             open
               ? "fixed top-1/2 left-1/2 z-[61] overflow-hidden rounded-2xl shadow-[0_0_80px_rgba(255,255,255,0.08)]"
-              : "relative left-1/2 w-[356px] max-w-[calc(100vw-16px)] -translate-x-1/2 sm:left-0 sm:w-full sm:max-w-none sm:translate-x-0",
+              : inlineAspect
+                ? "relative w-full"
+                : "relative left-1/2 w-[356px] max-w-[calc(100vw-16px)] -translate-x-1/2 sm:left-0 sm:w-full sm:max-w-none sm:translate-x-0",
           )}
           style={
             open ? { width: WORLD_WIDTH, height: WORLD_HEIGHT } : undefined
@@ -803,7 +817,7 @@ export function YouTubeSpace({
         >
           <iframe
             ref={iframeRef}
-            src={`https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&rel=0&enablejsapi=1${origin ? `&origin=${encodeURIComponent(origin)}` : ""}`}
+            src={`https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&rel=0&enablejsapi=1${autoplay ? "&autoplay=1" : ""}${origin ? `&origin=${encodeURIComponent(origin)}` : ""}`}
             title={title}
             allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
             allowFullScreen
@@ -819,8 +833,11 @@ export function YouTubeSpace({
               "block w-full border-0 bg-transparent",
               open
                 ? "h-full"
-                : "h-[200px] sm:h-auto sm:aspect-video sm:min-h-[200px]",
+                : inlineAspect
+                  ? "min-h-[200px] rounded-xl"
+                  : "h-[200px] sm:h-auto sm:aspect-video sm:min-h-[200px]",
             )}
+            style={!open && inlineAspect ? { aspectRatio: inlineAspect } : undefined}
           />
         </div>
       )}

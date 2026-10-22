@@ -1,12 +1,14 @@
 "use client";
 
-import { ArrowUpRightIcon, OrbitIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowUpRightIcon, Maximize2Icon, PlayIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { YouTubeSpace } from "@/components/card/youtube-space";
 
 // The card page's player, under the card: Spotify's player (full songs on desktop for
-// signed-in Premium listeners, previews otherwise) and, below it, the Immersive Space: the
-// full-screen night sky with the song's YouTube video.
+// signed-in Premium listeners, previews otherwise) and a play button. Playing turns the page
+// black (listening mode): Spotify and the caption row give way to the song's YouTube video,
+// which can open full screen in the night-sky space.
 
 export type ListenSources = {
   title: string;
@@ -14,12 +16,33 @@ export type ListenSources = {
   appleMusicUrl: string | null;
   spotifyTrackId: string | null;
   youtubeVideoId: string | null;
+  /** The YouTube video's width ÷ height, if known. */
+  youtubeAspect: number | null;
 };
 
 /** Spotify's compact player height (its sizes are 80, 152 and 352px); not cropped, per its terms. */
 const SPOTIFY_HEIGHT = "h-[80px]";
+/** The video plays at its own shape, from square (art tracks) to 16:9 (music videos). */
+const playerAspect = (aspect: number | null) => Math.min(16 / 9, Math.max(1, aspect ?? 16 / 9));
 
 export function ListenPanel({ sources }: { sources: ListenSources }) {
+  const [playing, setPlaying] = useState(false);
+
+  // Listening mode: the page goes black (see globals.css and the card page), like the home page
+  // while its song plays, and so do the phone's browser bars.
+  useEffect(() => {
+    if (!playing) return;
+    document.documentElement.setAttribute("data-listening", "");
+    const theme = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    const day = theme?.content;
+    if (theme) theme.content = "#000000";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return () => {
+      document.documentElement.removeAttribute("data-listening");
+      if (theme && day) theme.content = day;
+    };
+  }, [playing]);
+
   // Nothing to play here: the song's own page on Apple Music, if there is one.
   if (!sources.spotifyTrackId && !sources.youtubeVideoId) {
     return sources.appleMusicUrl ? (
@@ -31,8 +54,42 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
     ) : null;
   }
 
+  if (playing && sources.youtubeVideoId) {
+    return (
+      <div className="grid w-full grid-cols-1 gap-3 text-white">
+        <YouTubeSpace
+          videoId={sources.youtubeVideoId}
+          title={`${sources.title} by ${sources.artist} on YouTube`}
+          songTitle={sources.title}
+          artist={sources.artist}
+          showInline
+          inlineAspect={playerAspect(sources.youtubeAspect)}
+          autoplay
+          trigger={(openSpace) => (
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <button
+                type="button"
+                onClick={() => setPlaying(false)}
+                className="inline-flex items-center gap-1.5 text-white/60 transition-colors hover:text-white"
+              >
+                <XIcon className="size-4" /> Close
+              </button>
+              <button
+                type="button"
+                onClick={openSpace}
+                className="inline-flex items-center gap-1.5 text-white/60 transition-colors hover:text-white"
+              >
+                <Maximize2Icon className="size-4" /> Full screen
+              </button>
+            </div>
+          )}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="grid w-full grid-cols-1 gap-2">
+    <div className="grid w-full grid-cols-1 gap-3">
       {sources.spotifyTrackId && (
         <iframe
           src={`https://open.spotify.com/embed/track/${sources.spotifyTrackId}`}
@@ -42,17 +99,14 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
         />
       )}
       {sources.youtubeVideoId && (
-        <YouTubeSpace
-          videoId={sources.youtubeVideoId}
-          title={`${sources.title} by ${sources.artist} on YouTube`}
-          songTitle={sources.title}
-          artist={sources.artist}
-          trigger={(openSpace) => (
-            <Button size="lg" className="h-11 w-full" onClick={openSpace}>
-              <OrbitIcon /> Immersive Space
-            </Button>
-          )}
-        />
+        <button
+          type="button"
+          onClick={() => setPlaying(true)}
+          aria-label={`Play ${sources.title}`}
+          className="bg-foreground text-background grid size-11 place-items-center justify-self-start rounded-full transition-transform active:scale-95"
+        >
+          <PlayIcon className="size-4 translate-x-px fill-current" />
+        </button>
       )}
     </div>
   );
@@ -61,9 +115,9 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
 /** Holds the player's place while the song's matches load, so the page doesn't jump. */
 export function ListenPanelSkeleton() {
   return (
-    <div className="grid w-full grid-cols-1 gap-2" aria-hidden>
+    <div className="grid w-full grid-cols-1 gap-3" aria-hidden>
       <div className={`bg-muted ${SPOTIFY_HEIGHT} animate-pulse rounded-xl`} />
-      <div className="bg-muted h-11 animate-pulse rounded-md" />
+      <div className="bg-muted size-11 animate-pulse rounded-full" />
     </div>
   );
 }

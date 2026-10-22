@@ -147,6 +147,19 @@
   body {
     overscroll-behavior: none;
   }
+  /* While a song plays on a card page (listening mode), the page turns black. */
+  html[data-listening] body {
+    background-color: #000;
+  }
+  body {
+    transition: background-color 0.7s;
+  }
+  /* Pages marked data-dark-page (e.g. the Music Library) are black, header included. */
+  body:has([data-dark-page]) {
+    background-color: #000;
+    color: #fff;
+    color-scheme: dark;
+  }
   /* Controls behave like an app's: a long press doesn't select their text or pop up a link
      preview. Content (messages, lyrics) stays selectable. */
   button,

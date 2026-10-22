@@ -21,6 +21,7 @@ import { getCardByCardId } from "@/lib/cards";
 import { CLAIM_TOKEN_PATTERN } from "@/lib/claim-token";
 import { getCardOwnership, isValidClaimToken } from "@/lib/ownership";
 import { getSongMatches } from "@/lib/song-matching";
+import { getYouTubeAspect } from "@/lib/youtube-shape";
 import { CARD_ID_PATTERN } from "@/lib/validation";
 
 /** Ownership for this request: the caption and the actions below the card share one lookup. */
@@ -83,7 +84,8 @@ async function CardView({ params, searchParams }: PageProps<"/c/[cardId]">) {
       {/* A caption row under the card: its owner on the left (left-aligned with the card's
           edge), "Verified by Petrichor" on the right. Ownership changes, so it's read per
           request, separately from the cached card. */}
-      <div className="-mt-4 flex w-full items-center justify-between gap-3">
+      {/* Hidden while the song plays here (listening mode), with the keep / accept actions. */}
+      <div className="-mt-4 flex w-full items-center justify-between gap-3 [html[data-listening]_&]:hidden">
         <Suspense fallback={<span className="h-5" />}>
           <OwnerCaption cardId={card.cardId} />
         </Suspense>
@@ -93,9 +95,11 @@ async function CardView({ params, searchParams }: PageProps<"/c/[cardId]">) {
         </p>
       </div>
 
-      <Suspense fallback={null}>
-        <Ownership cardId={card.cardId} searchParams={searchParams} />
-      </Suspense>
+      <div className="contents [html[data-listening]_&]:hidden">
+        <Suspense fallback={null}>
+          <Ownership cardId={card.cardId} searchParams={searchParams} />
+        </Suspense>
+      </div>
 
       <div className="flex w-full flex-col gap-3">
         {/* The song's players are looked up per request (matches are stored as they're found);
@@ -126,6 +130,7 @@ function baseSources(card: CardSong): ListenSources {
     appleMusicUrl: card.appleMusicUrl,
     spotifyTrackId: null,
     youtubeVideoId: null,
+    youtubeAspect: null,
   };
 }
 
@@ -136,7 +141,8 @@ async function Listen({ card }: { card: CardSong }) {
     artist: card.artistName,
     appleMusicUrl: card.appleMusicUrl,
   });
-  const sources = { ...baseSources(card), ...matches };
+  const youtubeAspect = matches.youtubeVideoId ? await getYouTubeAspect(matches.youtubeVideoId) : null;
+  const sources = { ...baseSources(card), ...matches, youtubeAspect };
   if (
     !sources.appleMusicUrl &&
     !sources.spotifyTrackId &&

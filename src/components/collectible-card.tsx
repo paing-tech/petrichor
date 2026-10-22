@@ -301,7 +301,7 @@ function CardBack({ card }: { card: CollectibleCardData }) {
       <div className="flex min-h-0 flex-1 flex-col">
         {card.message && (
           <p
-            className="font-nothing min-h-0 overflow-hidden font-light whitespace-pre-line"
+            className="font-hand min-h-0 overflow-hidden whitespace-pre-line"
             style={{
               fontSize: u(MESSAGE_SIZE),
               lineHeight: MESSAGE_LINE_HEIGHT,
@@ -316,7 +316,7 @@ function CardBack({ card }: { card: CollectibleCardData }) {
         {card.senderName && (
           <p
             // Handwritten, like the message above it.
-            className="font-hand shrink-0 truncate text-right font-light"
+            className="font-hand shrink-0 truncate text-right"
             style={{ fontSize: u(MESSAGE_SIZE), lineHeight: MESSAGE_LINE_HEIGHT, marginTop: u(14) }}
           >
             {card.senderName}

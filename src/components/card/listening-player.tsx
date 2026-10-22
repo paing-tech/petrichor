@@ -250,7 +250,7 @@ export function ListeningPlayer({
                       duration: 0.5,
                       ease: [0.22, 1, 0.36, 1],
                     }}
-                    className="font-hand min-h-[1.4em] text-lg leading-snug font-light"
+                    className="font-hand min-h-[1.4em] text-lg leading-snug"
                   >
                     {line}
                   </motion.p>
@@ -271,7 +271,7 @@ export function ListeningPlayer({
                       ease: [0.22, 1, 0.36, 1],
                     }}
                     // A sign-off right under the note: left, softer and a little smaller.
-                    className="font-hand mt-1.5 text-base font-light text-white/60"
+                    className="font-hand mt-1.5 text-base text-white/60"
                   >
                     — {signature}
                   </motion.p>

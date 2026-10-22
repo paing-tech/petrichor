@@ -6,11 +6,20 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { PauseIcon, PlayIcon, XIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  PauseIcon,
+  PlayIcon,
+  Repeat1Icon,
+  SkipBackIcon,
+} from "lucide-react";
 import { useOrigin } from "@/components/share-actions";
 import { cn } from "@/lib/utils";
 
-/** The corner's buttons: plain icons, like the home page's now-playing controls. */
+/** Where the keepsake card sits while listening (ListeningCard moves it here). */
+export const LISTENING_CARD_SLOT = "listening-card-slot";
+
+/** The player's buttons: plain icons, like the home page's now-playing controls. */
 const CONTROL =
   "flex items-center justify-center rounded-full transition-opacity hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
 
@@ -32,10 +41,11 @@ type Playback = {
 };
 
 /**
- * Listening mode's player: the song's YouTube video in the middle of the screen, and in the
- * bottom-left corner the title and artist, play / pause and close, and a progress bar to seek.
- * The controls sit outside the video and work it through YouTube's player messages (the
- * IFrame API), which YouTube allows; the video itself stays visible and is never covered.
+ * Listening mode's player, laid out like a music player: the song's YouTube video in the top
+ * half, and below it the title and artist (with the keepsake card beside them), a progress bar
+ * to seek, and centred skip-back / play-pause / skip-ahead controls; a chevron closes it. The
+ * controls sit outside the video and work it through YouTube's player messages (the IFrame
+ * API), which YouTube allows; the video itself stays visible and is never covered.
  */
 export function ListeningPlayer({
   videoId,
@@ -63,6 +73,18 @@ export function ListeningPlayer({
   // While dragging the progress bar, the time being chosen.
   const [scrubbing, setScrubbing] = useState<number | null>(null);
   const [now, setNow] = useState(0);
+  // Repeat: when the song ends, it starts again.
+  const [repeat, setRepeat] = useState(false);
+  const repeatRef = useRef(repeat);
+  useEffect(() => {
+    repeatRef.current = repeat;
+  }, [repeat]);
+
+  const command = (func: string, args: unknown[] = []) =>
+    iframeRef.current?.contentWindow?.postMessage(
+      JSON.stringify({ event: "command", func, args }),
+      "*",
+    );
 
   // Hear the player's state (play / pause, time, length).
   useEffect(() => {
@@ -84,6 +106,11 @@ export function ListeningPlayer({
       }
       const info = data?.info;
       if (!info) return;
+      // Ended (state 0) with repeat on: back to the start, playing.
+      if (info.playerState === 0 && repeatRef.current) {
+        command("seekTo", [0, true]);
+        command("playVideo");
+      }
       setPlayback((current) => ({
         playing:
           info.playerState === undefined
@@ -110,11 +137,6 @@ export function ListeningPlayer({
     return () => cancelAnimationFrame(frame);
   }, [playback.playing]);
 
-  const command = (func: string, args: unknown[] = []) =>
-    iframeRef.current?.contentWindow?.postMessage(
-      JSON.stringify({ event: "command", func, args }),
-      "*",
-    );
 
   const elapsed = Math.min(
     playback.duration || Infinity,
@@ -126,6 +148,13 @@ export function ListeningPlayer({
   const progress = playback.duration
     ? Math.min(1, shown / playback.duration)
     : 0;
+
+  /** Jumps to a time in the song. */
+  function seek(to: number) {
+    const time = Math.min(playback.duration || to, Math.max(0, to));
+    command("seekTo", [time, true]);
+    setPlayback((p) => ({ ...p, time, at: performance.now() }));
+  }
 
   /** The time under the pointer, along the progress bar. */
   function timeAt(event: ReactPointerEvent<HTMLDivElement>) {
@@ -168,45 +197,36 @@ export function ListeningPlayer({
         </div>
       </div>
 
-      {/* Bottom-left: the song, its controls, and the progress bar (the card waits to the right). */}
-      <div className="mt-auto px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-8 sm:pb-8">
-        <div className="pr-32 sm:pr-48">
-          <p className="truncate font-serif text-3xl leading-tight tracking-tight">
-            {title}
-          </p>
-          <p className="font-outfit mt-0.5 truncate text-sm text-white/70">
-            {artist}
-          </p>
-          {/* Plain icons, as on the home page's now-playing corner. */}
-          <div className="mt-3 flex items-center gap-5">
-            <button
-              type="button"
-              onClick={() =>
-                command(playback.playing ? "pauseVideo" : "playVideo")
-              }
-              aria-label={playback.playing ? "Pause" : "Play"}
-              className={cn(CONTROL, "size-10")}
-            >
-              {playback.playing ? (
-                <PauseIcon className="size-[1.4rem] fill-current" />
-              ) : (
-                // Nudged right so the triangle looks centred.
-                <PlayIcon className="ml-[0.2rem] size-[1.4rem] fill-current" />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
-              className={cn(CONTROL, "size-8")}
-            >
-              <XIcon className="size-5" />
-            </button>
+      {/* Close, top-left, level with the wordmark: "down", as when minimising a player. */}
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close player"
+        className={cn(
+          CONTROL,
+          "absolute top-[max(0.75rem,env(safe-area-inset-top))] left-3 size-10",
+        )}
+      >
+        <ChevronDownIcon className="size-7" />
+      </button>
+
+      {/* The bottom half: the song (and its card), the progress bar, the controls. */}
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-evenly px-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="flex items-center gap-4">
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-serif text-3xl leading-tight tracking-tight">
+              {title}
+            </p>
+            <p className="font-outfit mt-0.5 truncate text-sm text-white/70">
+              {artist}
+            </p>
           </div>
+          {/* The keepsake card moves in here (see ListeningCard). */}
+          <div id={LISTENING_CARD_SLOT} className="w-20 shrink-0" />
         </div>
 
         {/* Tap or drag to move through the song. */}
-        <div className="mt-5">
+        <div>
           <div
             role="slider"
             aria-label="Song position"
@@ -218,12 +238,7 @@ export function ListeningPlayer({
             onKeyDown={(event) => {
               if (event.key !== "ArrowLeft" && event.key !== "ArrowRight")
                 return;
-              const to = Math.min(
-                playback.duration,
-                Math.max(0, elapsed + (event.key === "ArrowRight" ? 5 : -5)),
-              );
-              command("seekTo", [to, true]);
-              setPlayback((p) => ({ ...p, time: to, at: performance.now() }));
+              seek(elapsed + (event.key === "ArrowRight" ? 5 : -5));
             }}
             onPointerDown={(event) => {
               if (!playback.duration) return;
@@ -235,9 +250,7 @@ export function ListeningPlayer({
             }}
             onPointerUp={(event) => {
               if (scrubbing === null) return;
-              const to = timeAt(event);
-              command("seekTo", [to, true]);
-              setPlayback((p) => ({ ...p, time: to, at: performance.now() }));
+              seek(timeAt(event));
               setScrubbing(null);
             }}
             onPointerCancel={() => setScrubbing(null)}
@@ -261,6 +274,46 @@ export function ListeningPlayer({
               {playback.duration ? formatTime(playback.duration) : "–:––"}
             </span>
           </div>
+        </div>
+
+        {/* Restart, play / pause, repeat: centred, the play button largest. */}
+        <div className="flex items-center justify-center gap-12">
+          <button
+            type="button"
+            onClick={() => {
+              seek(0);
+              command("playVideo");
+            }}
+            aria-label="Restart"
+            className={cn(CONTROL, "size-12")}
+          >
+            <SkipBackIcon className="size-7 fill-current" />
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              command(playback.playing ? "pauseVideo" : "playVideo")
+            }
+            aria-label={playback.playing ? "Pause" : "Play"}
+            className={cn(CONTROL, "size-16")}
+          >
+            {playback.playing ? (
+              <PauseIcon className="size-11 fill-current" />
+            ) : (
+              // Nudged right so the triangle looks centred.
+              <PlayIcon className="ml-1 size-11 fill-current" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setRepeat((on) => !on)}
+            aria-label="Repeat"
+            aria-pressed={repeat}
+            // Faint when off, white when on.
+            className={cn(CONTROL, "size-12", !repeat && "text-white/40")}
+          >
+            <Repeat1Icon className="size-7" />
+          </button>
         </div>
       </div>
     </div>

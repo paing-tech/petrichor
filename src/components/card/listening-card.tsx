@@ -1,7 +1,9 @@
 "use client";
 
 import { useSyncExternalStore, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "motion/react";
+import { LISTENING_CARD_SLOT } from "@/components/card/listening-player";
 import { cn } from "@/lib/utils";
 
 /** Whether the page is in listening mode (the html element's data-listening, set by ListenPanel). */
@@ -17,24 +19,27 @@ export function useListening() {
   );
 }
 
+const GLIDE = { type: "spring", damping: 30, stiffness: 260 } as const;
+
 /**
- * Holds the card on its page. In listening mode it glides down to a small keepsake in the
- * bottom-right corner, above the progress bar and clear of the centred player, and back when
- * listening ends.
+ * Holds the card on its page. In listening mode it glides into the player, small, beside the
+ * song's title (the player's card slot), and back when listening ends.
  */
 export function ListeningCard({ className, children }: { className?: string; children: ReactNode }) {
   const listening = useListening();
+  // Only read in the browser, once listening mode has put the player (and its slot) on screen.
+  const slot = listening ? document.getElementById(LISTENING_CARD_SLOT) : null;
+
+  if (slot) {
+    return createPortal(
+      <motion.div layoutId="listening-card" transition={GLIDE} className="w-full">
+        {children}
+      </motion.div>,
+      slot,
+    );
+  }
   return (
-    <motion.div
-      layout
-      transition={{ type: "spring", damping: 30, stiffness: 260 }}
-      className={cn(
-        listening
-          ? "fixed right-6 bottom-[calc(max(1.5rem,env(safe-area-inset-bottom))+3.5rem)] z-50 w-28 sm:right-8 sm:bottom-[5.5rem] sm:w-40"
-          : "w-full",
-        !listening && className,
-      )}
-    >
+    <motion.div layoutId="listening-card" transition={GLIDE} className={cn("w-full", className)}>
       {children}
     </motion.div>
   );

@@ -32,12 +32,12 @@ const playerAspect = (aspect: number | null) =>
 
 /** Spotify's compact player height (its sizes are 80, 152 and 352px); not cropped, per its terms. */
 const SPOTIFY_HEIGHT = "h-[80px]";
-/** The service logos' size, in px (Spotify asks for at least 21px). */
-const LOGO_SIZE = 28;
+/** The service logos' size, in px: the play pill's height (h-12). */
+const LOGO_SIZE = 30;
 
 export function ListenPanel({ sources }: { sources: ListenSources }) {
   const [playing, setPlaying] = useState(false);
-  // Spotify's player, opened from its logo under the play pill.
+  // Spotify's player, opened from its logo beside the play pill.
   const [spotifyOpen, setSpotifyOpen] = useState(false);
 
   // Listening mode: the page goes black (see globals.css and the card page), like the home page
@@ -94,61 +94,59 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
 
   return (
     <div className="grid w-full grid-cols-1 gap-3">
-      {sources.youtubeVideoId && (
-        // One pill-shaped button: the song (scrolling if it's long) and a play icon at its
-        // right end; a tap anywhere on it plays.
-        <button
-          type="button"
-          onClick={() => setPlaying(true)}
-          aria-label={`Play ${sources.title} by ${sources.artist}`}
-          className="hover:bg-muted/60 flex h-12 w-full items-center gap-3 rounded-full border pr-3 pl-5 text-left transition-colors active:scale-[0.99]"
-        >
-          <MarqueeText className="font-outfit min-w-0 flex-1 text-sm">
-            {sources.title} · <span className="text-muted-foreground">{sources.artist}</span>
-          </MarqueeText>
-          <PlayIcon aria-hidden className="size-5 shrink-0 translate-x-px fill-current" />
-        </button>
-      )}
-      {/* The song on other services: Spotify opens its player here; Apple Music opens the song
-          in Apple Music (the Music app on iPhone and Mac). */}
-      {(sources.spotifyTrackId || sources.appleMusicUrl) && (
-        <div className="flex items-center justify-center gap-5 pt-1">
-          {sources.spotifyTrackId && (
-            <button
-              type="button"
-              onClick={() => setSpotifyOpen((open) => !open)}
-              aria-label={spotifyOpen ? "Hide the Spotify player" : "Listen on Spotify"}
-              aria-pressed={spotifyOpen}
-              className="rounded-full transition-opacity hover:opacity-80 active:scale-95"
-            >
-              <Image
-                src="/icon/Spotify_Primary_Logo_RGB_Green.png"
-                alt=""
-                width={LOGO_SIZE}
-                height={LOGO_SIZE}
-                unoptimized
-              />
-            </button>
-          )}
-          {sources.appleMusicUrl && (
-            <a
-              href={sources.appleMusicUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Open in Apple Music"
-              className="rounded-[22%] transition-opacity hover:opacity-80 active:scale-95"
-            >
-              <Image
-                src="/icon/Apple_Music_Icon_RGB_sm_073120.svg"
-                alt=""
-                width={LOGO_SIZE}
-                height={LOGO_SIZE}
-                unoptimized
-              />
-            </a>
-          )}
-        </div>
-      )}
+      <div className="flex w-full items-center gap-4">
+        {sources.youtubeVideoId && (
+          // One pill-shaped button: the song (scrolling if it's long) and a play icon at its
+          // right end; a tap anywhere on it plays.
+          <button
+            type="button"
+            onClick={() => setPlaying(true)}
+            aria-label={`Play ${sources.title} by ${sources.artist}`}
+            className="hover:bg-muted/60 flex h-12 min-w-0 flex-1 items-center gap-3 rounded-full border pr-3 pl-5 text-left transition-colors active:scale-[0.99]"
+          >
+            <MarqueeText className="font-outfit min-w-0 flex-1 text-sm">
+              {sources.title} · <span className="text-muted-foreground">{sources.artist}</span>
+            </MarqueeText>
+            <PlayIcon aria-hidden className="size-5 shrink-0 translate-x-px fill-current" />
+          </button>
+        )}
+        {/* The song on other services, beside the pill and as tall as it: Spotify opens its
+            player below; Apple Music opens the song in Apple Music (the Music app on iPhone and Mac). */}
+        {sources.spotifyTrackId && (
+          <button
+            type="button"
+            onClick={() => setSpotifyOpen((open) => !open)}
+            aria-label={spotifyOpen ? "Hide the Spotify player" : "Listen on Spotify"}
+            aria-pressed={spotifyOpen}
+            className="shrink-0 rounded-full transition-opacity hover:opacity-80 active:scale-95"
+          >
+            <Image
+              src="/icon/Spotify_Primary_Logo_RGB_Green.png"
+              alt=""
+              width={LOGO_SIZE}
+              height={LOGO_SIZE}
+              unoptimized
+            />
+          </button>
+        )}
+        {sources.appleMusicUrl && (
+          <a
+            href={sources.appleMusicUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Open in Apple Music"
+            className="shrink-0 rounded-[22%] transition-opacity hover:opacity-80 active:scale-95"
+          >
+            <Image
+              src="/icon/Apple_Music_Icon_RGB_sm_073120.svg"
+              alt=""
+              width={LOGO_SIZE}
+              height={LOGO_SIZE}
+              unoptimized
+            />
+          </a>
+        )}
+      </div>
       {spotifyOpen && sources.spotifyTrackId && (
         <iframe
           src={`https://open.spotify.com/embed/track/${sources.spotifyTrackId}`}

@@ -138,11 +138,15 @@ const TITLE_GAP = 12;
 
 /** The back: the handwritten message and signature, with room for a longer note. */
 const BACK_PADDING = 28;
-const MESSAGE_SIZE = 19;
-const MESSAGE_LINE_HEIGHT = 1.45;
+const MESSAGE_SIZE = 18;
+const MESSAGE_LINE_HEIGHT = 1.6;
 /** Matches MESSAGE_MAX_LINES in src/lib/validation.ts. */
-const MESSAGE_LINES = 10;
-/** How far the handwriting's ink can reach outside its line boxes, in em. */
+const MESSAGE_LINES = 12;
+/**
+ * How far the handwriting's ink can reach past the sides of its line boxes, in em. (Below, the
+ * line height keeps the tails in: under about 1.6 they're cut. Room below would also show the
+ * tops of the next, clamped-off line.)
+ */
 const HAND_INK_SPILL = 0.35;
 const CARD_ID_SIZE = 8;
 /**
@@ -310,11 +314,10 @@ function CardBack({ card }: { card: CollectibleCardData }) {
               display: "-webkit-box",
               WebkitBoxOrient: "vertical",
               WebkitLineClamp: MESSAGE_LINES,
-              // Handwriting's tails and flourishes reach past its line boxes (the y's tail below,
-              // the H's loop to the left); room for them inside the clipped box, given back
-              // outside it so the text stays where it was.
-              padding: `0 ${HAND_INK_SPILL}em ${HAND_INK_SPILL}em`,
-              margin: `0 -${HAND_INK_SPILL}em -${HAND_INK_SPILL}em`,
+              // Handwriting's flourishes reach past its sides (the H's loop to the left); room for
+              // them inside the clipped box, given back outside it so the text stays where it was.
+              padding: `0 ${HAND_INK_SPILL}em`,
+              margin: `0 -${HAND_INK_SPILL}em`,
             }}
           >
             {card.message}
@@ -324,7 +327,7 @@ function CardBack({ card }: { card: CollectibleCardData }) {
           <p
             // Handwritten, like the message above it.
             className="font-hand shrink-0 truncate text-right"
-            style={{ fontSize: u(MESSAGE_SIZE), lineHeight: MESSAGE_LINE_HEIGHT, marginTop: u(14) }}
+            style={{ fontSize: u(MESSAGE_SIZE), lineHeight: MESSAGE_LINE_HEIGHT, marginTop: u(4) }}
           >
             {card.senderName}
           </p>

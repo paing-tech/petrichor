@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CARD_COLOR_PATTERN } from "@/lib/card-color";
+import { YOUTUBE_VIDEO_ID } from "@/lib/youtube-link";
 
 // Shared by the client form and the server actions; keep free of server-only imports.
 
@@ -13,8 +14,8 @@ export const LIMITS = {
   moment: 40,
 } as const;
 
-/** The card's back shows ten lines of message; more line breaks would push text past them. */
-export const MESSAGE_MAX_LINES = 10;
+/** The card's back shows twelve lines of message; more line breaks would push text past them. */
+export const MESSAGE_MAX_LINES = 12;
 
 /**
  * The most numbered copies one card can be created as. Requests for more go
@@ -72,7 +73,7 @@ export const PHOTO_KEY_PATTERN =
 
 // The song picked from search. Only IDs are accepted; the server builds the
 // Apple Music URL itself so a client can't smuggle in an arbitrary link.
-const appleMusicTrackSchema = z.object({
+export const appleMusicTrackSchema = z.object({
   storefront: z.string().regex(/^[a-z]{2}$/),
   collectionId: z.string().regex(/^\d{1,15}$/),
   trackId: z.string().regex(/^\d{1,15}$/),
@@ -102,6 +103,8 @@ export const createCardSchema = cardFieldsSchema.extend({
   timeZone: z.string().max(64).refine(isValidTimeZone, "Invalid time zone").nullable(),
   cardColor: hexColor("Card color"),
   photoAreaColor: hexColor("Photo area color").nullable(),
+  /** A YouTube video the creator picked because the song wasn't found there. */
+  youtubeVideoId: z.string().regex(YOUTUBE_VIDEO_ID, "Invalid YouTube video").nullable().optional(),
   editionSize: z
     .number()
     .int("Copies must be a whole number")

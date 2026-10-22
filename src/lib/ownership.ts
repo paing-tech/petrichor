@@ -163,7 +163,7 @@ export async function listCollection(userId: string) {
 /** The user's collection for the Music Library: newest first, with the song's Apple Music link for matching. */
 export async function listLibrary(userId: string) {
   return getDb()
-    .select({ ...cardContent, appleMusicUrl: cards.appleMusicUrl })
+    .select({ ...cardContent, appleMusicUrl: cards.appleMusicUrl, youtubeVideoId: cards.youtubeVideoId })
     .from(cards)
     .where(eq(cards.ownerUserId, userId))
     .orderBy(desc(sql`(select max(o.acquired_at) from card_ownerships o where o.card_id = ${cards.id} and o.user_id = ${userId})`));

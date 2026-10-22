@@ -34,6 +34,7 @@ export async function getCardByCardId(cardId: string): Promise<PublicCard | null
       timeZone: cards.timeZone,
       cardColor: cards.cardColor,
       photoAreaColor: cards.photoAreaColor,
+      youtubeVideoId: cards.youtubeVideoId,
       editionNumber: cards.editionNumber,
       editionSize: cards.editionSize,
       createdAt: cards.createdAt,
@@ -74,6 +75,7 @@ export async function insertEdition(
     timeZone: string | null;
     cardColor: string;
     photoAreaColor: string | null;
+    youtubeVideoId: string | null;
   },
   { creatorUserId, copies }: { creatorUserId: string | null; copies: CopyPlan[] },
 ): Promise<CreatedCopy[]> {

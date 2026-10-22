@@ -13,7 +13,7 @@ import {
 import Link from "next/link";
 import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
-import { createCard, requestPhotoUpload, type CreatedCopyResult } from "@/app/create/actions";
+import { createCard, requestPhotoUpload, type CreatedCopyResult, type PickedYouTubeVideo } from "@/app/create/actions";
 import { AppleMusicEmbed } from "@/components/apple-music-embed";
 import { CollectibleCard, type CardFace } from "@/components/collectible-card";
 import { AudienceField, type Audience } from "@/components/create/audience-field";
@@ -24,6 +24,7 @@ import { PhotoFramingLayer } from "@/components/create/photo-cropper";
 import { RecipientPicker } from "@/components/create/recipient-picker";
 import { useActionsAboveKeyboard } from "@/components/create/use-actions-above-keyboard";
 import { useIsNarrow } from "@/components/create/use-is-narrow";
+import { YouTubePick } from "@/components/create/youtube-pick";
 import { SelectedSong, SongSearch } from "@/components/create/song-search";
 import { FlipCard } from "@/components/flip-card";
 import { Button } from "@/components/ui/button";
@@ -143,6 +144,8 @@ export function CreateCardFlow() {
   const [sideChoice, setSideChoice] = useState<{ side: CardFace; step: number } | null>(null);
   const [anonymous, setAnonymous] = useState(false);
   const [recipients, setRecipients] = useState<PublicProfile[]>([]);
+  // A YouTube video the creator pasted on the preview, for the song it was picked for.
+  const [youtubePick, setYouTubePick] = useState<{ song: string; video: PickedYouTubeVideo } | null>(null);
   /** The created copies in edition order, with each one's link and status. */
   const [copies, setCopies] = useState<CreatedCopyResult[] | null>(null);
   const { data: session } = authClient.useSession();
@@ -380,6 +383,7 @@ export function CreateCardFlow() {
         audience,
         anonymous: signatureHidden,
         recipientUserIds: activeRecipients.map((r) => r.userId),
+        youtubeVideoId: pickedVideo?.videoId ?? null,
       });
       setStatus(null);
 
@@ -425,10 +429,15 @@ export function CreateCardFlow() {
     setEditionError(undefined);
     setAnonymous(false);
     setRecipients([]);
+    setYouTubePick(null);
     setCopies(null);
     setFormStep(0);
     goTo("edit");
   }
+
+  // The pasted video only counts for the song it was pasted for (the song can change on Edit).
+  const songKey = `${song?.trackId ?? ""}|${values.songTitle.trim()}|${values.artistName.trim()}`;
+  const pickedVideo = youtubePick?.song === songKey ? youtubePick.video : null;
 
   const previewSide: CardFace =
     sideChoice && sideChoice.step === formStep
@@ -535,6 +544,14 @@ export function CreateCardFlow() {
           back={<CollectibleCard card={previewCard} face="back" className="max-w-none" />}
         />
         {song && <AppleMusicEmbed url={buildAppleMusicUrl(song)} title={song.title} />}
+        <YouTubePick
+          key={songKey}
+          songTitle={previewCard.songTitle}
+          artistName={previewCard.artistName}
+          appleMusic={song}
+          picked={pickedVideo}
+          onPick={(video) => setYouTubePick(video ? { song: songKey, video } : null)}
+        />
         <div className="flex w-full gap-2">
           <Button
             variant="outline"

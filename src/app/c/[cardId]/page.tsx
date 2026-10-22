@@ -123,6 +123,8 @@ type CardSong = {
   appleMusicUrl: string | null;
   message: string | null;
   senderName: string | null;
+  /** The creator's own YouTube pick, when the song wasn't found on YouTube. */
+  youtubeVideoId: string | null;
 };
 
 function baseSources(card: CardSong): ListenSources {
@@ -145,8 +147,10 @@ async function Listen({ card }: { card: CardSong }) {
     artist: card.artistName,
     appleMusicUrl: card.appleMusicUrl,
   });
-  const youtubeAspect = matches.youtubeVideoId ? await getYouTubeAspect(matches.youtubeVideoId) : null;
-  const sources = { ...baseSources(card), ...matches, youtubeAspect };
+  // The creator's pick, if they made one, over the song's shared match.
+  const youtubeVideoId = card.youtubeVideoId ?? matches.youtubeVideoId;
+  const youtubeAspect = youtubeVideoId ? await getYouTubeAspect(youtubeVideoId) : null;
+  const sources = { ...baseSources(card), ...matches, youtubeVideoId, youtubeAspect };
   if (
     !sources.appleMusicUrl &&
     !sources.spotifyTrackId &&

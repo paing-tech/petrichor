@@ -38,16 +38,19 @@ async function Library() {
   const lookups = new Map<string, Promise<{ videoId: string | null; aspect: number | null }>>();
   const tracks: LibraryTrack[] = await Promise.all(
     cards.map(async (card) => {
-      const key = `${card.appleMusicUrl ?? ""}|${card.songTitle}|${card.artistName}`;
+      // A card with its creator's own YouTube pick plays that; others share their song's match.
+      const key = card.youtubeVideoId
+        ? `video:${card.youtubeVideoId}`
+        : `${card.appleMusicUrl ?? ""}|${card.songTitle}|${card.artistName}`;
       if (!lookups.has(key)) {
+        const videoId = card.youtubeVideoId
+          ? Promise.resolve(card.youtubeVideoId)
+          : getSongMatches({ title: card.songTitle, artist: card.artistName, appleMusicUrl: card.appleMusicUrl }).then(
+              (matches) => matches.youtubeVideoId,
+            );
         lookups.set(
           key,
-          getSongMatches({ title: card.songTitle, artist: card.artistName, appleMusicUrl: card.appleMusicUrl }).then(
-            async ({ youtubeVideoId }) => ({
-              videoId: youtubeVideoId,
-              aspect: youtubeVideoId ? await getYouTubeAspect(youtubeVideoId) : null,
-            }),
-          ),
+          videoId.then(async (id) => ({ videoId: id, aspect: id ? await getYouTubeAspect(id) : null })),
         );
       }
       const found = await lookups.get(key)!;

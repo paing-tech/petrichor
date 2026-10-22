@@ -35,6 +35,9 @@ export const cards = pgTable(
     cardColor: text("card_color").notNull().default("#ffffff"),
     // Fill for the photo area on cards without a photo; NULL means the default earth gradient.
     photoAreaColor: text("photo_area_color"),
+    // A YouTube video the creator chose for this card when the song couldn't be found on
+    // YouTube (song_matches is shared by every card with the song; this is only this card's).
+    youtubeVideoId: text("youtube_video_id"),
     // Numbered editions: identical cards created together, each with its own card ID,
     // printed as "edition_number of edition_size". edition_id links the set.
     // The size range check below mirrors MAX_EDITION_SIZE in src/lib/validation.ts

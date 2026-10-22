@@ -126,6 +126,36 @@ async function findOnSpotify(song: Song, credentials: { clientId: string; client
   return match?.id ?? null;
 }
 
+export type YouTubeVideoInfo = {
+  title: string;
+  channel: string;
+  /** Whether it can play in a player on another site (some uploads are YouTube-only). */
+  embeddable: boolean;
+  /** Whether its title names the song, as a hint that it's the right video. */
+  namesSong: boolean;
+};
+
+/**
+ * One video's title, channel, and whether it can be embedded, for a link pasted by a card's
+ * creator; null if there's no such video (or it's private), or YouTube isn't set up. Throws when
+ * YouTube can't be reached, so a failed check isn't mistaken for a missing video.
+ */
+export async function lookUpYouTubeVideo(videoId: string, songTitle: string): Promise<YouTubeVideoInfo | null> {
+  const { youtubeApiKey } = getMusicMatchEnv();
+  if (!youtubeApiKey) return null;
+  const params = new URLSearchParams({ part: "snippet,status", id: videoId, key: youtubeApiKey });
+  const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params}`);
+  if (!response.ok) throw new Error(`YouTube videos lookup failed (${response.status})`);
+  const [video] = ((await response.json()) as { items?: Omit<YouTubeVideo, "contentDetails">[] }).items ?? [];
+  if (!video) return null;
+  return {
+    title: video.snippet.title,
+    channel: video.snippet.channelTitle,
+    embeddable: video.status.embeddable,
+    namesSong: normalize(video.snippet.title).includes(normalize(songTitle)),
+  };
+}
+
 /** How close (seconds) a "Topic" audio upload must be to the Apple Music track's length. */
 const YOUTUBE_DURATION_TOLERANCE_S = 5;
 /** Uploads that aren't the song as released, unless the song's own title says so. */

@@ -1,0 +1,1 @@
+ALTER TABLE "cards" ADD COLUMN "youtube_video_id" text;

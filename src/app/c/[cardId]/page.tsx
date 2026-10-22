@@ -60,7 +60,7 @@ export default function CardPage({
   searchParams,
 }: PageProps<"/c/[cardId]">) {
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col items-center gap-2 px-6 pb-16">
+    <div className="mx-auto flex w-full max-w-md flex-col items-center gap-2 px-6 pb-2">
       <Suspense fallback={<CardSkeleton />}>
         <CardView params={params} searchParams={searchParams} />
       </Suspense>

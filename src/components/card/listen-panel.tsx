@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ArrowUpRightIcon, PlayIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,12 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
   const [playing, setPlaying] = useState(false);
   // Spotify's player, opened from its logo beside the play pill.
   const [spotifyOpen, setSpotifyOpen] = useState(false);
+  const spotify = useRef<HTMLIFrameElement>(null);
+
+  // On a small phone the player opens past the bottom of the screen: bring all of it into view.
+  useEffect(() => {
+    if (spotifyOpen) spotify.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [spotifyOpen]);
 
   // Listening mode: the page goes black (see globals.css and the card page), like the home page
   // while its song plays, and so do the phone's browser bars.
@@ -149,6 +155,7 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
       </div>
       {spotifyOpen && sources.spotifyTrackId && (
         <iframe
+          ref={spotify}
           src={`https://open.spotify.com/embed/track/${sources.spotifyTrackId}`}
           title={`${sources.title} by ${sources.artist} on Spotify`}
           allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"

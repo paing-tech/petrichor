@@ -142,6 +142,8 @@ const MESSAGE_SIZE = 19;
 const MESSAGE_LINE_HEIGHT = 1.45;
 /** Matches MESSAGE_MAX_LINES in src/lib/validation.ts. */
 const MESSAGE_LINES = 10;
+/** How far the handwriting's ink can reach outside its line boxes, in em. */
+const HAND_INK_SPILL = 0.35;
 const CARD_ID_SIZE = 8;
 /**
  * The QR code in the back's bottom-right corner (with its white margin). Much over 120 and the
@@ -308,6 +310,11 @@ function CardBack({ card }: { card: CollectibleCardData }) {
               display: "-webkit-box",
               WebkitBoxOrient: "vertical",
               WebkitLineClamp: MESSAGE_LINES,
+              // Handwriting's tails and flourishes reach past its line boxes (the y's tail below,
+              // the H's loop to the left); room for them inside the clipped box, given back
+              // outside it so the text stays where it was.
+              padding: `0 ${HAND_INK_SPILL}em ${HAND_INK_SPILL}em`,
+              margin: `0 -${HAND_INK_SPILL}em -${HAND_INK_SPILL}em`,
             }}
           >
             {card.message}

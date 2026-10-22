@@ -1,8 +1,18 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import type { CardFace } from "@/components/collectible-card";
 import { cn } from "@/lib/utils";
+
+/**
+ * Lets a surrounding view take over a FlipCard: which face shows, and what a tap does (e.g.
+ * listening mode, where tapping the small card shows its message beside the player).
+ */
+export const FlipControlContext = createContext<{
+  side: CardFace;
+  onTap: () => void;
+  label: string;
+} | null>(null);
 
 /**
  * A card with two faces (each a CollectibleCard: `face="front"` and `face="back"`) that turns
@@ -30,9 +40,11 @@ export function FlipCard({
 }) {
   const [ownSide, setOwnSide] = useState<CardFace>("front");
   const [flipped, setFlipped] = useState(false);
-  const current = side ?? ownSide;
+  const control = useContext(FlipControlContext);
+  const current = control?.side ?? side ?? ownSide;
 
   function flip() {
+    if (control) return control.onTap();
     const next = current === "front" ? "back" : "front";
     setOwnSide(next);
     setFlipped(true);
@@ -60,7 +72,9 @@ export function FlipCard({
           <button
             type="button"
             onClick={flip}
-            aria-label={current === "front" ? "Flip the card to its back" : "Flip the card to its front"}
+            aria-label={
+              control?.label ?? (current === "front" ? "Flip the card to its back" : "Flip the card to its front")
+            }
             className="block w-full cursor-pointer rounded-[6%] text-left focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
           >
             {faces}

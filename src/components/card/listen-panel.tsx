@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { ArrowUpRightIcon, PlayIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ListeningPlayer } from "@/components/card/listening-player";
+import { MarqueeText } from "@/components/ui/marquee-text";
+import { setMessageShown } from "@/components/card/listening-store";
 
 // The card page's player, under the card: Spotify's player (full songs on desktop for
 // signed-in Premium listeners, previews otherwise) and a play button. Playing turns the page
@@ -18,6 +20,9 @@ export type ListenSources = {
   youtubeVideoId: string | null;
   /** The YouTube video's width ÷ height, if known. */
   youtubeAspect: number | null;
+  /** The card's message and signature, read in listening mode. */
+  message: string | null;
+  signature: string | null;
 };
 
 /** Spotify's compact player height (its sizes are 80, 152 and 352px); not cropped, per its terms. */
@@ -41,6 +46,7 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
     if (theme) theme.content = "#000000";
     window.scrollTo({ top: 0, behavior: "smooth" });
     return () => {
+      setMessageShown(false);
       document.documentElement.removeAttribute("data-listening");
       if (theme && day) theme.content = day;
     };
@@ -73,6 +79,8 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
         aspect={playerAspect(sources.youtubeAspect)}
         title={sources.title}
         artist={sources.artist}
+        message={sources.message}
+        signature={sources.signature}
         onClose={() => setPlaying(false)}
       />
     );
@@ -89,14 +97,20 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
         />
       )}
       {sources.youtubeVideoId && (
-        <button
-          type="button"
-          onClick={() => setPlaying(true)}
-          aria-label={`Play ${sources.title}`}
-          className="bg-foreground text-background grid size-11 place-items-center justify-self-start rounded-full transition-transform active:scale-95"
-        >
-          <PlayIcon className="size-4 translate-x-px fill-current" />
-        </button>
+        // The song (scrolling if it's long) with a play button at its right end.
+        <div className="flex h-12 items-center gap-3 rounded-full border pr-1 pl-5">
+          <MarqueeText className="font-outfit min-w-0 flex-1 text-sm">
+            {sources.title} · <span className="text-muted-foreground">{sources.artist}</span>
+          </MarqueeText>
+          <button
+            type="button"
+            onClick={() => setPlaying(true)}
+            aria-label={`Play ${sources.title}`}
+            className="grid size-10 shrink-0 place-items-center rounded-full transition-opacity hover:opacity-70 active:scale-95"
+          >
+            <PlayIcon className="size-5 translate-x-px fill-current" />
+          </button>
+        </div>
       )}
     </div>
   );
@@ -107,7 +121,7 @@ export function ListenPanelSkeleton() {
   return (
     <div className="grid w-full grid-cols-1 gap-3" aria-hidden>
       <div className={`bg-muted ${SPOTIFY_HEIGHT} animate-pulse rounded-xl`} />
-      <div className="bg-muted size-11 animate-pulse rounded-full" />
+      <div className="bg-muted h-10 animate-pulse rounded-full" />
     </div>
   );
 }

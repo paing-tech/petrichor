@@ -3,9 +3,13 @@
 import {
   useCallback,
   useEffect,
+  useImperativeHandle,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
+  type Ref,
+  type RefObject,
 } from "react";
 import {
   Maximize2Icon,
@@ -190,7 +194,11 @@ export function YouTubeSpace({
   trigger,
   showInline,
   inlineAspect,
+  inlineStyle,
+  inlineClassName,
   autoplay = false,
+  playerRef,
+  handleRef,
 }: {
   videoId: string;
   /** The player's accessible name. */
@@ -213,8 +221,19 @@ export function YouTubeSpace({
    * Without it the inline player is 16:9 across its column.
    */
   inlineAspect?: number;
+  /**
+   * The inline player's own size and shape (e.g. listening mode sizes it to its half of the
+   * screen); takes precedence over `inlineAspect`. `inlineClassName` styles the player itself
+   * (e.g. its corners).
+   */
+  inlineStyle?: CSSProperties;
+  inlineClassName?: string;
   /** Starts the song as soon as the player loads (pass only after the viewer asked to play). */
   autoplay?: boolean;
+  /** Also points at the player's iframe, so a parent can send it commands and hear its state. */
+  playerRef?: RefObject<HTMLIFrameElement | null>;
+  /** Lets a parent open the space from its own button (the same player moves in, still playing). */
+  handleRef?: Ref<{ open: () => void }>;
 }) {
   const origin = useOrigin();
   const [open, setOpen] = useState(false);
@@ -282,6 +301,8 @@ export function YouTubeSpace({
     if (document.fullscreenElement)
       void document.exitFullscreen().catch(() => {});
   }, []);
+
+  useImperativeHandle(handleRef, () => ({ open: enter }));
 
   function enter() {
     view.current = IDENTITY;
@@ -810,20 +831,27 @@ export function YouTubeSpace({
           className={cn(
             open
               ? "fixed top-1/2 left-1/2 z-[61] overflow-hidden rounded-2xl shadow-[0_0_80px_rgba(255,255,255,0.08)]"
-              : inlineAspect
+              : inlineStyle
+                ? "relative"
+                : inlineAspect
                 ? "relative mx-auto"
                 : "relative left-1/2 w-[356px] max-w-[calc(100vw-16px)] -translate-x-1/2 sm:left-0 sm:w-full sm:max-w-none sm:translate-x-0",
           )}
           style={
             open
               ? { width: WORLD_WIDTH, height: WORLD_HEIGHT }
-              : inlineAspect
+              : inlineStyle
+                ? inlineStyle
+                : inlineAspect
                 ? { width: INLINE_HEIGHT * inlineAspect, height: INLINE_HEIGHT }
                 : undefined
           }
         >
           <iframe
-            ref={iframeRef}
+            ref={(element) => {
+              iframeRef.current = element;
+              if (playerRef) playerRef.current = element;
+            }}
             src={`https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&rel=0&enablejsapi=1${autoplay ? "&autoplay=1" : ""}${origin ? `&origin=${encodeURIComponent(origin)}` : ""}`}
             title={title}
             allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
@@ -840,7 +868,9 @@ export function YouTubeSpace({
               "block w-full border-0 bg-transparent",
               open
                 ? "h-full"
-                : inlineAspect
+                : inlineStyle
+                  ? cn("h-full bg-black", inlineClassName)
+                  : inlineAspect
                   ? "h-full rounded-xl"
                   : "h-[200px] sm:h-auto sm:aspect-video sm:min-h-[200px]",
             )}

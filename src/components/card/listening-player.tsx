@@ -13,7 +13,13 @@ import {
   Repeat1Icon,
   SkipBackIcon,
 } from "lucide-react";
-import { useOrigin } from "@/components/share-actions";
+import { motion } from "motion/react";
+import {
+  setMessageShown,
+  useMessageShown,
+} from "@/components/card/listening-store";
+import { YouTubeSpace } from "@/components/card/youtube-space";
+import { MarqueeText } from "@/components/ui/marquee-text";
 import { cn } from "@/lib/utils";
 
 /** Where the keepsake card sits while listening (ListeningCard moves it here). */
@@ -52,6 +58,8 @@ export function ListeningPlayer({
   aspect,
   title,
   artist,
+  message,
+  signature,
   onClose,
 }: {
   videoId: string;
@@ -59,9 +67,14 @@ export function ListeningPlayer({
   aspect: number;
   title: string;
   artist: string;
+  /** The card's message and signature, shown when the small card is tapped. */
+  message: string | null;
+  signature: string | null;
   onClose: () => void;
 }) {
-  const origin = useOrigin();
+  const messageShown = useMessageShown();
+  // Opens the full-screen space ("Immersive") with this same player.
+  const space = useRef<{ open: () => void }>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   // What YouTube last reported: playing or not, the time then (and when we heard), the length.
   const [playback, setPlayback] = useState<Playback>({
@@ -137,7 +150,6 @@ export function ListeningPlayer({
     return () => cancelAnimationFrame(frame);
   }, [playback.playing]);
 
-
   const elapsed = Math.min(
     playback.duration || Infinity,
     playback.playing
@@ -167,31 +179,29 @@ export function ListeningPlayer({
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col text-white">
-      {/* The top half (below the header): the video, centred. Square videos fill the width within
+      {/* The top 56% (below the header): the video, centred. Square videos fill the width within
           the side margins; wider ones (16:9) reach the screen's edges. Either way it fits the
           half, and never drops below YouTube's 200px minimum. */}
-      <div className="h-[50dvh] shrink-0 pt-16">
+      <div className="h-[56dvh] shrink-0 pt-16">
         <div className="grid size-full place-items-center [container-type:size]">
-          <iframe
-            ref={iframeRef}
-            src={`https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&rel=0&enablejsapi=1&autoplay=1${origin ? `&origin=${encodeURIComponent(origin)}` : ""}`}
+          {/* The player lives in the full-screen space's component, so "Immersive" can move this
+              very player into the space and back without the song restarting. */}
+          <YouTubeSpace
+            videoId={videoId}
             title={`${title} by ${artist} on YouTube`}
-            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-            allowFullScreen
-            // Ask the player to report its state (play / pause, time, length) to this page.
-            onLoad={() =>
-              iframeRef.current?.contentWindow?.postMessage(
-                JSON.stringify({ event: "listening", id: videoId }),
-                "*",
-              )
+            songTitle={title}
+            artist={artist}
+            showInline
+            autoplay
+            trigger={() => null}
+            playerRef={iframeRef}
+            handleRef={space}
+            inlineClassName={
+              aspect <= SQUARE_UP_TO ? "rounded-none" : "sm:rounded-xl"
             }
-            className={cn(
-              "border-0 bg-black",
-              aspect <= SQUARE_UP_TO ? "rounded-xl" : "sm:rounded-xl",
-            )}
-            style={{
+            inlineStyle={{
               aspectRatio: aspect,
-              width: `max(${MIN_PLAYER_HEIGHT * aspect}px, min(${aspect <= SQUARE_UP_TO ? "100cqw - 3rem" : "100cqw"}, (100cqh - 1rem) * ${aspect}))`,
+              width: `max(${MIN_PLAYER_HEIGHT * aspect}px, min(${aspect <= SQUARE_UP_TO ? "100cqw - 1.5rem" : "100cqw"}, (100cqh - 1rem) * ${aspect}))`,
             }}
           />
         </div>
@@ -212,17 +222,91 @@ export function ListeningPlayer({
 
       {/* The bottom half: the song (and its card), the progress bar, the controls. */}
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-evenly px-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <div className="flex items-center gap-4">
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-serif text-3xl leading-tight tracking-tight">
-              {title}
-            </p>
-            <p className="font-outfit mt-0.5 truncate text-sm text-white/70">
-              {artist}
-            </p>
-          </div>
+        <div
+          className={cn(
+            "flex gap-4",
+            // The song sits at the card's foot; with the message, the column runs the card's
+            // height (or more, for a long note) so the note starts at its top.
+            messageShown ? "items-stretch" : "items-end",
+          )}
+        >
+          {messageShown ? (
+            // The message: the note drifts out from the card, line by line, signed at the end,
+            // and the song shrinks in place to one quiet line at the card's foot. Tap to fold it.
+            <button
+              type="button"
+              onClick={() => setMessageShown(false)}
+              aria-label="Hide the message"
+              className="flex min-w-0 flex-1 flex-col justify-between gap-4 text-left"
+            >
+              <div className="max-h-[24dvh] overflow-y-auto">
+                {(message ?? "").split("\n").map((line, i) => (
+                  <motion.p
+                    key={i}
+                    initial={{ opacity: 0, x: 24 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{
+                      delay: 0.1 + i * 0.1,
+                      duration: 0.5,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
+                    className="font-hand min-h-[1.4em] text-lg leading-snug font-light"
+                  >
+                    {line}
+                  </motion.p>
+                ))}
+                {!message && !signature && (
+                  <p className="text-sm text-white/50">
+                    There&apos;s no message on this card.
+                  </p>
+                )}
+                {signature && (
+                  <motion.p
+                    initial={{ opacity: 0, x: 24 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{
+                      delay:
+                        0.2 + (message ? message.split("\n").length : 0) * 0.1,
+                      duration: 0.5,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
+                    // A sign-off right under the note: left, softer and a little smaller.
+                    className="font-hand mt-1.5 text-base font-light text-white/60"
+                  >
+                    — {signature}
+                  </motion.p>
+                )}
+              </div>
+              {/* Where the artist was, on the card's bottom edge (same baseline trim). */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="font-outfit -mb-[0.3rem] text-sm text-white/60"
+              >
+                <MarqueeText>
+                  {title} · {artist}
+                </MarqueeText>
+              </motion.div>
+            </button>
+          ) : (
+            <motion.div
+              initial={false}
+              animate={{ opacity: 1 }}
+              className="min-w-0 flex-1"
+            >
+              {/* Long titles scroll in a loop so the whole name can be read. */}
+              <MarqueeText className="font-serif text-3xl leading-tight tracking-tight">
+                {title}
+              </MarqueeText>
+              {/* The negative bottom margin drops the line box's space below the letters, so the
+                  artist's baseline sits exactly on the card's bottom edge. */}
+              <p className="font-outfit mt-0.5 -mb-[0.3rem] truncate text-sm text-white/70">
+                {artist}
+              </p>
+            </motion.div>
+          )}
           {/* The keepsake card moves in here (see ListeningCard). */}
-          <div id={LISTENING_CARD_SLOT} className="w-20 shrink-0" />
+          <div id={LISTENING_CARD_SLOT} className="w-28 shrink-0" />
         </div>
 
         {/* Tap or drag to move through the song. */}
@@ -276,6 +360,18 @@ export function ListeningPlayer({
           </div>
         </div>
 
+        {/* The full-screen night-sky space, with the song carrying on. */}
+        <button
+          type="button"
+          onClick={() => space.current?.open()}
+          className={cn(
+            CONTROL,
+            "mx-auto gap-2 px-3 py-1.5 text-sm text-white/70",
+          )}
+        >
+          <ImmersiveIcon className="size-5" /> Immersive
+        </button>
+
         {/* Restart, play / pause, repeat: centred, the play button largest. */}
         <div className="flex items-center justify-center gap-12">
           <button
@@ -317,5 +413,19 @@ export function ListeningPlayer({
         </div>
       </div>
     </div>
+  );
+}
+
+/** Google's Material "360" icon (Apache 2.0): an arrow circling round, for the immersive view. */
+function ImmersiveIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden
+      className={className}
+    >
+      <path d="M12 7C6.48 7 2 9.24 2 12c0 2.24 2.94 4.13 7 4.77V20l4-4-4-4v2.73c-3.15-.56-5-1.9-5-2.73 0-1.06 3.04-3 8-3s8 1.94 8 3c0 .73-1.46 1.89-4 2.53v2.05c3.53-.77 6-2.53 6-4.58 0-2.76-4.48-5-10-5z" />
+    </svg>
   );
 }

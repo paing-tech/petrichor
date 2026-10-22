@@ -191,3 +191,18 @@
     animation: none !important;
   }
 }
+/* Scrolling text (MarqueeText): holds at its start, slides to its end, holds, and (alternating)
+   slides back. */
+@keyframes marquee {
+  0%,
+  15% {
+    transform: translateX(0);
+  }
+  85%,
+  100% {
+    transform: translateX(var(--marquee-distance, 0));
+  }
+}
+@utility animate-marquee {
+  animation: marquee var(--marquee-duration, 6s) ease-in-out infinite alternate;
+}

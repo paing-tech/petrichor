@@ -125,6 +125,8 @@ type CardSong = {
   songTitle: string;
   artistName: string;
   appleMusicUrl: string | null;
+  message: string | null;
+  senderName: string | null;
 };
 
 function baseSources(card: CardSong): ListenSources {
@@ -135,6 +137,8 @@ function baseSources(card: CardSong): ListenSources {
     spotifyTrackId: null,
     youtubeVideoId: null,
     youtubeAspect: null,
+    message: card.message,
+    signature: card.senderName,
   };
 }
 

@@ -1,6 +1,8 @@
 import type { CSSProperties, ReactNode } from "react";
+import { CardQr, qrQuietShare } from "@/components/card-qr";
 import { cardInk, DEFAULT_CARD_COLOR, EARTH_PHOTO_AREA, hexToRgb } from "@/lib/card-color";
 import { cropImageStyle, type PhotoCrop } from "@/lib/photo-crop";
+import { cardUrl } from "@/lib/site-url";
 import { cn } from "@/lib/utils";
 
 export type CollectibleCardData = {
@@ -135,12 +137,17 @@ function trimToLetters(font: FontMetrics, size: number, lineHeight: number): CSS
 const TITLE_GAP = 12;
 
 /** The back: the handwritten message and signature, with room for a longer note. */
-const BACK_PADDING = 34;
+const BACK_PADDING = 28;
 const MESSAGE_SIZE = 19;
 const MESSAGE_LINE_HEIGHT = 1.45;
 /** Matches MESSAGE_MAX_LINES in src/lib/validation.ts. */
 const MESSAGE_LINES = 10;
-const CARD_ID_SIZE = 10.5;
+const CARD_ID_SIZE = 8;
+/**
+ * The QR code in the back's bottom-right corner (with its white margin). Much over 120 and the
+ * card ID beside it no longer fits; much under 100 and another phone can't scan it off a screen.
+ */
+const QR_SIZE = 80;
 
 /**
  * Prints the date in the sender's time zone, so a card made on the morning of
@@ -294,7 +301,7 @@ function CardBack({ card }: { card: CollectibleCardData }) {
       <div className="flex min-h-0 flex-1 flex-col">
         {card.message && (
           <p
-            className="font-hand min-h-0 overflow-hidden font-light whitespace-pre-line"
+            className="font-nothing min-h-0 overflow-hidden font-light whitespace-pre-line"
             style={{
               fontSize: u(MESSAGE_SIZE),
               lineHeight: MESSAGE_LINE_HEIGHT,
@@ -317,19 +324,37 @@ function CardBack({ card }: { card: CollectibleCardData }) {
         )}
       </div>
 
-      {/* The date it was made, and (once the card exists) its ID. */}
-      <div
-        className="font-outfit flex shrink-0 items-baseline justify-between"
-        style={{ gap: u(12), fontSize: u(OUTFIT_SIZE), paddingTop: u(16) }}
-      >
-        <p className="shrink-0">{card.createdAt ? formatCardDate(card.createdAt, card.timeZone) : null}</p>
+      {/* The foot, bottom right: the date it was made and its ID, right-aligned beside a QR code to
+          the card's page (once the card exists), the ID's baseline level with the code's last row. */}
+      <div className="flex shrink-0 items-end justify-end" style={{ gap: u(8), paddingTop: u(16) }}>
+        <div
+          className="font-outfit min-w-0 text-right"
+          style={{
+            fontSize: u(OUTFIT_SIZE),
+            lineHeight: OUTFIT_LINE_HEIGHT,
+            // Up past the code's white margin, which is invisible on a white card.
+            marginBottom: card.cardId ? u(QR_SIZE * qrQuietShare(cardUrl(card.cardId))) : undefined,
+          }}
+        >
+          {card.createdAt && <p>{formatCardDate(card.createdAt, card.timeZone)}</p>}
+          {card.cardId && (
+            <p
+              className="truncate text-(--ink-faint)"
+              style={{
+                fontSize: u(CARD_ID_SIZE),
+                letterSpacing: "0.04em",
+                marginTop: u(4),
+                marginBottom: trimToLetters(OUTFIT, CARD_ID_SIZE, OUTFIT_LINE_HEIGHT).marginBottom,
+              }}
+            >
+              {card.cardId}
+            </p>
+          )}
+        </div>
         {card.cardId && (
-          <p
-            className="min-w-0 truncate text-(--ink-faint)"
-            style={{ fontSize: u(CARD_ID_SIZE), letterSpacing: "0.04em" }}
-          >
-            {card.cardId}
-          </p>
+          <div className="shrink-0" style={{ width: u(QR_SIZE) }}>
+            <CardQr value={cardUrl(card.cardId)} className="block w-full" />
+          </div>
         )}
       </div>
     </div>

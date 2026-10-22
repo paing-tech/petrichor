@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Instrument_Serif, Kalam, Outfit } from "next/font/google";
+import { Geist, Geist_Mono, Instrument_Serif, Kalam, La_Belle_Aurore, Nothing_You_Could_Do, Outfit } from "next/font/google";
 import Link from "next/link";
 import { Suspense, ViewTransition } from "react";
 import { AccountMenu } from "@/components/account/account-menu";
@@ -29,6 +29,19 @@ const kalam = Kalam({
   variable: "--font-kalam",
   subsets: ["latin"],
   weight: "300",
+});
+
+// Handwriting to try for the message (classes font-nothing and font-aurore).
+const nothingYouCouldDo = Nothing_You_Could_Do({
+  variable: "--font-nothing-you-could-do",
+  subsets: ["latin"],
+  weight: "400",
+});
+
+const laBelleAurore = La_Belle_Aurore({
+  variable: "--font-la-belle-aurore",
+  subsets: ["latin"],
+  weight: "400",
 });
 
 const outfit = Outfit({
@@ -82,7 +95,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} ${kalam.variable} ${outfit.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} ${kalam.variable} ${nothingYouCouldDo.variable} ${laBelleAurore.variable} ${outfit.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col pb-[env(safe-area-inset-bottom)]">
         {siteHeader}

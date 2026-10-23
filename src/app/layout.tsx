@@ -38,10 +38,10 @@ const outfit = Outfit({
 
 export const metadata: Metadata = {
   title: {
-    default: "Petrichor — music memory cards",
-    template: "%s · Petrichor",
+    default: "Petrichor",
+    template: "%s",
   },
-  description: "Collectible keepsakes for preserving memories through music.",
+  description: "The Art of Reliving Moments.",
   // Opened from the home screen on iPhone: full screen like an app, named "Petrichor".
   appleWebApp: { capable: true, title: "Petrichor", statusBarStyle: "default" },
 };

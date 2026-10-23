@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Petrichor",
     short_name: "Petrichor",
-    description: "Collectible keepsakes for preserving memories through music.",
+    description: "The Art of Reliving Moments.",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",

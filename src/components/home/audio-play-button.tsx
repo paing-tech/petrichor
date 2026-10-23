@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { HeadphonesIcon, PauseIcon, PlayIcon, SkipBackIcon, SkipForwardIcon } from "lucide-react";
 import { useListening } from "@/components/home/listening";
 import { cn } from "@/lib/utils";
 
 const u = (px: number) => `calc(var(--u) * ${px})`;
+
+const formatTime = (seconds: number) => {
+  const s = Math.max(0, Math.floor(seconds || 0));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
 /** Trims a line's box to its capitals and baseline, so spacing is measured between letters. */
 const TRIM: CSSProperties = { textBox: "trim-both cap alphabetic" };
 
@@ -64,7 +69,10 @@ export function NowPlaying() {
   const listening = useListening();
   const shown = listening?.dark ?? false;
   const barRef = useRef<HTMLDivElement>(null);
+  const thumbRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  // While dragging the bar: the share of the song being chosen (shown instead of the song's own).
+  const scrub = useRef<number | null>(null);
 
   // Move the progress bar every frame while it's on screen (smoother than timeupdate).
   useEffect(() => {
@@ -72,14 +80,32 @@ export function NowPlaying() {
     let frame = 0;
     const draw = () => {
       const audio = listening.audio();
-      const progress = audio && audio.duration ? audio.currentTime / audio.duration : 0;
+      const duration = audio && audio.duration ? audio.duration : 0;
+      const progress = scrub.current ?? (duration ? audio!.currentTime / duration : 0);
       if (barRef.current) barRef.current.style.width = `${progress * 100}%`;
-      trackRef.current?.setAttribute("aria-valuenow", String(Math.round(progress * 100)));
+      if (thumbRef.current) thumbRef.current.style.left = `${progress * 100}%`;
+      const track = trackRef.current;
+      if (track) {
+        track.setAttribute("aria-valuemax", String(Math.round(duration)));
+        track.setAttribute("aria-valuenow", String(Math.round(progress * duration)));
+        track.setAttribute("aria-valuetext", `${formatTime(progress * duration)} of ${formatTime(duration)}`);
+      }
       frame = requestAnimationFrame(draw);
     };
     frame = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frame);
   }, [shown, listening]);
+
+  /** The share of the song under the pointer, along the bar. */
+  const shareAt = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const bar = event.currentTarget.getBoundingClientRect();
+    return Math.min(1, Math.max(0, (event.clientX - bar.left) / bar.width));
+  };
+  /** Jumps to a share of the song (0–1). */
+  const seekTo = (share: number) => {
+    const audio = listening?.audio();
+    if (audio && audio.duration) audio.currentTime = Math.min(1, Math.max(0, share)) * audio.duration;
+  };
 
   if (!listening) return null;
   const { track } = listening;
@@ -131,15 +157,56 @@ export function NowPlaying() {
         </button>
       </div>
 
+      {/* Tap or drag to move through the song (or use the arrow keys). A 24px-tall target around
+          the thin line; its dot shows while dragging, hovering or focused. */}
       <div
         ref={trackRef}
-        role="progressbar"
-        aria-label="Song progress"
+        role="slider"
+        tabIndex={0}
+        aria-label="Song position"
         aria-valuemin={0}
-        aria-valuemax={100}
-        className="mt-3 h-0.5 w-full overflow-hidden rounded-full bg-white/25"
+        // Kept up to date (with the maximum and the spoken time) by the drawing loop above.
+        aria-valuenow={0}
+        onKeyDown={(event) => {
+          const audio = listening.audio();
+          if (!audio || !audio.duration) return;
+          const step = 5 / audio.duration;
+          const now = audio.currentTime / audio.duration;
+          const to =
+            event.key === "ArrowRight" || event.key === "ArrowUp" ? now + step
+            : event.key === "ArrowLeft" || event.key === "ArrowDown" ? now - step
+            : event.key === "Home" ? 0
+            : event.key === "End" ? 1
+            : null;
+          if (to === null) return;
+          event.preventDefault();
+          seekTo(to);
+        }}
+        onPointerDown={(event) => {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          scrub.current = shareAt(event);
+        }}
+        onPointerMove={(event) => {
+          if (scrub.current !== null) scrub.current = shareAt(event);
+        }}
+        onPointerUp={(event) => {
+          if (scrub.current === null) return;
+          seekTo(shareAt(event));
+          scrub.current = null;
+        }}
+        onPointerCancel={() => {
+          scrub.current = null;
+        }}
+        className="group/bar relative mt-1 flex h-6 w-full cursor-pointer touch-none items-center outline-none"
       >
-        <div ref={barRef} className="h-full w-0 rounded-full bg-white" />
+        <div className="h-0.5 w-full overflow-hidden rounded-full bg-white/25 transition-[height] group-hover/bar:h-1 group-active/bar:h-1">
+          <div ref={barRef} className="h-full w-0 rounded-full bg-white" />
+        </div>
+        <div
+          ref={thumbRef}
+          aria-hidden
+          className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-white transition-transform group-hover/bar:scale-100 group-focus-visible/bar:scale-100 group-active/bar:scale-100"
+        />
       </div>
     </div>
   );

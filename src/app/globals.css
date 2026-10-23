@@ -242,36 +242,21 @@
   transform: translateX(-50%);
 }
 
-/* A phone held sideways: too short for buttons below the card, so they sit beside it, and the
-   two are centred together. */
+/* A phone held sideways: the artwork keeps its portrait size (from the screen's short side)
+   with the buttons below the card as usual, and the page scrolls. The hero starts at the top,
+   and the buttons are back in the flow, so all of it can be scrolled to. */
 @media (orientation: landscape) and (max-height: 500px) {
-  /* The frame (her head and the glow round the card) is taller than the space here: it mustn't
-     stretch the page, and its empty transparent edges are cut off instead. */
   .home-hero {
-    max-height: var(--home-h);
-    overflow: hidden;
+    justify-content: flex-start;
+    padding-top: 8px;
+    padding-bottom: 24px;
   }
   .home-artwork {
-    /* Half of the buttons' width (60% of the frame) and the 24px gap. */
-    --home-x: calc(-30% - 12px);
-    /* Also narrow enough for the frame, the gap and the buttons side by side (2rem of padding). */
-    width: min(100%, 600px, (var(--home-h) - 24px) / var(--home-span), (100vw - 2rem - 24px) / 1.6);
-    transform: translate(
-      var(--home-x),
-      calc(
-        var(--home-center) +
-          clamp(
-            calc(var(--home-above) + 8px - var(--home-h) / 2),
-            calc(-1 * var(--home-lift)),
-            calc(var(--home-h) / 2 - 16px - var(--home-card-below))
-          )
-      )
-    );
+    width: min(600px, 100vmin - 2rem);
+    transform: none;
   }
   .home-buttons {
-    top: calc(50% - var(--home-center));
-    left: 100%;
-    margin: 0 0 0 24px;
-    transform: translateY(-50%);
+    position: static;
+    transform: none;
   }
 }

@@ -77,7 +77,7 @@ const CARD_CENTERING = ((VIEW.height / 2 - (CARD.top + CARD.height / 2)) / VIEW.
  * Raises the card above the exact centre, in px: the eye reads the true centre as low (more so
  * with the buttons hanging below), so it sits at the "optical" centre instead.
  */
-const OPTICAL_LIFT = 40;
+const OPTICAL_LIFT = 60;
 /** Space between the card's bottom edge and the play pill, in px (the same on every screen). */
 const CARD_GAP = 16;
 /**

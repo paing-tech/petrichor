@@ -94,6 +94,21 @@ function isValidTimeZone(timeZone: string) {
   }
 }
 
+/** The shortest part of a song a card can play, in seconds. */
+export const CLIP_MIN_SECONDS = 5;
+
+const clipSchema = z
+  .object({
+    videoId: z.string().regex(YOUTUBE_VIDEO_ID, "Invalid YouTube video"),
+    start: z.number().int().min(0),
+    end: z.number().int().max(24 * 60 * 60),
+  })
+  .refine((clip) => clip.end - clip.start >= CLIP_MIN_SECONDS, {
+    message: `The part must be at least ${CLIP_MIN_SECONDS} seconds long`,
+  });
+
+export type Clip = z.infer<typeof clipSchema>;
+
 export const createCardSchema = cardFieldsSchema.extend({
   photoKey: z
     .string()
@@ -105,6 +120,8 @@ export const createCardSchema = cardFieldsSchema.extend({
   photoAreaColor: hexColor("Photo area color").nullable(),
   /** A YouTube video the creator picked because the song wasn't found there. */
   youtubeVideoId: z.string().regex(YOUTUBE_VIDEO_ID, "Invalid YouTube video").nullable().optional(),
+  /** The part of the song to play (seconds), on the YouTube video it was chosen on. */
+  clip: clipSchema.nullable().optional(),
   editionSize: z
     .number()
     .int("Copies must be a whole number")

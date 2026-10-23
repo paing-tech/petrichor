@@ -75,6 +75,7 @@ export async function createCard(input: CreateCardInput): Promise<ActionResult<{
     anonymous,
     recipientUserIds,
     youtubeVideoId,
+    clip,
     ...fields
   } = parsed.data;
 
@@ -123,6 +124,24 @@ export async function createCard(input: CreateCardInput): Promise<ActionResult<{
       }
     }
 
+    // The chosen part of the song must be on the video the card will play, and within it.
+    if (clip) {
+      const cardVideo =
+        youtubeVideoId ??
+        (
+          await getSongMatches({
+            title: fields.songTitle,
+            artist: fields.artistName,
+            appleMusicUrl: appleMusic ? buildAppleMusicUrl(appleMusic) : null,
+          })
+        ).youtubeVideoId;
+      const video =
+        clip.videoId === cardVideo ? await lookUpYouTubeVideo(clip.videoId, fields.songTitle).catch(() => null) : null;
+      if (!video || clip.end > video.durationSeconds + 1) {
+        return { ok: false, error: "The part of the song you chose no longer fits its video. Choose it again." };
+      }
+    }
+
     if (photoKey && !(await verifyUploadedPhoto(photoKey))) {
       return {
         ok: false,
@@ -142,6 +161,9 @@ export async function createCard(input: CreateCardInput): Promise<ActionResult<{
         // The photo area color only applies to cards without a photo.
         photoAreaColor: photoKey ? null : photoAreaColor,
         youtubeVideoId: youtubeVideoId ?? null,
+        clipVideoId: clip?.videoId ?? null,
+        clipStart: clip?.start ?? null,
+        clipEnd: clip?.end ?? null,
       },
       { creatorUserId: account?.user.id ?? null, copies },
     );
@@ -176,23 +198,26 @@ const songSchema = z.object({
   appleMusic: appleMusicTrackSchema.nullable(),
 });
 
+export type YouTubeMatch =
+  | { status: "found"; videoId: string }
+  | { status: "missing" | "unavailable"; videoId: null };
+
 /**
  * Whether the song can play from YouTube on its card page, for the preview: "found" (a match
- * is stored for it), "missing" (the creator can paste a link instead), or "unavailable" (YouTube
- * isn't set up, so there's nothing to offer). Looking it up here also saves the card page the wait.
+ * is stored for it, with its video), "missing" (the creator can paste a link instead), or
+ * "unavailable" (YouTube isn't set up, so there's nothing to offer). Looking it up here also
+ * saves the card page the wait.
  */
-export async function checkYouTubeMatch(
-  input: z.input<typeof songSchema>,
-): Promise<"found" | "missing" | "unavailable"> {
+export async function checkYouTubeMatch(input: z.input<typeof songSchema>): Promise<YouTubeMatch> {
   const parsed = songSchema.safeParse(input);
-  if (!parsed.success || !getMusicMatchEnv().youtubeApiKey) return "unavailable";
+  if (!parsed.success || !getMusicMatchEnv().youtubeApiKey) return { status: "unavailable", videoId: null };
   const { songTitle, artistName, appleMusic } = parsed.data;
   const { youtubeVideoId } = await getSongMatches({
     title: songTitle,
     artist: artistName,
     appleMusicUrl: appleMusic ? buildAppleMusicUrl(appleMusic) : null,
   });
-  return youtubeVideoId ? "found" : "missing";
+  return youtubeVideoId ? { status: "found", videoId: youtubeVideoId } : { status: "missing", videoId: null };
 }
 
 export type PickedYouTubeVideo = {

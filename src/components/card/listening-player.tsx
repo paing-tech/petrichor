@@ -11,6 +11,7 @@ import {
   PauseIcon,
   PlayIcon,
   Repeat1Icon,
+  ScissorsIcon,
   SkipBackIcon,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -60,6 +61,7 @@ export function ListeningPlayer({
   artist,
   message,
   signature,
+  clip,
   onClose,
 }: {
   videoId: string;
@@ -70,6 +72,11 @@ export function ListeningPlayer({
   /** The card's message and signature, shown when the small card is tapped. */
   message: string | null;
   signature: string | null;
+  /**
+   * The part of the song the creator chose (seconds): it starts there and stops (or, on
+   * repeat, starts again) at its end, unless the listener switches to the whole song.
+   */
+  clip: { start: number; end: number } | null;
   onClose: () => void;
 }) {
   const messageShown = useMessageShown();
@@ -92,6 +99,21 @@ export function ListeningPlayer({
   useEffect(() => {
     repeatRef.current = repeat;
   }, [repeat]);
+  // Playing the whole song instead of the chosen part.
+  const [wholeSong, setWholeSong] = useState(false);
+  const part = clip && !wholeSong ? clip : null;
+  const partRef = useRef(part);
+  useEffect(() => {
+    partRef.current = part;
+  });
+  // When the part last ended, so its end isn't handled twice while the jump back takes effect.
+  const partEndedAt = useRef(0);
+  // The message appears as the chosen part begins (whole song or not); read by the handler below.
+  const reveal = useRef({ clip, hasMessage: Boolean(message || signature) });
+  useEffect(() => {
+    reveal.current = { clip, hasMessage: Boolean(message || signature) };
+  });
+  const inPart = useRef(false);
 
   const command = (func: string, args: unknown[] = []) =>
     iframeRef.current?.contentWindow?.postMessage(
@@ -119,10 +141,29 @@ export function ListeningPlayer({
       }
       const info = data?.info;
       if (!info) return;
-      // Ended (state 0) with repeat on: back to the start, playing.
+      const current = partRef.current;
+      // Ended (state 0) with repeat on: back to the start (of the part, if playing one), playing.
       if (info.playerState === 0 && repeatRef.current) {
-        command("seekTo", [0, true]);
+        command("seekTo", [current?.start ?? 0, true]);
         command("playVideo");
+      }
+      // Entering the chosen part: the card's message drifts in, timed to the music.
+      if (info.currentTime !== undefined && reveal.current.clip) {
+        const { start, end } = reveal.current.clip;
+        const inside = info.currentTime >= start && info.currentTime < end;
+        if (inside && !inPart.current && reveal.current.hasMessage) setMessageShown(true);
+        inPart.current = inside;
+      }
+      // The chosen part's end: again from its start on repeat; otherwise stop, ready to replay.
+      if (
+        current &&
+        info.currentTime !== undefined &&
+        info.currentTime >= current.end &&
+        performance.now() - partEndedAt.current > 1000
+      ) {
+        partEndedAt.current = performance.now();
+        command("seekTo", [current.start, true]);
+        if (!repeatRef.current) command("pauseVideo");
       }
       setPlayback((current) => ({
         playing:
@@ -161,11 +202,25 @@ export function ListeningPlayer({
     ? Math.min(1, shown / playback.duration)
     : 0;
 
-  /** Jumps to a time in the song. */
+  /** Jumps to a time in the song (outside the chosen part, that means the whole song now). */
   function seek(to: number) {
     const time = Math.min(playback.duration || to, Math.max(0, to));
+    if (part && (time < part.start || time >= part.end)) setWholeSong(true);
     command("seekTo", [time, true]);
     setPlayback((p) => ({ ...p, time, at: performance.now() }));
+  }
+
+  /** Switches between the chosen part (from its start, playing) and the whole song. */
+  function togglePart() {
+    if (!clip) return;
+    if (part) {
+      setWholeSong(true);
+      return;
+    }
+    setWholeSong(false);
+    command("seekTo", [clip.start, true]);
+    command("playVideo");
+    setPlayback((p) => ({ ...p, time: clip.start, at: performance.now() }));
   }
 
   /** The time under the pointer, along the progress bar. */
@@ -193,6 +248,8 @@ export function ListeningPlayer({
             artist={artist}
             showInline
             autoplay
+            // Starts at the chosen part (fixed, so switching to the whole song never reloads it).
+            startSeconds={clip?.start}
             trigger={() => null}
             playerRef={iframeRef}
             handleRef={space}
@@ -340,11 +397,22 @@ export function ListeningPlayer({
             onPointerCancel={() => setScrubbing(null)}
             className="group relative flex h-6 cursor-pointer touch-none items-center"
           >
-            <div className="h-1 w-full overflow-hidden rounded-full bg-white/20">
+            <div className="relative h-1 w-full overflow-hidden rounded-full bg-white/20">
               <div
                 className="h-full bg-white"
                 style={{ width: `${progress * 100}%` }}
               />
+              {/* The chosen part, in red along the song (fainter while the whole song plays). */}
+              {clip && playback.duration > 0 && (
+                <div
+                  aria-hidden
+                  className={cn("absolute inset-y-0", part ? "bg-red-500" : "bg-red-500/50")}
+                  style={{
+                    left: `${(clip.start / playback.duration) * 100}%`,
+                    width: `${((Math.min(clip.end, playback.duration) - clip.start) / playback.duration) * 100}%`,
+                  }}
+                />
+              )}
             </div>
             <div
               aria-hidden
@@ -360,27 +428,42 @@ export function ListeningPlayer({
           </div>
         </div>
 
-        {/* The full-screen night-sky space, with the song carrying on. */}
-        <button
-          type="button"
-          onClick={() => space.current?.open()}
-          className={cn(
-            CONTROL,
-            "mx-auto gap-2 px-3 py-1.5 text-sm text-white/70",
+        <div className="flex items-center justify-center gap-4">
+          {/* The full-screen night-sky space, with the song carrying on. */}
+          <button
+            type="button"
+            onClick={() => space.current?.open()}
+            className={cn(CONTROL, "gap-2 px-3 py-1.5 text-sm text-white/70")}
+          >
+            <ImmersiveIcon className="size-5" /> Immersive
+          </button>
+          {/* The creator's chosen part, or the whole song. */}
+          {clip && (
+            <button
+              type="button"
+              onClick={togglePart}
+              aria-label={
+                part
+                  ? "Play the whole song"
+                  : `Play the chosen part, ${formatTime(clip.start)} to ${formatTime(clip.end)}`
+              }
+              className={cn(CONTROL, "gap-2 px-3 py-1.5 text-sm text-white/70")}
+            >
+              <ScissorsIcon className="size-4" />
+              {part ? "Whole song" : `${formatTime(clip.start)}–${formatTime(clip.end)}`}
+            </button>
           )}
-        >
-          <ImmersiveIcon className="size-5" /> Immersive
-        </button>
+        </div>
 
         {/* Restart, play / pause, repeat: centred, the play button largest. */}
         <div className="flex items-center justify-center gap-12">
           <button
             type="button"
             onClick={() => {
-              seek(0);
+              seek(part?.start ?? 0);
               command("playVideo");
             }}
-            aria-label="Restart"
+            aria-label={part ? "Restart the part" : "Restart"}
             className={cn(CONTROL, "size-12")}
           >
             <SkipBackIcon className="size-7 fill-current" />

@@ -24,6 +24,7 @@ import { PhotoFramingLayer } from "@/components/create/photo-cropper";
 import { RecipientPicker } from "@/components/create/recipient-picker";
 import { useActionsAboveKeyboard } from "@/components/create/use-actions-above-keyboard";
 import { useIsNarrow } from "@/components/create/use-is-narrow";
+import { SongClipPicker, type ClipRange } from "@/components/create/song-clip-picker";
 import { YouTubePick } from "@/components/create/youtube-pick";
 import { SelectedSong, SongSearch } from "@/components/create/song-search";
 import { FlipCard } from "@/components/flip-card";
@@ -146,6 +147,10 @@ export function CreateCardFlow() {
   const [recipients, setRecipients] = useState<PublicProfile[]>([]);
   // A YouTube video the creator pasted on the preview, for the song it was picked for.
   const [youtubePick, setYouTubePick] = useState<{ song: string; video: PickedYouTubeVideo } | null>(null);
+  // The song's own YouTube video, found on the preview, for the song it was found for.
+  const [matchedVideo, setMatchedVideo] = useState<{ song: string; videoId: string | null } | null>(null);
+  // The part of the song the card plays, for the video it was chosen on.
+  const [clip, setClip] = useState<(ClipRange & { videoId: string }) | null>(null);
   /** The created copies in edition order, with each one's link and status. */
   const [copies, setCopies] = useState<CreatedCopyResult[] | null>(null);
   const { data: session } = authClient.useSession();
@@ -384,6 +389,7 @@ export function CreateCardFlow() {
         anonymous: signatureHidden,
         recipientUserIds: activeRecipients.map((r) => r.userId),
         youtubeVideoId: pickedVideo?.videoId ?? null,
+        clip: cardClip ? { videoId: cardClip.videoId, start: cardClip.start, end: cardClip.end } : null,
       });
       setStatus(null);
 
@@ -430,6 +436,8 @@ export function CreateCardFlow() {
     setAnonymous(false);
     setRecipients([]);
     setYouTubePick(null);
+    setMatchedVideo(null);
+    setClip(null);
     setCopies(null);
     setFormStep(0);
     goTo("edit");
@@ -438,6 +446,10 @@ export function CreateCardFlow() {
   // The pasted video only counts for the song it was pasted for (the song can change on Edit).
   const songKey = `${song?.trackId ?? ""}|${values.songTitle.trim()}|${values.artistName.trim()}`;
   const pickedVideo = youtubePick?.song === songKey ? youtubePick.video : null;
+  // The video the card will play: the creator's pick, else the song's own. A chosen part only
+  // counts while it's for that video.
+  const cardVideoId = pickedVideo?.videoId ?? (matchedVideo?.song === songKey ? matchedVideo.videoId : null);
+  const cardClip = clip && clip.videoId === cardVideoId ? clip : null;
 
   const previewSide: CardFace =
     sideChoice && sideChoice.step === formStep
@@ -551,7 +563,17 @@ export function CreateCardFlow() {
           appleMusic={song}
           picked={pickedVideo}
           onPick={(video) => setYouTubePick(video ? { song: songKey, video } : null)}
+          onMatch={(videoId) => setMatchedVideo({ song: songKey, videoId })}
         />
+        {cardVideoId && (
+          <SongClipPicker
+            key={cardVideoId}
+            videoId={cardVideoId}
+            title={`${previewCard.songTitle} by ${previewCard.artistName}`}
+            clip={cardClip}
+            onChange={(range) => setClip(range ? { ...range, videoId: cardVideoId } : null)}
+          />
+        )}
         <div className="flex w-full gap-2">
           <Button
             variant="outline"

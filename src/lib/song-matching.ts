@@ -7,9 +7,15 @@ import { getMusicMatchEnv } from "@/lib/env";
 
 // Finds a card's song on Spotify and YouTube, so the card page can offer those players too.
 // Each song is looked up once (its result is stored in song_matches and shared by every card
-// with that song); "not found" is retried after RETRY_AFTER_DAYS in case it appears later.
+// with that song); "not found" is retried after a while in case it appears later (or the
+// search missed it).
 
 const RETRY_AFTER_DAYS = 30;
+/**
+ * YouTube's "not found" is retried sooner: its search can miss a video it has (an empty or odd
+ * result now and then), and a few days without a player beats searching on every visit.
+ */
+const YOUTUBE_RETRY_AFTER_DAYS = 3;
 /** A Spotify match must be within this many seconds of the Apple Music track's length. */
 const DURATION_TOLERANCE_S = 4;
 
@@ -22,8 +28,8 @@ function songKey({ title, artist, appleMusicUrl }: Song) {
   return apple ? `apple:${apple[3]}` : `manual:${title.trim().toLowerCase()}|${artist.trim().toLowerCase()}`;
 }
 
-const due = (checkedAt: Date | null) =>
-  !checkedAt || Date.now() - checkedAt.getTime() > RETRY_AFTER_DAYS * 24 * 60 * 60 * 1000;
+const due = (checkedAt: Date | null, days = RETRY_AFTER_DAYS) =>
+  !checkedAt || Date.now() - checkedAt.getTime() > days * 24 * 60 * 60 * 1000;
 
 /** The song's Spotify and YouTube IDs, looking them up first if they're due. Never throws. */
 export async function getSongMatches(song: Song): Promise<SongMatches> {
@@ -45,7 +51,7 @@ export async function getSongMatches(song: Song): Promise<SongMatches> {
         }),
       );
     }
-    if (env.youtubeApiKey && !result.youtubeVideoId && due(row?.youtubeCheckedAt ?? null)) {
+    if (env.youtubeApiKey && !result.youtubeVideoId && due(row?.youtubeCheckedAt ?? null, YOUTUBE_RETRY_AFTER_DAYS)) {
       lookups.push(
         findOnYouTube(song, env.youtubeApiKey).then((id) => {
           result.youtubeVideoId = id;
@@ -133,6 +139,8 @@ export type YouTubeVideoInfo = {
   embeddable: boolean;
   /** Whether its title names the song, as a hint that it's the right video. */
   namesSong: boolean;
+  /** Its length, in seconds. */
+  durationSeconds: number;
 };
 
 /**
@@ -143,16 +151,17 @@ export type YouTubeVideoInfo = {
 export async function lookUpYouTubeVideo(videoId: string, songTitle: string): Promise<YouTubeVideoInfo | null> {
   const { youtubeApiKey } = getMusicMatchEnv();
   if (!youtubeApiKey) return null;
-  const params = new URLSearchParams({ part: "snippet,status", id: videoId, key: youtubeApiKey });
+  const params = new URLSearchParams({ part: "snippet,status,contentDetails", id: videoId, key: youtubeApiKey });
   const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params}`);
   if (!response.ok) throw new Error(`YouTube videos lookup failed (${response.status})`);
-  const [video] = ((await response.json()) as { items?: Omit<YouTubeVideo, "contentDetails">[] }).items ?? [];
+  const [video] = ((await response.json()) as { items?: YouTubeVideo[] }).items ?? [];
   if (!video) return null;
   return {
     title: video.snippet.title,
     channel: video.snippet.channelTitle,
     embeddable: video.status.embeddable,
     namesSong: normalize(video.snippet.title).includes(normalize(songTitle)),
+    durationSeconds: isoDurationSeconds(video.contentDetails.duration),
   };
 }
 
@@ -175,17 +184,11 @@ type YouTubeVideo = {
   status: { embeddable: boolean };
 };
 
-/**
- * An official YouTube video of this song that can be played in an embed, or null. Prefers the
- * artist's official music video, then the artist's "Topic" audio (same length as the Apple Music
- * track), then the artist's own official audio or visualizer. Never falls back to other uploads
- * (fans' re-uploads, live versions, lyric videos): no player is better than the wrong song.
- */
-async function findOnYouTube(song: Song, apiKey: string) {
-  const durationMs = await appleDurationMs(song.appleMusicUrl);
+/** One YouTube search, with the found videos' details (channel, title, length, embeddable). */
+async function searchYouTube(query: string, apiKey: string): Promise<YouTubeVideo[]> {
   const search = new URLSearchParams({
     part: "snippet",
-    q: `${song.artist} ${song.title}`,
+    q: query,
     type: "video",
     videoEmbeddable: "true",
     maxResults: "15",
@@ -195,23 +198,29 @@ async function findOnYouTube(song: Song, apiKey: string) {
   if (!searchResponse.ok) throw new Error(`YouTube search failed (${searchResponse.status})`);
   const found = (await searchResponse.json()) as { items?: { id: { videoId?: string } }[] };
   const ids = (found.items ?? []).flatMap((item) => (item.id.videoId ? [item.id.videoId] : []));
-  if (ids.length === 0) return null;
+  if (ids.length === 0) return [];
 
-  // The candidates' details: channel, title, length, and whether they can be embedded.
   const details = new URLSearchParams({ part: "snippet,contentDetails,status", id: ids.join(","), key: apiKey });
   const detailsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?${details}`);
   if (!detailsResponse.ok) throw new Error(`YouTube videos lookup failed (${detailsResponse.status})`);
   const videos = ((await detailsResponse.json()) as { items?: YouTubeVideo[] }).items ?? [];
+  // In YouTube's relevance order.
+  return videos.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+}
 
+/**
+ * An official YouTube video of this song that can be played in an embed, or null. Prefers the
+ * artist's official music video, then the artist's "Topic" audio (same length as the Apple Music
+ * track), then the artist's own official audio or visualizer. Never falls back to other uploads
+ * (fans' re-uploads, live versions, lyric videos): no player is better than the wrong song.
+ * Searches for the artist and title, then, if nothing official turns up, once more asking for
+ * the official video.
+ */
+async function findOnYouTube(song: Song, apiKey: string) {
+  const durationMs = await appleDurationMs(song.appleMusicUrl);
   const artist = leadArtist(song.artist).replace(/\s+/g, "");
   const title = normalize(song.title);
   const titleAllows = (word: RegExp) => word.test(song.title);
-  const candidates = videos
-    .filter((video) => video.status.embeddable)
-    .filter((video) => normalize(video.snippet.title).includes(title))
-    .filter((video) => !NOT_THE_RELEASE.test(video.snippet.title) || titleAllows(NOT_THE_RELEASE))
-    // Keep YouTube's relevance order within each tier.
-    .sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
 
   const channel = (video: YouTubeVideo) => normalize(video.snippet.channelTitle).replace(/\s+/g, "");
   const isTopic = (video: YouTubeVideo) =>
@@ -222,14 +231,32 @@ async function findOnYouTube(song: Song, apiKey: string) {
     durationMs === null ||
     Math.abs(isoDurationSeconds(video.contentDetails.duration) - durationMs / 1000) <= YOUTUBE_DURATION_TOLERANCE_S;
 
-  // Uploads on the artist's VEVO channel are the label's own, whatever their title says.
-  const officialVideo = candidates.find(
-    (video) =>
-      isArtists(video) && (/official (music )?video/i.test(video.snippet.title) || channel(video) === `${artist}vevo`),
-  );
-  const topicAudio = candidates.find((video) => isTopic(video) && sameLength(video));
-  const officialAudio = candidates.find(
-    (video) => isArtists(video) && /official (audio|visuali[sz]er)|\(audio\)|\(visuali[sz]er\)/i.test(video.snippet.title),
-  );
-  return (officialVideo ?? topicAudio ?? officialAudio)?.id ?? null;
+  const pick = (videos: YouTubeVideo[]) => {
+    const candidates = videos
+      .filter((video) => video.status.embeddable)
+      .filter((video) => normalize(video.snippet.title).includes(title))
+      .filter((video) => !NOT_THE_RELEASE.test(video.snippet.title) || titleAllows(NOT_THE_RELEASE));
+    // Uploads on the artist's VEVO channel are the label's own, whatever their title says.
+    const officialVideo = candidates.find(
+      (video) =>
+        isArtists(video) && (/official (music )?video/i.test(video.snippet.title) || channel(video) === `${artist}vevo`),
+    );
+    const topicAudio = candidates.find((video) => isTopic(video) && sameLength(video));
+    const officialAudio = candidates.find(
+      (video) => isArtists(video) && /official (audio|visuali[sz]er)|\(audio\)|\(visuali[sz]er\)/i.test(video.snippet.title),
+    );
+    return { match: officialVideo ?? topicAudio ?? officialAudio ?? null, candidates: candidates.length };
+  };
+
+  const queries = [`${song.artist} ${song.title}`, `${song.artist} ${song.title} official video`];
+  const tried: string[] = [];
+  for (const query of queries) {
+    const videos = await searchYouTube(query, apiKey);
+    const { match, candidates } = pick(videos);
+    if (match) return match.id;
+    tried.push(`"${query}": ${videos.length} found, ${candidates} named the song, none official`);
+  }
+  // Why it wasn't matched, for looking into misses.
+  console.info(`No official YouTube video for ${song.artist} – ${song.title}. ${tried.join("; ")}`);
+  return null;
 }

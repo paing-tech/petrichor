@@ -14,6 +14,8 @@ type YouTubePickProps = {
   appleMusic: AppleMusicTrack | null;
   picked: PickedYouTubeVideo | null;
   onPick: (video: PickedYouTubeVideo | null) => void;
+  /** Told the song's own YouTube video once it's known (null when there isn't one). */
+  onMatch: (videoId: string | null) => void;
 };
 
 /**
@@ -21,7 +23,7 @@ type YouTubePickProps = {
  * player): lets the creator paste a link to the song on YouTube for this card. Shows nothing
  * while checking, when the song was found, or when YouTube isn't set up.
  */
-export function YouTubePick({ songTitle, artistName, appleMusic, picked, onPick }: YouTubePickProps) {
+export function YouTubePick({ songTitle, artistName, appleMusic, picked, onPick, onMatch }: YouTubePickProps) {
   const [match, setMatch] = useState<"checking" | "found" | "missing" | "unavailable">("checking");
   const [link, setLink] = useState("");
   const [error, setError] = useState<string>();
@@ -33,11 +35,17 @@ export function YouTubePick({ songTitle, artistName, appleMusic, picked, onPick 
       ? { storefront: appleMusic.storefront, collectionId: appleMusic.collectionId, trackId: appleMusic.trackId }
       : null;
     checkYouTubeMatch({ songTitle, artistName, appleMusic: track })
-      .catch(() => "unavailable" as const)
-      .then((result) => current && setMatch(result));
+      .catch(() => ({ status: "unavailable" as const, videoId: null }))
+      .then((result) => {
+        if (!current) return;
+        setMatch(result.status);
+        onMatch(result.videoId);
+      });
     return () => {
       current = false;
     };
+    // onMatch is the parent's setter: checked once per song, not on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [songTitle, artistName, appleMusic]);
 
   if (match !== "missing") return null;

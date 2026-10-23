@@ -197,6 +197,7 @@ export function YouTubeSpace({
   inlineStyle,
   inlineClassName,
   autoplay = false,
+  startSeconds,
   playerRef,
   handleRef,
 }: {
@@ -230,6 +231,8 @@ export function YouTubeSpace({
   inlineClassName?: string;
   /** Starts the song as soon as the player loads (pass only after the viewer asked to play). */
   autoplay?: boolean;
+  /** Where the video starts, in seconds (a card's chosen part). */
+  startSeconds?: number;
   /** Also points at the player's iframe, so a parent can send it commands and hear its state. */
   playerRef?: RefObject<HTMLIFrameElement | null>;
   /** Lets a parent open the space from its own button (the same player moves in, still playing). */
@@ -852,7 +855,7 @@ export function YouTubeSpace({
               iframeRef.current = element;
               if (playerRef) playerRef.current = element;
             }}
-            src={`https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&rel=0&enablejsapi=1${autoplay ? "&autoplay=1" : ""}${origin ? `&origin=${encodeURIComponent(origin)}` : ""}`}
+            src={`https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&rel=0&enablejsapi=1${autoplay ? "&autoplay=1" : ""}${startSeconds ? `&start=${Math.floor(startSeconds)}` : ""}${origin ? `&origin=${encodeURIComponent(origin)}` : ""}`}
             title={title}
             allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
             allowFullScreen

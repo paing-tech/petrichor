@@ -126,6 +126,10 @@ type CardSong = {
   senderName: string | null;
   /** The creator's own YouTube pick, when the song wasn't found on YouTube. */
   youtubeVideoId: string | null;
+  /** The part of the song the creator chose, and the video it was chosen on. */
+  clipVideoId: string | null;
+  clipStart: number | null;
+  clipEnd: number | null;
 };
 
 function baseSources(card: CardSong): ListenSources {
@@ -138,6 +142,7 @@ function baseSources(card: CardSong): ListenSources {
     youtubeAspect: null,
     message: card.message,
     signature: card.senderName,
+    clip: null,
   };
 }
 
@@ -151,7 +156,12 @@ async function Listen({ card }: { card: CardSong }) {
   // The creator's pick, if they made one, over the song's shared match.
   const youtubeVideoId = card.youtubeVideoId ?? matches.youtubeVideoId;
   const youtubeAspect = youtubeVideoId ? await getYouTubeAspect(youtubeVideoId) : null;
-  const sources = { ...baseSources(card), ...matches, youtubeVideoId, youtubeAspect };
+  // The chosen part only applies on the video it was chosen on (times differ between videos).
+  const clip =
+    youtubeVideoId && card.clipVideoId === youtubeVideoId && card.clipStart !== null && card.clipEnd !== null
+      ? { start: card.clipStart, end: card.clipEnd }
+      : null;
+  const sources = { ...baseSources(card), ...matches, youtubeVideoId, youtubeAspect, clip };
   if (
     !sources.appleMusicUrl &&
     !sources.spotifyTrackId &&

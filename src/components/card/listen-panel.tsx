@@ -24,6 +24,8 @@ export type ListenSources = {
   /** The card's message and signature, read in listening mode. */
   message: string | null;
   signature: string | null;
+  /** The part of the song the creator chose (seconds), when it's for this YouTube video. */
+  clip: { start: number; end: number } | null;
 };
 
 /** The video plays at its own shape, from square (art tracks) to 16:9 (music videos). */
@@ -93,6 +95,7 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
         artist={sources.artist}
         message={sources.message}
         signature={sources.signature}
+        clip={sources.clip}
         onClose={() => setPlaying(false)}
       />
     );

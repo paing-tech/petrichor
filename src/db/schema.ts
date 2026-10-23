@@ -38,6 +38,12 @@ export const cards = pgTable(
     // A YouTube video the creator chose for this card when the song couldn't be found on
     // YouTube (song_matches is shared by every card with the song; this is only this card's).
     youtubeVideoId: text("youtube_video_id"),
+    // The part of the song the creator chose to play (seconds), and the YouTube video it was
+    // chosen on: times differ between videos, so it only applies while the card plays that one.
+    // All three are set together or not at all (see cards_clip_check).
+    clipVideoId: text("clip_video_id"),
+    clipStart: integer("clip_start"),
+    clipEnd: integer("clip_end"),
     // Numbered editions: identical cards created together, each with its own card ID,
     // printed as "edition_number of edition_size". edition_id links the set.
     // The size range check below mirrors MAX_EDITION_SIZE in src/lib/validation.ts
@@ -59,6 +65,10 @@ export const cards = pgTable(
     unique("cards_edition_number_unique").on(table.editionId, table.editionNumber),
     check("cards_edition_size_range", sql`${table.editionSize} between 1 and 20`),
     check("cards_edition_number_range", sql`${table.editionNumber} between 1 and ${table.editionSize}`),
+    check(
+      "cards_clip_check",
+      sql`(${table.clipVideoId} is null and ${table.clipStart} is null and ${table.clipEnd} is null) or (${table.clipVideoId} is not null and ${table.clipStart} >= 0 and ${table.clipEnd} > ${table.clipStart})`,
+    ),
     index("cards_owner_idx").on(table.ownerUserId),
     index("cards_creator_idx").on(table.creatorUserId),
   ],

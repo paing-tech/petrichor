@@ -782,11 +782,11 @@ export function CreateCardFlow() {
         {/* Narrow screens: Back / Next right under the field, so it stays above the keyboard. */}
         <div ref={stepActionsRef} className="flex gap-2 lg:hidden">
           {formStep > 0 && (
-            <Button type="button" variant="outline" size="lg" className="bg-background h-11 rounded-full px-5" onClick={() => setFormStep((s) => s - 1)}>
+            <Button type="button" variant="outline" size="lg" className="bg-background h-11 px-5" onClick={() => setFormStep((s) => s - 1)}>
               <ArrowLeftIcon /> Back
             </Button>
           )}
-          <Button type="button" size="lg" className="h-11 flex-1 rounded-full" onClick={nextFormStep}>
+          <Button type="button" size="lg" className="h-11 flex-1" onClick={nextFormStep}>
             {formStep === LAST_FORM_STEP ? (
               <>
                 Preview card <ArrowRightIcon />

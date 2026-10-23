@@ -16,7 +16,7 @@ export function HomePlayPill({ title, artist }: { title: string; artist: string 
       type="button"
       onClick={listening?.toggle}
       aria-label={`Play ${title} by ${artist}`}
-      className="hover:bg-muted/60 bg-background flex h-12 w-full items-center gap-3 rounded-full border pr-3 pl-5 text-left transition-colors active:scale-[0.99]"
+      className="hover:border flex h-12 w-full items-center rounded-full pr-3 pl-3 text-left transition-colors active:scale-[0.99]"
     >
       <MarqueeText className="font-outfit min-w-0 flex-1 text-sm">
         {title} · <span className="text-muted-foreground">{artist}</span>

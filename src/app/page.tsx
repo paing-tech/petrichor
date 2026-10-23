@@ -24,6 +24,7 @@ import { HomePlayPill } from "@/components/home/play-pill";
 import { TiltArtwork, TiltLayer } from "@/components/home/tilt-artwork";
 import { TodayCard } from "@/components/home/today-card";
 import { afterSignInPath, getAccount, safeNextPath } from "@/lib/auth/account";
+import { signInPath } from "@/lib/auth/sign-in-path";
 
 const SAMPLE_CARD: CollectibleCardData = {
   songTitle: "Ethereal Levitation",
@@ -67,8 +68,18 @@ const LIFT = GREEN_LIFT * (CARD.width / 390);
 /** Where the green turns solid: the photo's foot (4:5), less the trim and the lift. */
 const PHOTO_BOTTOM = CARD.top + (CARD.width * 5) / 4 - TRIM - LIFT;
 const CARD_GREEN = "#a3b18a";
-/** Where the card's green glow fades out below it. */
-const GLOW_BOTTOM = CARD.bottom + 96;
+/**
+ * Moves the frame so the card itself sits at the screen's centre (not the whole frame, with her
+ * head and the stars above it and the glow below): as a share of the frame's height.
+ */
+const CARD_CENTERING = ((VIEW.height / 2 - (CARD.top + CARD.height / 2)) / VIEW.height) * 100;
+/**
+ * Raises the card above the exact centre, in px: the eye reads the true centre as low (more so
+ * with the buttons hanging below), so it sits at the "optical" centre instead.
+ */
+const OPTICAL_LIFT = 40;
+/** Space between the card's bottom edge and the play pill, in px (the same on every screen). */
+const CARD_GAP = 16;
 // public/reverie.png (1024 × 1536) is the figure as a cut-out (solid body, transparent sky).
 // Scaled 0.8843 units per pixel (in proportion to the card), with her torso's centre line
 // (x 538 px in the image) on the card's centre (x 500) and her fingertips just below the
@@ -113,11 +124,14 @@ export default function Home({ searchParams }: PageProps<"/">) {
     <ListeningProvider tracks={TRACKS}>
       <ListeningBackdrop />
       <NowPlaying />
-      {/* Centered on the screen: the card and its two buttons, as a group. */}
+      {/* The card at the centre of the screen; its buttons hang below it, apart from the centring. */}
       <div className="flex flex-1 flex-col items-center justify-center px-4">
         {/* Artwork size: grows with the screen height (leaving room for the header and the
           buttons below), from 300px up to 600px wide. */}
-        <div className="@container flex w-[85%] sm:w-full max-w-[clamp(300px,calc((100svh-230px)*0.74),600px)] flex-col items-center">
+        <div
+          className="@container relative flex w-full max-w-[clamp(300px,calc((100svh-230px)*0.74),600px)] flex-col items-center"
+          style={{ transform: `translateY(calc(${CARD_CENTERING}% - ${OPTICAL_LIFT}px))` }}
+        >
           <TiltArtwork
             className="relative w-full"
             style={{ aspectRatio: `${VIEW.width} / ${VIEW.height}` }}
@@ -190,18 +204,18 @@ export default function Home({ searchParams }: PageProps<"/">) {
               </div>
             </TiltLayer>
           </TiltArtwork>
-          {/* Starts 8px below the glow (the artwork's white margin under it is pulled up). */}
-          {/* Fixed to the play pill's and the two buttons' height (48 + 12 + 44 + 12 + 44px), so
-              the centering counts only them: the sign-in form unfolds below without moving the
-              card. */}
+          {/* CARD_GAP below the card (the artwork's margin under it is pulled up), and exactly as
+              wide as the card. Out of the flow, so only the card is centred: the pill and buttons
+              (and the sign-in form unfolding below them) never move it. */}
           <div
-            className="relative flex h-40 w-full flex-col items-center"
+            className="absolute top-full left-1/2 flex -translate-x-1/2 flex-col items-center"
             style={{
-              marginTop: `calc(-20px - 100cqw * ${(VIEW.top + VIEW.height - GLOW_BOTTOM) / VIEW.width})`,
+              width: `${(CARD.width / VIEW.width) * 100}cqw`,
+              marginTop: `calc(${CARD_GAP}px - 100cqw * ${(VIEW.top + VIEW.height - CARD.bottom) / VIEW.width})`,
             }}
           >
             <HideWhileListening className="flex w-full flex-col items-center gap-3">
-              <div className="w-full max-w-77">
+              <div className="w-full">
                 <HomePlayPill title={SAMPLE_CARD.songTitle} artist={SAMPLE_CARD.artistName} />
               </div>
               <Suspense fallback={<HomeActionsFallback />}>
@@ -216,23 +230,18 @@ export default function Home({ searchParams }: PageProps<"/">) {
 }
 
 /**
- * Reads the session and the URL, so it renders per request inside <Suspense>. Pages that
- * need a signed-in visitor send them to `/?next=…`: the sign-in form opens right away and
- * returns them to `next` afterwards (or sends them straight there if already signed in).
+ * Reads the session and the URL, so it renders per request inside <Suspense>. Old links to
+ * `/?next=…` (from before the sign-in page) are passed on to it, or straight to `next` for
+ * anyone already signed in.
  */
 async function Actions({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
   const [account, params] = await Promise.all([getAccount(), searchParams]);
-  const requested = params.next !== undefined;
-  const next = safeNextPath(params.next);
-  if (account && requested) redirect(afterSignInPath(account.profile, next));
+  if (params.next !== undefined) {
+    const next = safeNextPath(params.next);
+    redirect(account ? afterSignInPath(account.profile, next) : signInPath(next));
+  }
   const collectionHref = !account
     ? null
     : afterSignInPath(account.profile, "/keepsakes");
-  return (
-    <HomeActions
-      collectionHref={collectionHref}
-      next={next}
-      startOpen={requested}
-    />
-  );
+  return <HomeActions collectionHref={collectionHref} />;
 }

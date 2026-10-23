@@ -9,8 +9,8 @@ const SESSION_COOKIE = "__Secure-neon-auth.session_token";
  *
  * - On "/", signed-in visitors see their collections (the signed-in home page) instead of
  *   the welcome page. This only looks for the session cookie; the collections page checks
- *   the session itself, and sends anyone whose session has lapsed to "/?next=…", which
- *   always shows the welcome page with its sign-in form.
+ *   the session itself, and sends anyone whose session has lapsed to "/sign-in?next=…". (Old
+ *   "/?next=…" links still reach the welcome page, which passes them on to sign-in.)
  * - Neon Auth's middleware finishes OAuth sign-in: when Google redirects back with a
  *   session verifier, it exchanges it for session cookies. It runs only on the OAuth
  *   landing page; account pages check the session themselves so they can send people back
@@ -24,7 +24,7 @@ export default function proxy(request: NextRequest) {
     }
     return NextResponse.next();
   }
-  return getAuth().middleware({ loginUrl: "/" })(request);
+  return getAuth().middleware({ loginUrl: "/sign-in" })(request);
 }
 
 export const config = {

@@ -12,25 +12,16 @@ const LOGO_SHARE = 0.24;
 /** A dot's radius, in modules. */
 const DOT = 0.42;
 
-function makeQr(value: string) {
+/**
+ * A QR code to `value` as an SVG document: drawn in dots with rounded corner markers and the
+ * Petrichor P in the middle, black on a white rounded tile so it scans on any background. The P
+ * covers a few modules, which the code's error correction (level Q, up to 25% unreadable)
+ * makes up for.
+ */
+export function cardQrSvg(value: string) {
   const qr = qrcode(0, "Q");
   qr.addData(value);
   qr.make();
-  return qr;
-}
-
-/** How much of the drawn code's width is white margin on each side, for lining things up with its dots. */
-export function qrQuietShare(value: string) {
-  return MARGIN / (makeQr(value).getModuleCount() + MARGIN * 2);
-}
-
-/**
- * A QR code to `value`, drawn in dots with rounded corner markers and the Petrichor P in the
- * middle, always black on a white tile so it scans on any card color. The P covers a few
- * modules, which the code's error correction (level Q, up to 25% unreadable) makes up for.
- */
-export function CardQr({ value, className }: { value: string; className?: string }) {
-  const qr = makeQr(value);
   const count = qr.getModuleCount();
   const size = count + MARGIN * 2;
 
@@ -58,6 +49,13 @@ export function CardQr({ value, className }: { value: string; className?: string
       dots.push(`M${x - DOT} ${y}a${DOT} ${DOT} 0 1 0 ${DOT * 2} 0a${DOT} ${DOT} 0 1 0 ${-DOT * 2} 0`);
     }
   }
+  const markers = finders
+    .map(
+      ([r, c]) =>
+        `<rect x="${c + MARGIN + 0.5}" y="${r + MARGIN + 0.5}" width="6" height="6" rx="2" fill="none" stroke="#000" stroke-width="1"/>` +
+        `<circle cx="${c + MARGIN + 3.5}" cy="${r + MARGIN + 3.5}" r="1.5"/>`,
+    )
+    .join("");
 
   // The P fits the cleared square with a module of space around it.
   const pScale = (logo - 2) / Math.max(P_BOX.width, P_BOX.height);
@@ -65,27 +63,9 @@ export function CardQr({ value, className }: { value: string; className?: string
   const pY = MARGIN + logoStart + (logo - P_BOX.height * pScale) / 2 - P_BOX.y * pScale;
 
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} className={className} role="img" aria-label="QR code to this card's page">
-      <rect width={size} height={size} rx={MARGIN} fill="#ffffff" />
-      <g fill="#000000">
-        <path d={dots.join("")} />
-        {finders.map(([r, c]) => (
-          <g key={`${r}-${c}`}>
-            <rect
-              x={c + MARGIN + 0.5}
-              y={r + MARGIN + 0.5}
-              width={6}
-              height={6}
-              rx={2}
-              fill="none"
-              stroke="#000000"
-              strokeWidth={1}
-            />
-            <circle cx={c + MARGIN + 3.5} cy={r + MARGIN + 3.5} r={1.5} />
-          </g>
-        ))}
-        <path d={P_PATH} transform={`translate(${pX} ${pY}) scale(${pScale})`} />
-      </g>
-    </svg>
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">` +
+    `<rect width="${size}" height="${size}" rx="${MARGIN}" fill="#fff"/>` +
+    `<g fill="#000"><path d="${dots.join("")}"/>${markers}` +
+    `<path d="${P_PATH}" transform="translate(${pX} ${pY}) scale(${pScale})"/></g></svg>`
   );
 }

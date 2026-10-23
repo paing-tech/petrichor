@@ -112,6 +112,7 @@ async function CardView({ params, searchParams }: PageProps<"/c/[cardId]">) {
       <HeaderShare
         path={`/c/${card.cardId}`}
         title={`${card.songTitle} — a Petrichor card`}
+        imagePath={`/c/${card.cardId}/share-image`}
       />
     </>
   );

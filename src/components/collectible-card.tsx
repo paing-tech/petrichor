@@ -1,8 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
-import { CardQr, qrQuietShare } from "@/components/card-qr";
 import { cardInk, DEFAULT_CARD_COLOR, EARTH_PHOTO_AREA, hexToRgb } from "@/lib/card-color";
 import { cropImageStyle, type PhotoCrop } from "@/lib/photo-crop";
-import { cardUrl } from "@/lib/site-url";
 import { cn } from "@/lib/utils";
 
 export type CollectibleCardData = {
@@ -149,11 +147,22 @@ const MESSAGE_LINES = 12;
  */
 const HAND_INK_SPILL = 0.35;
 const CARD_ID_SIZE = 8;
-/**
- * The QR code in the back's bottom-right corner (with its white margin). Much over 120 and the
- * card ID beside it no longer fits; much under 100 and another phone can't scan it off a screen.
- */
-const QR_SIZE = 80;
+
+/** The front's measurements, for drawing it elsewhere (the share image), in canvas units. */
+export const CARD_FRONT_LAYOUT = {
+  width: BASE_WIDTH,
+  photoHeight: PHOTO_HEIGHT,
+  photoFade: PHOTO_FADE,
+  momentCenter: MOMENT_CENTER,
+  cornerRadius: CORNER_RADIUS,
+  sidePadding: SIDE_PADDING,
+  songAreaTop: SONG_AREA_TOP,
+  titleSize: TITLE_SIZE,
+  titleGap: TITLE_GAP,
+  outfitSize: OUTFIT_SIZE,
+  serifMetrics: INSTRUMENT_SERIF,
+  outfitMetrics: OUTFIT,
+} as const;
 
 /**
  * Prints the date in the sender's time zone, so a card made on the morning of
@@ -334,37 +343,20 @@ function CardBack({ card }: { card: CollectibleCardData }) {
         )}
       </div>
 
-      {/* The foot, bottom right: the date it was made and its ID, right-aligned beside a QR code to
-          the card's page (once the card exists), the ID's baseline level with the code's last row. */}
-      <div className="flex shrink-0 items-end justify-end" style={{ gap: u(8), paddingTop: u(16) }}>
-        <div
-          className="font-outfit min-w-0 text-right"
-          style={{
-            fontSize: u(OUTFIT_SIZE),
-            lineHeight: OUTFIT_LINE_HEIGHT,
-            // Up past the code's white margin, which is invisible on a white card.
-            marginBottom: card.cardId ? u(QR_SIZE * qrQuietShare(cardUrl(card.cardId))) : undefined,
-          }}
-        >
-          {card.createdAt && <p>{formatCardDate(card.createdAt, card.timeZone)}</p>}
-          {card.cardId && (
-            <p
-              className="truncate text-(--ink-faint)"
-              style={{
-                fontSize: u(CARD_ID_SIZE),
-                letterSpacing: "0.04em",
-                marginTop: u(4),
-                marginBottom: trimToLetters(OUTFIT, CARD_ID_SIZE, OUTFIT_LINE_HEIGHT).marginBottom,
-              }}
-            >
-              {card.cardId}
-            </p>
-          )}
-        </div>
+      {/* The foot, bottom right: the date it was made and (once the card exists) its ID. The QR
+          code to the card's page is on its share image instead. */}
+      <div
+        className="font-outfit shrink-0 text-right"
+        style={{ fontSize: u(OUTFIT_SIZE), lineHeight: OUTFIT_LINE_HEIGHT, paddingTop: u(16) }}
+      >
+        {card.createdAt && <p>{formatCardDate(card.createdAt, card.timeZone)}</p>}
         {card.cardId && (
-          <div className="shrink-0" style={{ width: u(QR_SIZE) }}>
-            <CardQr value={cardUrl(card.cardId)} className="block w-full" />
-          </div>
+          <p
+            className="truncate text-(--ink-faint)"
+            style={{ fontSize: u(CARD_ID_SIZE), letterSpacing: "0.04em", marginTop: u(4) }}
+          >
+            {card.cardId}
+          </p>
         )}
       </div>
     </div>

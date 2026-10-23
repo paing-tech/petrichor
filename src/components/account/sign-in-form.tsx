@@ -123,7 +123,7 @@ export function SignInForm({
           />
         </div>
         {error && <p className="text-destructive text-sm">{error}</p>}
-        <Button type="submit" size="lg" className="h-11" disabled={code.trim().length < 6 || busy !== null}>
+        <Button type="submit" size="lg" disabled={code.trim().length < 6 || busy !== null}>
           {busy === "code" && <Loader2Icon className="animate-spin" />} Sign in
         </Button>
         <div className="flex justify-between text-sm">
@@ -143,29 +143,27 @@ export function SignInForm({
 
   return (
     <div className="grid gap-3">
-      <Button type="button" variant="outline" size="lg" className="bg-background h-11" disabled={busy !== null} onClick={signInWithGoogle}>
+      <Button type="button" variant="outline" size="lg" className="bg-background" disabled={busy !== null} onClick={signInWithGoogle}>
         {busy === "google" ? <Loader2Icon className="animate-spin" /> : <GoogleIcon />} Continue with Google
       </Button>
       <div className="text-muted-foreground flex h-3 items-center gap-3 text-xs">
         <span className="bg-border h-px flex-1" /> or <span className="bg-border h-px flex-1" />
       </div>
       <form onSubmit={sendCode} className="grid gap-3">
-        {/* The placeholder shows what goes here; the label stays for screen readers. */}
-        <Label htmlFor="email" className="sr-only">
-          Email
-        </Label>
-        <Input
-          id="email"
-          type="email"
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
-          aria-invalid={!!error}
-          className="bg-background h-11"
-        />
+        <div className="grid gap-2">
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Enter your email address"
+            aria-invalid={!!error}
+            className="bg-background h-12 rounded-2xl pl-4"
+          />
+        </div>
         {error && <p className="text-destructive text-sm">{error}</p>}
-        <Button type="submit" size="lg" className="h-11" disabled={busy !== null}>
+        <Button type="submit" size="lg" disabled={busy !== null}>
           {busy === "email" ? <Loader2Icon className="animate-spin" /> : <MailIcon />} Email me a code
         </Button>
       </form>

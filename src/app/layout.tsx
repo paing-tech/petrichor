@@ -61,10 +61,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className="mx-auto grid w-full max-w-6xl grid-cols-[1fr_auto_1fr] items-center px-[max(1rem,env(safe-area-inset-left))] pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 sm:px-6"
       style={{ viewTransitionName: "site-header" }}
     >
-      {/* White on the home page's night sky while its song plays. */}
+      {/* White on the home page's night sky while its song plays; hidden (its space kept) on
+          pages that show the brand themselves (see HideWordmark). */}
       <Link
         href="/"
-        className="col-start-2 font-serif text-2xl tracking-tight transition-colors duration-700 [html[data-dark-page]_&]:text-white [html[data-listening]_&]:text-white"
+        className="col-start-2 font-serif text-2xl tracking-tight transition-colors duration-700 [html[data-dark-page]_&]:text-white [html[data-listening]_&]:text-white [html[data-no-wordmark]_&]:invisible"
       >
         Petrichor
       </Link>

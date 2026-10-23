@@ -204,7 +204,7 @@ export default function Home({ searchParams }: PageProps<"/">) {
               <div className="w-full max-w-77">
                 <HomePlayPill title={SAMPLE_CARD.songTitle} artist={SAMPLE_CARD.artistName} />
               </div>
-go              <Suspense fallback={<HomeActionsFallback />}>
+              <Suspense fallback={<HomeActionsFallback />}>
                 <Actions searchParams={searchParams} />
               </Suspense>
             </HideWhileListening>

@@ -10,10 +10,7 @@ import {
   HomeActions,
   HomeActionsFallback,
 } from "@/components/home/home-actions";
-import {
-  AudioPlayButton,
-  NowPlaying,
-} from "@/components/home/audio-play-button";
+import { NowPlaying } from "@/components/home/audio-play-button";
 import {
   BrightenWhileListening,
   FloatWhileListening,
@@ -23,6 +20,7 @@ import {
   RevealWhileListening,
   type Track,
 } from "@/components/home/listening";
+import { HomePlayPill } from "@/components/home/play-pill";
 import { TiltArtwork, TiltLayer } from "@/components/home/tilt-artwork";
 import { TodayCard } from "@/components/home/today-card";
 import { afterSignInPath, getAccount, safeNextPath } from "@/lib/auth/account";
@@ -51,9 +49,23 @@ const TRACKS: Track[] = [
 // x 200–800, y 248–1086; the figure is its 4:5 "photo", washed green below it, and the card's
 // text sits on the green.
 const VIEW = { left: 0, top: 0, width: 1000, height: 1350 };
-const CARD = { left: 200, top: 248, width: 600, height: 600 * CARD_RATIO, bottom: 248 + 600 * CARD_RATIO };
-/** The card's photo area: its top, 4:5. */
-const PHOTO_BOTTOM = CARD.top + (CARD.width * 5) / 4;
+/**
+ * This card is 5:4, a little shorter than every other card (63:88). The difference is cut from
+ * its photo, so the green and the text keep their size and come sooner.
+ */
+const HOME_CARD_RATIO = 5 / 4;
+/** An ordinary card's height at this width, and how much shorter this one is. */
+const FULL_HEIGHT = 600 * CARD_RATIO;
+const TRIM = FULL_HEIGHT - 600 * HOME_CARD_RATIO;
+const CARD = { left: 200, top: 248, width: 600, height: 600 * HOME_CARD_RATIO, bottom: 248 + 600 * HOME_CARD_RATIO };
+/**
+ * How much higher than on other cards the green begins, in card units (390 across): more green
+ * below her (the text stays at the card's foot).
+ */
+const GREEN_LIFT = 120;
+const LIFT = GREEN_LIFT * (CARD.width / 390);
+/** Where the green turns solid: the photo's foot (4:5), less the trim and the lift. */
+const PHOTO_BOTTOM = CARD.top + (CARD.width * 5) / 4 - TRIM - LIFT;
 const CARD_GREEN = "#a3b18a";
 /** Where the card's green glow fades out below it. */
 const GLOW_BOTTOM = CARD.bottom + 96;
@@ -74,7 +86,7 @@ const REVERIE = {
  * photo's foot), so her lower legs are hidden by the green; while the song plays the fade
  * slides away and she appears whole. As percentages of the image's height.
  */
-const FIGURE_FADE_START = CARD.top + 0.8 * (PHOTO_BOTTOM - CARD.top);
+const FIGURE_FADE_START = CARD.top + 0.8 * ((CARD.width * 5) / 4) - TRIM - LIFT;
 const FIGURE_FADE = {
   from: ((FIGURE_FADE_START - REVERIE.top) / REVERIE.height) * 100,
   to: ((PHOTO_BOTTOM - REVERIE.top) / REVERIE.height) * 100,
@@ -85,6 +97,11 @@ const cardBox = {
   top: pct(CARD.top - VIEW.top, VIEW.height),
   width: pct(CARD.width, VIEW.width),
   height: pct(CARD.height, VIEW.height),
+};
+const textBox = {
+  ...cardBox,
+  top: pct(CARD.top - TRIM - VIEW.top, VIEW.height),
+  height: pct(FULL_HEIGHT, VIEW.height),
 };
 /** The point the card tilts around: its centre, within the frame. */
 const CARD_CENTER = `${pct(CARD.left + CARD.width / 2 - VIEW.left, VIEW.width)} ${pct(CARD.top + CARD.height / 2 - VIEW.top, VIEW.height)}`;
@@ -151,13 +168,14 @@ export default function Home({ searchParams }: PageProps<"/">) {
                     ...cardBox,
                     borderRadius: CARD_RADIUS,
                     // The same fade as any card's photo, so the moment sits inside it just the same.
-                    background: cardFadeBackground(CARD_GREEN),
+                    background: cardFadeBackground(CARD_GREEN, TRIM * (390 / CARD.width), GREEN_LIFT),
                   }}
                 />
               </HideWhileListening>
             </TiltLayer>
             <TiltLayer className="absolute inset-0" origin={CARD_CENTER}>
-              <div className="absolute" style={cardBox}>
+              {/* A full-height card's text, raised by the trim so it sits on this card's foot. */}
+              <div className="absolute" style={textBox}>
                 {/* While the song plays, the title and artist move to the bottom-left corner. */}
                 <HideWhileListening>
                   <TodayCard
@@ -165,31 +183,28 @@ export default function Home({ searchParams }: PageProps<"/">) {
                     bare
                     className="max-w-none"
                     inkColor="#FFFFFF"
-                    titleAccessory={
-                      // No ring; 24 card units, under the title's line height (title size 28).
-                      <AudioPlayButton
-                        label={SAMPLE_CARD.songTitle}
-                        ring={false}
-                        size="calc(var(--u) * 24)"
-                        iconSize="calc(var(--u) * 24)"
-                      />
-                    }
+                    // The green begins GREEN_LIFT higher than a photo's fade: the moment follows it.
+                    momentLift={GREEN_LIFT}
                   />
                 </HideWhileListening>
               </div>
             </TiltLayer>
           </TiltArtwork>
           {/* Starts 8px below the glow (the artwork's white margin under it is pulled up). */}
-          {/* Fixed to the two buttons' height (44 + 12 + 44px), so the centering counts only
-              them: the sign-in form unfolds below without moving the card. */}
+          {/* Fixed to the play pill's and the two buttons' height (48 + 12 + 44 + 12 + 44px), so
+              the centering counts only them: the sign-in form unfolds below without moving the
+              card. */}
           <div
-            className="relative flex h-25 w-full flex-col items-center"
+            className="relative flex h-40 w-full flex-col items-center"
             style={{
               marginTop: `calc(-20px - 100cqw * ${(VIEW.top + VIEW.height - GLOW_BOTTOM) / VIEW.width})`,
             }}
           >
-            <HideWhileListening className="flex w-full flex-col items-center">
-              <Suspense fallback={<HomeActionsFallback />}>
+            <HideWhileListening className="flex w-full flex-col items-center gap-3">
+              <div className="w-full max-w-77">
+                <HomePlayPill title={SAMPLE_CARD.songTitle} artist={SAMPLE_CARD.artistName} />
+              </div>
+go              <Suspense fallback={<HomeActionsFallback />}>
                 <Actions searchParams={searchParams} />
               </Suspense>
             </HideWhileListening>

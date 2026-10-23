@@ -54,6 +54,11 @@ type CollectibleCardProps = {
    * draws the card. `card.cardColor` should still be the artwork's color, to pick the ink.
    */
   bare?: boolean;
+  /**
+   * Raises the moment by this many card units, for artwork whose fade sits higher than a
+   * photo's (see cardFadeBackground's `lift`), so it stays inside the fade.
+   */
+  momentLift?: number;
 };
 
 // The card is a trading card (63 × 88 mm, like Pokémon cards), designed on a canvas 390 units
@@ -99,11 +104,13 @@ const SONG_AREA_TOP = PHOTO_HEIGHT * 0.9;
 /**
  * The card's fade into `color` as a background for the whole card (not just the photo area):
  * transparent at the top, the same stops as the photo's fade, then solid below it. For laying
- * over artwork that should blend into the card exactly as a photo would.
+ * over artwork that should blend into the card exactly as a photo would. In card units: `trim`
+ * is for a card made that much shorter by cutting its photo (the fade comes that much sooner);
+ * `lift` raises the fade further, for more solid color below.
  */
-export function cardFadeBackground(color: string) {
+export function cardFadeBackground(color: string, trim = 0, lift = 0) {
   const rgb = hexToRgb(color).join(", ");
-  const card = (at: number) => ((PHOTO_HEIGHT * at) / 100 / CARD_HEIGHT) * 100;
+  const card = (at: number) => (((PHOTO_HEIGHT * at) / 100 - trim - lift) / (CARD_HEIGHT - trim)) * 100;
   return `linear-gradient(to bottom, ${PHOTO_FADE.map(([at, alpha]) => `rgba(${rgb}, ${alpha}) ${card(at)}%`).join(", ")})`;
 }
 
@@ -185,6 +192,7 @@ export function CollectibleCard({
   titleAccessory,
   inkColor,
   bare = false,
+  momentLift = 0,
 }: CollectibleCardProps) {
   const cardColor = card.cardColor ?? DEFAULT_CARD_COLOR;
   const ink = cardInk(cardColor);
@@ -214,7 +222,7 @@ export function CollectibleCard({
         }
       >
         {face === "front" ? (
-          <CardFront card={card} bare={bare} cardColor={cardColor} photoOverlay={photoOverlay} titleAccessory={titleAccessory} />
+          <CardFront card={card} bare={bare} cardColor={cardColor} photoOverlay={photoOverlay} titleAccessory={titleAccessory} momentLift={momentLift} />
         ) : (
           <CardBack card={card} />
         )}
@@ -229,12 +237,14 @@ function CardFront({
   cardColor,
   photoOverlay,
   titleAccessory,
+  momentLift,
 }: {
   card: CollectibleCardData;
   bare: boolean;
   cardColor: string;
   photoOverlay?: ReactNode;
   titleAccessory?: ReactNode;
+  momentLift: number;
 }) {
   return (
     <>
@@ -257,7 +267,7 @@ function CardFront({
           className="font-outfit absolute -translate-y-1/2 overflow-x-clip text-right leading-none text-ellipsis whitespace-nowrap"
           style={{
             ...trimToLetters(OUTFIT, OUTFIT_SIZE, 1),
-            top: u(MOMENT_CENTER),
+            top: u(MOMENT_CENTER - momentLift),
             right: u(SIDE_PADDING),
             maxWidth: u(200),
             fontSize: u(OUTFIT_SIZE),

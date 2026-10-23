@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, type CSSProperties } from "react";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import {
@@ -80,6 +80,11 @@ const CARD_CENTERING = ((VIEW.height / 2 - (CARD.top + CARD.height / 2)) / VIEW.
 const OPTICAL_LIFT = 40;
 /** Space between the card's bottom edge and the play pill, in px (the same on every screen). */
 const CARD_GAP = 16;
+/**
+ * The height of everything under the card, in px: CARD_GAP, the 48px play pill, and the two
+ * 56px buttons, 12px apart. Keep it in step with those, so the layout can make room for them.
+ */
+const BUTTONS_BLOCK = CARD_GAP + 48 + 12 + 56 + 12 + 56;
 // public/reverie.png (1024 × 1536) is the figure as a cut-out (solid body, transparent sky).
 // Scaled 0.8843 units per pixel (in proportion to the card), with her torso's centre line
 // (x 538 px in the image) on the card's centre (x 500) and her fingertips just below the
@@ -119,19 +124,36 @@ const CARD_CENTER = `${pct(CARD.left + CARD.width / 2 - VIEW.left, VIEW.width)} 
 /** The card's corner radius: 23 of the card's 390 design units, in frame widths (cqw). */
 const CARD_RADIUS = `${((23 / 390) * CARD.width) / 10}cqw`;
 
+/**
+ * The measurements the hero's sizing and placement need (see .home-hero in globals.css), as
+ * CSS custom properties. Heights are shares of the frame's height (for translate and top),
+ * spans are multiples of its width.
+ */
+const CARD_CENTER_Y = CARD.top + CARD.height / 2;
+const heroVars = {
+  // From the frame's centre down to the card's.
+  "--home-center": `${CARD_CENTERING}%`,
+  // From the card's centre up to the top of the figure, and down to the card's bottom edge.
+  "--home-above": `${((CARD_CENTER_Y - Math.min(REVERIE.top, VIEW.top)) / VIEW.height) * 100}%`,
+  "--home-card-below": `${(CARD.height / 2 / VIEW.height) * 100}%`,
+  // The figure's top to the card's bottom, in frame widths.
+  "--home-span": (CARD_CENTER_Y - Math.min(REVERIE.top, VIEW.top) + CARD.height / 2) / VIEW.width,
+  "--home-lift": `${OPTICAL_LIFT}px`,
+  "--home-buttons": `${BUTTONS_BLOCK}px`,
+  // Where the buttons start: CARD_GAP below the card (pulling up past the frame below it).
+  "--home-buttons-top": `calc(${CARD_GAP}px - 100cqw * ${(VIEW.top + VIEW.height - CARD.bottom) / VIEW.width})`,
+} as CSSProperties;
+
 export default function Home({ searchParams }: PageProps<"/">) {
   return (
     <ListeningProvider tracks={TRACKS}>
       <ListeningBackdrop />
       <NowPlaying />
-      {/* The card at the centre of the screen; its buttons hang below it, apart from the centring. */}
-      <div className="flex flex-1 flex-col items-center justify-center px-4">
-        {/* Artwork size: grows with the screen height (leaving room for the header and the
-          buttons below), from 300px up to 600px wide. */}
-        <div
-          className="@container relative flex w-full max-w-[clamp(300px,calc((100svh-230px)*0.74),600px)] flex-col items-center"
-          style={{ transform: `translateY(calc(${CARD_CENTERING}% - ${OPTICAL_LIFT}px))` }}
-        >
+      {/* The card a little above the screen's centre, its buttons hanging below it (beside it
+          on a phone held sideways), all sized to fit without scrolling: see .home-hero in
+          globals.css. */}
+      <div className="home-hero flex flex-1 flex-col items-center justify-center px-4" style={heroVars}>
+        <div className="home-artwork @container relative flex flex-col items-center">
           <TiltArtwork
             className="relative w-full"
             style={{ aspectRatio: `${VIEW.width} / ${VIEW.height}` }}
@@ -204,15 +226,11 @@ export default function Home({ searchParams }: PageProps<"/">) {
               </div>
             </TiltLayer>
           </TiltArtwork>
-          {/* CARD_GAP below the card (the artwork's margin under it is pulled up), and exactly as
-              wide as the card. Out of the flow, so only the card is centred: the pill and buttons
-              (and the sign-in form unfolding below them) never move it. */}
+          {/* Exactly as wide as the card, and out of the flow, so only the card is placed: the pill
+              and buttons never move it. */}
           <div
-            className="absolute top-full left-1/2 flex -translate-x-1/2 flex-col items-center"
-            style={{
-              width: `${(CARD.width / VIEW.width) * 100}cqw`,
-              marginTop: `calc(${CARD_GAP}px - 100cqw * ${(VIEW.top + VIEW.height - CARD.bottom) / VIEW.width})`,
-            }}
+            className="home-buttons flex flex-col items-center"
+            style={{ width: `${(CARD.width / VIEW.width) * 100}cqw` }}
           >
             <HideWhileListening className="flex w-full flex-col items-center gap-3">
               <div className="w-full">

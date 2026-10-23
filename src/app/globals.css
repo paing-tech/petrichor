@@ -207,3 +207,71 @@
 @utility animate-marquee {
   animation: marquee var(--marquee-duration, 6s) ease-in-out infinite alternate;
 }
+
+/* The home page's hero (src/app/page.tsx, which sets the --home-* measurements). The card sits a
+   little above the centre (OPTICAL_LIFT), moving only as far as it must to keep her head below
+   the header and the buttons on screen, and the artwork shrinks to fit short screens, so the
+   page never scrolls. --home-h is the space under the header: the screen (with its browser bars
+   showing) less the header (its top padding, which grows for the home-screen app's status bar,
+   plus its 44px row) and the bottom safe area. */
+.home-hero {
+  --home-h: calc(100svh - max(0.75rem, env(safe-area-inset-top)) - 44px - env(safe-area-inset-bottom));
+}
+.home-artwork {
+  --home-x: 0px;
+  /* No wider than the screen, 600px, the old size for the screen's height, or what fits with
+     the buttons below (and 8px / 16px clear of the header and the bottom). */
+  width: min(100%, 600px, (100svh - 230px) * 0.74, (var(--home-h) - var(--home-buttons) - 24px) / var(--home-span));
+  transform: translate(
+    var(--home-x),
+    calc(
+      var(--home-center) +
+        clamp(
+          calc(var(--home-above) + 8px - var(--home-h) / 2),
+          calc(-1 * var(--home-lift)),
+          calc(var(--home-h) / 2 - 16px - var(--home-buttons) - var(--home-card-below))
+        )
+    )
+  );
+}
+.home-buttons {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-top: var(--home-buttons-top);
+  transform: translateX(-50%);
+}
+
+/* A phone held sideways: too short for buttons below the card, so they sit beside it, and the
+   two are centred together. */
+@media (orientation: landscape) and (max-height: 500px) {
+  /* The frame (her head and the glow round the card) is taller than the space here: it mustn't
+     stretch the page, and its empty transparent edges are cut off instead. */
+  .home-hero {
+    max-height: var(--home-h);
+    overflow: hidden;
+  }
+  .home-artwork {
+    /* Half of the buttons' width (60% of the frame) and the 24px gap. */
+    --home-x: calc(-30% - 12px);
+    /* Also narrow enough for the frame, the gap and the buttons side by side (2rem of padding). */
+    width: min(100%, 600px, (var(--home-h) - 24px) / var(--home-span), (100vw - 2rem - 24px) / 1.6);
+    transform: translate(
+      var(--home-x),
+      calc(
+        var(--home-center) +
+          clamp(
+            calc(var(--home-above) + 8px - var(--home-h) / 2),
+            calc(-1 * var(--home-lift)),
+            calc(var(--home-h) / 2 - 16px - var(--home-card-below))
+          )
+      )
+    );
+  }
+  .home-buttons {
+    top: calc(50% - var(--home-center));
+    left: 100%;
+    margin: 0 0 0 24px;
+    transform: translateY(-50%);
+  }
+}

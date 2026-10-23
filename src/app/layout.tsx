@@ -84,6 +84,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} ${laBelleAurore.variable} ${outfit.variable} h-full antialiased`}
+      // Pages flag themselves on <html> before React loads (DarkPage, HideWordmark), so its
+      // attributes can differ from the server's. This covers <html> itself only, not its children.
+      suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col pb-[env(safe-area-inset-bottom)]">
         {siteHeader}

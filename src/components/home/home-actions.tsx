@@ -14,7 +14,7 @@ type HomeActionsProps = {
  */
 export function HomeActions({ collectionHref }: HomeActionsProps) {
   return (
-    <div className="grid w-full gap-4">
+    <div className="grid w-full gap-3">
       <CreateButton />
       {collectionHref ? (
         <Button asChild variant="outline" size="lg" className="bg-background">

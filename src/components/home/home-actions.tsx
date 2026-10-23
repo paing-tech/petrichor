@@ -37,12 +37,11 @@ function CreateButton() {
   );
 }
 
-/** Same footprint as HomeActions while the session loads, so nothing shifts. */
+/**
+ * While the session loads: the signed-out buttons, Sign in included, so nothing pops in later.
+ * Signed-in visitors rarely see the home page (src/proxy.ts sends "/" to their collections),
+ * so for them "My keepsakes" just takes Sign in's place.
+ */
 export function HomeActionsFallback() {
-  return (
-    <div className="grid w-full gap-3">
-      <CreateButton />
-      <div className="h-11" />
-    </div>
-  );
+  return <HomeActions collectionHref={null} />;
 }

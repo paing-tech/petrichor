@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { cn } from "@/lib/utils";
 
 /** Scroll speed, in px per second. */
-const SPEED = 28;
+const SPEED = 18;
 /** Share of each pass spent paused at an end (the animation holds at both ends). */
 const PAUSE_SHARE = 0.3;
 

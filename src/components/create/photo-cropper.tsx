@@ -135,12 +135,12 @@ export function PhotoFramingLayer(props: FramingProps) {
   );
 }
 
-/** Zoom slider with −/+ and Reset, under the card while framing. */
+/** Zoom slider with −/+ and a reset icon, under the card while framing (as wide as the card). */
 export function PhotoZoomControls(props: FramingProps) {
   const { view, onChange } = props;
   const { zoomTo, isDefault } = useFraming(props);
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full items-center gap-1">
       <Button
         type="button"
         variant="ghost"
@@ -171,8 +171,16 @@ export function PhotoZoomControls(props: FramingProps) {
       >
         <PlusIcon />
       </Button>
-      <Button type="button" variant="ghost" size="sm" disabled={isDefault} onClick={() => onChange(DEFAULT_PHOTO_VIEW)}>
-        <RotateCcwIcon /> Reset
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Reset framing"
+        title="Reset framing"
+        disabled={isDefault}
+        onClick={() => onChange(DEFAULT_PHOTO_VIEW)}
+      >
+        <RotateCcwIcon />
       </Button>
     </div>
   );

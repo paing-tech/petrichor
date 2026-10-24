@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition, type FormEvent } from "react";
-import { Loader2Icon, XIcon } from "lucide-react";
+import { ArrowRightIcon, Loader2Icon } from "lucide-react";
 import { checkYouTubeLink, checkYouTubeMatch, type PickedYouTubeVideo } from "@/app/create/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,13 +48,14 @@ export function YouTubePick({ songTitle, artistName, appleMusic, picked, onPick,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [songTitle, artistName, appleMusic]);
 
-  if (match !== "missing") return null;
+  // Once a video is picked, the player below shows it (see SongClipPicker), so this steps aside.
+  if (match !== "missing" || picked) return null;
 
-  function handleLink(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!link.trim()) return;
+  /** Checks a link and, if it's a playable YouTube video, picks it. */
+  function check(url: string) {
+    if (!url.trim()) return;
     startChecking(async () => {
-      const result = await checkYouTubeLink({ url: link, songTitle });
+      const result = await checkYouTubeLink({ url, songTitle });
       if (!result.ok) {
         setError(result.error);
         return;
@@ -65,67 +66,60 @@ export function YouTubePick({ songTitle, artistName, appleMusic, picked, onPick,
     });
   }
 
+  function handleLink(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    check(link);
+  }
+
   return (
-    <section aria-labelledby="youtube-pick-title" className="w-full rounded-2xl border p-4 text-sm">
+    <section aria-labelledby="youtube-pick-title" className="w-full text-sm">
       <h2 id="youtube-pick-title" className="font-medium">
         We couldn&apos;t find this song on YouTube
       </h2>
-      <p className="text-muted-foreground mt-1">
-        So the card can&apos;t play it. Paste a YouTube link to the song to play instead (optional).
-      </p>
-
-      {picked ? (
-        <>
-          <div className="mt-3 flex items-center gap-3">
-            {/* YouTube's own thumbnail for the video. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`https://i.ytimg.com/vi/${picked.videoId}/mqdefault.jpg`}
-              alt=""
-              className="bg-muted aspect-video w-20 shrink-0 rounded-md object-cover"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="truncate">{picked.title}</p>
-              <p className="text-muted-foreground truncate text-xs">{picked.channel}</p>
-            </div>
-            <Button type="button" variant="ghost" size="icon" aria-label="Remove this video" onClick={() => onPick(null)}>
-              <XIcon />
-            </Button>
+      {/* A pasted link is checked straight away (as is Enter); a typed one gets a small arrow
+          button inside the field. A spinner sits there while it's checked. */}
+      <form onSubmit={handleLink} className="mt-3">
+        <div className="relative">
+          <Input
+            value={link}
+            onChange={(e) => {
+              setLink(e.target.value);
+              setError(undefined);
+            }}
+            onPaste={(e) => {
+              const pasted = e.clipboardData.getData("text").trim();
+              if (!pasted) return;
+              e.preventDefault();
+              setLink(pasted);
+              setError(undefined);
+              check(pasted);
+            }}
+            inputMode="url"
+            autoComplete="off"
+            placeholder="Paste a YouTube link to the song"
+            aria-label="YouTube link"
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? "youtube-pick-error" : undefined}
+            className="h-10 pr-11"
+          />
+          <div className="absolute inset-y-0 right-1.5 flex items-center">
+            {checking ? (
+              <Loader2Icon aria-label="Checking the link" className="text-muted-foreground mr-1.5 size-4 animate-spin" />
+            ) : (
+              link.trim() && (
+                <Button type="submit" size="icon-sm" aria-label="Use this link" title="Use this link">
+                  <ArrowRightIcon />
+                </Button>
+              )
+            )}
           </div>
-          {!picked.namesSong && (
-            <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
-              This video&apos;s title doesn&apos;t mention “{songTitle}”. Make sure it&apos;s the right song.
-            </p>
-          )}
-        </>
-      ) : (
-        <form onSubmit={handleLink} className="mt-3">
-          <div className="flex gap-2">
-            <Input
-              value={link}
-              onChange={(e) => {
-                setLink(e.target.value);
-                setError(undefined);
-              }}
-              inputMode="url"
-              autoComplete="off"
-              placeholder="youtube.com/watch?v=…"
-              aria-label="YouTube link"
-              aria-invalid={error ? true : undefined}
-              aria-describedby={error ? "youtube-pick-error" : undefined}
-              className="h-10"
-            />
-            <Button type="submit" variant="outline" className="h-10 px-4" disabled={checking || !link.trim()}>
-              {checking ? <Loader2Icon className="animate-spin" /> : "Use"}
-            </Button>
-          </div>
-          {error && (
-            <p id="youtube-pick-error" className="text-destructive mt-2 text-xs">
-              {error}
-            </p>
-          )}
-        </form>
-      )}
+        </div>
+        {error && (
+          <p id="youtube-pick-error" className="text-destructive mt-2 text-xs">
+            {error}
+          </p>
+        )}
+      </form>
     </section>
   );
 }

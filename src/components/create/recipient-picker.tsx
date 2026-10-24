@@ -17,8 +17,8 @@ type RecipientPickerProps = {
 };
 
 /**
- * Optional: send copies straight to accounts (they accept before it's theirs).
- * Copies without a recipient get a link (carrying a claim code) for people without an account.
+ * Send copies straight to accounts, found by name or @username (they accept before it's
+ * theirs), up to `max` people.
  */
 export function RecipientPicker({ max, value, onChange }: RecipientPickerProps) {
   const [query, setQuery] = useState("");
@@ -58,17 +58,12 @@ export function RecipientPicker({ max, value, onChange }: RecipientPickerProps) 
   const full = value.length >= max;
   return (
     <div className="grid grid-cols-1 gap-2">
-      <Label htmlFor="recipient-search">
-        Send to their account <span className="text-muted-foreground font-normal">(optional)</span>
-      </Label>
+      <Label htmlFor="recipient-search">People</Label>
 
       {value.length > 0 && (
         <ul className="grid gap-1.5">
-          {value.map((profile, i) => (
+          {value.map((profile) => (
             <li key={profile.userId} className="bg-background flex items-center gap-3 rounded-lg border px-2.5 py-1.5">
-              <span className="text-muted-foreground w-12 shrink-0 text-xs tabular-nums">
-                {i + 1} of {max}
-              </span>
               <UserAvatar displayName={profile.displayName} avatarUrl={profile.avatarUrl} className="size-6" />
               <span className="min-w-0 flex-1 truncate text-sm">
                 {profile.displayName} <span className="text-muted-foreground">@{profile.username}</span>
@@ -128,11 +123,6 @@ export function RecipientPicker({ max, value, onChange }: RecipientPickerProps) 
           )}
         </div>
       )}
-      <p className="text-muted-foreground text-xs">
-        {max > 1
-          ? `Pick up to ${max} people, one per copy. They accept it before it's theirs; copies without a recipient get a link to send.`
-          : "They accept it before it's theirs. Leave empty to get a link to send instead."}
-      </p>
     </div>
   );
 }

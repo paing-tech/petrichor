@@ -11,18 +11,16 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, SparklesIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createCard, requestPhotoUpload, type CreatedCopyResult, type PickedYouTubeVideo } from "@/app/create/actions";
-import { AppleMusicEmbed } from "@/components/apple-music-embed";
 import { CollectibleCard, type CardFace } from "@/components/collectible-card";
-import type { Audience } from "@/components/create/audience-field";
 import { CreatedCopies } from "@/components/create/created-copies";
-import { EditionField, parseEditionSize } from "@/components/create/edition-field";
 import { PhotoAndColors } from "@/components/create/photo-and-colors";
 import { PhotoFramingLayer, PhotoZoomControls } from "@/components/create/photo-cropper";
 import { useActionsAboveKeyboard } from "@/components/create/use-actions-above-keyboard";
 import { useIsNarrow } from "@/components/create/use-is-narrow";
+import { SendSheet } from "@/components/create/send-sheet";
 import { SongClipPicker, type ClipRange } from "@/components/create/song-clip-picker";
 import { YouTubePick } from "@/components/create/youtube-pick";
 import { SelectedSong, SongSearch } from "@/components/create/song-search";
@@ -31,8 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { buildAppleMusicUrl, type SongSearchResult } from "@/lib/apple-music";
-import { authClient } from "@/lib/auth/client";
+import type { SongSearchResult } from "@/lib/apple-music";
 import { signInPath } from "@/lib/auth/sign-in-path";
 import { DEFAULT_CARD_COLOR } from "@/lib/card-color";
 import { cropFromView, DEFAULT_PHOTO_VIEW, exportCroppedPhoto, readImageSize, type PhotoView } from "@/lib/photo-crop";
@@ -96,13 +93,11 @@ const FORM_STEPS: { fields: FieldName[]; optional: boolean }[] = [
   { fields: ["songTitle", "artistName"], optional: false },
   { fields: ["message", "senderName"], optional: true }, // The back: note and signature
   { fields: ["moment"], optional: true }, // The front: photo, card color, place or occasion
-  { fields: [], optional: false }, // Copies
 ];
 const LAST_FORM_STEP = FORM_STEPS.length - 1;
 const SONG_STEP = 0;
 const NOTE_STEP = 1;
 const PHOTO_STEP = 2;
-const COPIES_STEP = LAST_FORM_STEP;
 const stepOfField = (field: FieldName) => FORM_STEPS.findIndex((s) => s.fields.includes(field));
 
 const subscribeNoop = () => () => {};
@@ -129,11 +124,11 @@ export function CreateCardFlow() {
   // The most recently picked file, so a slow palette extraction for an older photo is ignored.
   const latestPhotoFile = useRef<File | null>(null);
   const [step, setStep] = useState<Step>("edit");
-  const [editionInput, setEditionInput] = useState("1");
-  const [editionError, setEditionError] = useState<string>();
-  // Who the copies go to. Its step is gone for now (cards are for the creator); sending to
-  // people is coming back as its own section, which will set these.
-  const [audience] = useState<Audience>("self");
+  // Who gets a copy, chosen in the sheet that opens from the preview: you (copy 1), people,
+  // and copies with a share link.
+  const [sendOpen, setSendOpen] = useState(false);
+  const [keepForMe, setKeepForMe] = useState(true);
+  const [linkCopies, setLinkCopies] = useState(0);
   /** The step on screen (one at a time, on every screen). */
   const [formStep, setFormStep] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
@@ -141,7 +136,6 @@ export function CreateCardFlow() {
   // Which side the live preview shows: the back on the message and signature steps, else the
   // front; focusing a field, or the Front / Back switch, turns it for the current step.
   const [sideChoice, setSideChoice] = useState<{ side: CardFace; step: number } | null>(null);
-  const [anonymous, setAnonymous] = useState(false);
   const [recipients, setRecipients] = useState<PublicProfile[]>([]);
   // A YouTube video the creator pasted on the preview, for the song it was picked for.
   const [youtubePick, setYouTubePick] = useState<{ song: string; video: PickedYouTubeVideo } | null>(null);
@@ -151,16 +145,11 @@ export function CreateCardFlow() {
   const [clip, setClip] = useState<(ClipRange & { videoId: string }) | null>(null);
   /** The created copies in edition order, with each one's link and status. */
   const [copies, setCopies] = useState<CreatedCopyResult[] | null>(null);
-  const { data: session } = authClient.useSession();
-  const signedIn = Boolean(session?.user);
   const [status, setStatus] = useState<string | null>(null);
   const [isSaving, startSaving] = useTransition();
   const today = useToday();
-  // Falls back to 1 while the field holds something invalid; the preview step re-checks it.
-  const editionSize = parseEditionSize(editionInput).size ?? 1;
-  // One recipient per copy; extra picks are dropped if the edition shrinks.
-  const activeRecipients = audience === "others" ? recipients.slice(0, editionSize) : [];
-  const signatureHidden = audience === "others" && anonymous;
+  // Everyone who gets a copy, numbered in this order: you, the people, the links (at least 1).
+  const editionSize = Math.max(1, (keepForMe ? 1 : 0) + recipients.length + linkCopies);
 
   // On a new step, move focus to the step itself (for screen readers) rather than a
   // field: the keyboard or color picker should only open when the person taps them.
@@ -177,12 +166,7 @@ export function CreateCardFlow() {
   useActionsAboveKeyboard(stepActionsRef, narrow && step === "edit");
 
   /** Shows a step and focuses the field that needs attention. */
-  function showFieldError(field: FieldName | "editionSize") {
-    if (field === "editionSize") {
-      setFormStep(COPIES_STEP);
-      requestAnimationFrame(() => document.getElementById("editionSize")?.focus());
-      return;
-    }
+  function showFieldError(field: FieldName) {
     setFormStep(stepOfField(field));
     const isSongField = field === "songTitle" || field === "artistName";
     requestAnimationFrame(() =>
@@ -312,8 +296,6 @@ export function CreateCardFlow() {
     }
     setValidateLive(true);
     const result = cardFieldsSchema.safeParse(values);
-    const edition = parseEditionSize(editionInput);
-    setEditionError(edition.error);
     if (!result.success) {
       const nextErrors = fieldErrors(result.error);
       setErrors(nextErrors);
@@ -322,10 +304,6 @@ export function CreateCardFlow() {
       return;
     }
     setErrors({});
-    if (edition.error) {
-      showFieldError("editionSize");
-      return;
-    }
     goTo("review");
   }
 
@@ -369,7 +347,7 @@ export function CreateCardFlow() {
         setPhoto((p) => (p?.file === uploaded.file && p.view === uploaded.view ? { ...p, uploadedKey: upload.key } : p));
       }
 
-      setStatus("Saving card…");
+      setStatus("Saving keepsake…");
       const appleMusic = song
         ? { storefront: song.storefront, collectionId: song.collectionId, trackId: song.trackId }
         : null;
@@ -382,10 +360,9 @@ export function CreateCardFlow() {
         cardColor,
         // One color per card now: a card without a photo tones its top from the card color.
         photoAreaColor: null,
-        editionSize,
-        audience,
-        anonymous: signatureHidden,
-        recipientUserIds: activeRecipients.map((r) => r.userId),
+        keepForMe,
+        recipientUserIds: recipients.map((r) => r.userId),
+        linkCopies,
         youtubeVideoId: pickedVideo?.videoId ?? null,
         clip: cardClip ? { videoId: cardClip.videoId, start: cardClip.start, end: cardClip.end } : null,
       });
@@ -402,7 +379,8 @@ export function CreateCardFlow() {
           removePhoto();
           setPhotoError(result.error);
           goTo("edit");
-        } else if (result.fieldErrors) {
+        } else if (result.fieldErrors && Object.keys(result.fieldErrors).some((f) => f in EMPTY_VALUES)) {
+          setSendOpen(false);
           setErrors(result.fieldErrors);
           goTo("edit");
         }
@@ -410,10 +388,11 @@ export function CreateCardFlow() {
         return;
       }
 
-      // Made "for myself" while signed out: remember the claim codes in this browser so
-      // signing in moves the cards into the collection automatically.
-      const unclaimedOwn = result.copies.filter((c) => audience === "self" && c.claimToken);
+      // Your own copy, made while signed out: remember its claim code in this browser so
+      // signing in moves it into the collection automatically.
+      const unclaimedOwn = result.copies.filter((c) => c.forYou && c.claimToken);
       if (unclaimedOwn.length) saveClaims(unclaimedOwn.map((c) => ({ cardId: c.cardId, token: c.claimToken! })));
+      setSendOpen(false);
       setCopies(result.copies);
       goTo("done");
     });
@@ -428,10 +407,9 @@ export function CreateCardFlow() {
     setFocusSearch(false);
     removePhoto();
     setCardColor(DEFAULT_CARD_COLOR);
-    setEditionInput("1");
-    setEditionError(undefined);
-    setAnonymous(false);
     setRecipients([]);
+    setKeepForMe(true);
+    setLinkCopies(0);
     setYouTubePick(null);
     setMatchedVideo(null);
     setClip(null);
@@ -461,7 +439,7 @@ export function CreateCardFlow() {
     photoUrl: photo?.previewUrl,
     photoCrop: photo ? cropFromView(photo.width, photo.height, photo.view) : null,
     message: values.message.trim(),
-    senderName: signatureHidden ? "" : values.senderName.trim(),
+    senderName: values.senderName.trim(),
     moment: values.moment.trim(),
     createdAt: today,
     cardColor,
@@ -473,30 +451,30 @@ export function CreateCardFlow() {
   if (step === "done" && copies) {
     const size = copies.length;
     const allYours = copies.every((c) => c.ownedByYou);
-    const keepAfterSignIn = audience === "self" && copies.some((c) => c.claimToken);
+    const keepAfterSignIn = copies.some((c) => c.forYou && c.claimToken);
     const heading = allYours
       ? size > 1
-        ? `Your ${size} cards are in your collection`
+        ? `Your ${size} keepsakes are in your collection`
         : "It's in your collection"
       : keepAfterSignIn
         ? size > 1
-          ? "Sign in to keep your cards"
-          : "Sign in to keep your card"
+          ? "Sign in to save your keepsakes"
+          : "Sign in to save your keepsake"
         : size > 1
-          ? `Your ${size} cards are ready`
-          : "Your card is ready";
+          ? `Your ${size} keepsakes are ready`
+          : "Your keepsake is ready";
     return (
       <div className="mx-auto flex w-full max-w-md flex-col items-center gap-8 px-4 pt-4 pb-16">
         <div className="text-center">
           <p className="text-clay mb-2 inline-flex items-center gap-1.5 text-sm font-medium">
-            <SparklesIcon className="size-4" /> {size > 1 ? "Edition created" : "Card created"}
+            <SparklesIcon className="size-4" /> {size > 1 ? "Edition created" : "Keepsake created"}
           </p>
           <h1 className="font-serif text-4xl tracking-tight">{heading}</h1>
           <p className="text-muted-foreground mt-2 text-sm">
             {keepAfterSignIn
               ? "We've saved it on this device. Sign in and it moves into your collection, or save the link below to keep it later."
               : allYours
-                ? "Share the link with anyone; the card stays yours."
+                ? "Share the link with anyone; the keepsake stays yours."
                 : "Each copy below shows where it stands and the link to send."}
           </p>
         </div>
@@ -531,19 +509,6 @@ export function CreateCardFlow() {
       <div className="mx-auto flex w-full max-w-md flex-col items-center gap-8 px-4 pt-4 pb-16">
         <div className="text-center">
           <h1 className="font-serif text-4xl tracking-tight">Looks good?</h1>
-          <p className="text-muted-foreground mt-2 text-sm">
-            {editionSize > 1
-              ? `This creates ${editionSize} numbered cards, 1 of ${editionSize} to ${editionSize} of ${editionSize}, each with its own link. `
-              : ""}
-            {audience === "self"
-              ? signedIn
-                ? "They'll go straight into your collection. "
-                : "Sign in afterwards to keep them in your collection. "
-              : activeRecipients.length > 0
-                ? `${activeRecipients.length === 1 ? "Your recipient accepts" : "Each recipient accepts"} before it's theirs. `
-                : ""}
-            Cards can&apos;t be changed after they&apos;re created.
-          </p>
         </div>
         <FlipCard
           className="max-w-[340px]"
@@ -551,7 +516,6 @@ export function CreateCardFlow() {
           front={<CollectibleCard card={previewCard} className="max-w-none" />}
           back={<CollectibleCard card={previewCard} face="back" className="max-w-none" />}
         />
-        {song && <AppleMusicEmbed url={buildAppleMusicUrl(song)} title={song.title} />}
         <YouTubePick
           key={songKey}
           songTitle={previewCard.songTitle}
@@ -565,33 +529,45 @@ export function CreateCardFlow() {
           <SongClipPicker
             key={cardVideoId}
             videoId={cardVideoId}
-            title={`${previewCard.songTitle} by ${previewCard.artistName}`}
+            songTitle={previewCard.songTitle}
+            artist={previewCard.artistName}
             clip={cardClip}
             onChange={(range) => setClip(range ? { ...range, videoId: cardVideoId } : null)}
+            // A pasted video shows straight away, with its caution and a way to swap it.
+            startOpen={!!pickedVideo}
+            warning={pickedVideo && !pickedVideo.namesSong ? "Make sure it's the right song." : undefined}
+            onReplace={pickedVideo ? () => setYouTubePick(null) : undefined}
           />
         )}
         <div className="flex w-full gap-2">
+          {/* The same Back / forward pair as the steps before. */}
           <Button
             variant="outline"
             size="lg"
-            className="h-10 flex-1"
+            className="bg-background px-5"
             disabled={isSaving}
             onClick={() => goTo("edit")}
           >
-            <ArrowLeftIcon /> Edit
+            <ArrowLeftIcon /> Back
           </Button>
-          <Button size="lg" className="h-10 flex-1" disabled={isSaving} onClick={handleConfirm}>
-            {isSaving ? (
-              <>
-                <Loader2Icon className="animate-spin" /> {status ?? "Saving…"}
-              </>
-            ) : editionSize > 1 ? (
-              `Create ${editionSize} cards`
-            ) : (
-              "Create card"
-            )}
+          {/* Next: who gets a copy (the sheet below makes the card). */}
+          <Button size="lg" className="flex-1" disabled={isSaving} onClick={() => setSendOpen(true)}>
+            Continue <ArrowRightIcon />
           </Button>
         </div>
+        <SendSheet
+          open={sendOpen}
+          onClose={() => setSendOpen(false)}
+          keepForMe={keepForMe}
+          onKeepForMeChange={setKeepForMe}
+          recipients={recipients}
+          onRecipientsChange={setRecipients}
+          linkCopies={linkCopies}
+          onLinkCopiesChange={setLinkCopies}
+          saving={isSaving}
+          status={status}
+          onCreate={handleConfirm}
+        />
       </div>
     );
   }
@@ -730,23 +706,11 @@ export function CreateCardFlow() {
               <TextField
                 name="senderName"
                 label="Signature"
-                value={signatureHidden ? "" : values.senderName}
+                value={values.senderName}
                 error={errors.senderName}
                 onChange={handleChange("senderName")}
-                placeholder={signatureHidden ? "Sent anonymously" : "Your name"}
-                disabled={signatureHidden}
+                placeholder="Your name"
               />
-              {audience === "others" && (
-                <label className="-mt-1 flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={anonymous}
-                    onChange={(e) => setAnonymous(e.target.checked)}
-                    className="accent-foreground size-4"
-                  />
-                  Send anonymously
-                </label>
-              )}
             </div>
           </div>
         </FormStep>
@@ -762,17 +726,6 @@ export function CreateCardFlow() {
             onCardColorChange={setCardColor}
           />
           <TextField name="moment" label="Place or occasion" value={values.moment} error={errors.moment} onChange={handleChange("moment")} placeholder="Yangon, graduation, our first date..." />
-        </FormStep>
-
-        <FormStep index={COPIES_STEP} current={formStep}>
-          <EditionField
-            value={editionInput}
-            error={editionError}
-            onChange={(value) => {
-              setEditionInput(value);
-              if (validateLive) setEditionError(parseEditionSize(value).error);
-            }}
-          />
         </FormStep>
 
         {/* Back / Next right under the field, so on a phone it stays above the keyboard. */}

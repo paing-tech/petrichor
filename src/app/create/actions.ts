@@ -55,6 +55,8 @@ export type CreatedCopyResult = {
   recipient: PublicProfile | null;
   /** True when the signed-in creator owns this copy already. */
   ownedByYou: boolean;
+  /** The creator's own copy (copy 1, when kept): owned, or (signed out) kept with its claim code. */
+  forYou: boolean;
 };
 
 /** Creates a card, or a numbered edition of identical cards, with each copy's ownership. */
@@ -70,10 +72,9 @@ export async function createCard(input: CreateCardInput): Promise<ActionResult<{
     timeZone,
     cardColor,
     photoAreaColor,
-    editionSize,
-    audience,
-    anonymous,
+    keepForMe,
     recipientUserIds,
+    linkCopies,
     youtubeVideoId,
     clip,
     ...fields
@@ -82,39 +83,35 @@ export async function createCard(input: CreateCardInput): Promise<ActionResult<{
   try {
     const account = await getAccount();
 
-    // Work out how each copy starts: owned by you, sent to an account, or claimable.
-    let copies: CopyPlan[];
-    let recipients: PublicProfile[] = [];
-    if (audience === "self") {
-      if (account && !account.profile) {
-        return { ok: false, code: "needs_profile", error: "Choose a username before keeping cards." };
-      }
-      copies = Array.from({ length: editionSize }, () =>
-        account ? { kind: "owned" as const, ownerUserId: account.user.id } : { kind: "claimable" as const },
-      );
-    } else {
-      const uniqueIds = [...new Set(recipientUserIds)];
-      // Signed-out senders can send to accounts too; if such a copy is declined there's
-      // no account to re-issue it from, so it simply stays unkept.
-      if (uniqueIds.length > 0) {
-        if (uniqueIds.length > editionSize) {
-          return { ok: false, error: `You picked more recipients than copies (${editionSize}).` };
-        }
-        if (account && uniqueIds.includes(account.user.id)) {
-          return { ok: false, error: "To keep a copy yourself, choose “For myself”." };
-        }
-        // Only accounts that can be found in search can receive cards directly.
-        const found = await getSearchableProfiles(uniqueIds);
-        const byId = new Map(found.map((p) => [p.userId, p]));
-        if (byId.size !== uniqueIds.length) {
-          return { ok: false, error: "One of the recipients can't receive cards right now. Remove them and try again." };
-        }
-        recipients = uniqueIds.map((id) => byId.get(id)!);
-      }
-      copies = Array.from({ length: editionSize }, (_, i) =>
-        recipients[i] ? { kind: "delivered" as const, recipientUserId: recipients[i].userId } : { kind: "claimable" as const },
-      );
+    // Work out how each copy starts, in edition order: yours (owned, or claimable and kept on
+    // this device while signed out), then sent to each account, then one claimable per link.
+    const uniqueIds = [...new Set(recipientUserIds)];
+    if (keepForMe && account && !account.profile) {
+      return { ok: false, code: "needs_profile", error: "Choose a username before saving keepsakes." };
     }
+    let recipients: PublicProfile[] = [];
+    // Signed-out senders can send to accounts too; if such a copy is declined there's no
+    // account to re-issue it from, so it simply stays unkept.
+    if (uniqueIds.length > 0) {
+      if (account && uniqueIds.includes(account.user.id)) {
+        return { ok: false, error: "You can't send a copy to yourself. Keep one with “Me” instead." };
+      }
+      // Only accounts that can be found in search can receive cards directly.
+      const found = await getSearchableProfiles(uniqueIds);
+      const byId = new Map(found.map((p) => [p.userId, p]));
+      if (byId.size !== uniqueIds.length) {
+        return { ok: false, error: "One of the recipients can't receive keepsakes right now. Remove them and try again." };
+      }
+      recipients = uniqueIds.map((id) => byId.get(id)!);
+    }
+    const mine: CopyPlan[] = keepForMe
+      ? [account ? { kind: "owned", ownerUserId: account.user.id } : { kind: "claimable" }]
+      : [];
+    const copies: CopyPlan[] = [
+      ...mine,
+      ...recipients.map((r): CopyPlan => ({ kind: "delivered", recipientUserId: r.userId })),
+      ...Array.from({ length: linkCopies }, (): CopyPlan => ({ kind: "claimable" })),
+    ];
 
     // The creator's YouTube pick is checked again: it must exist and play outside YouTube.
     if (youtubeVideoId) {
@@ -153,7 +150,6 @@ export async function createCard(input: CreateCardInput): Promise<ActionResult<{
     const created = await insertEdition(
       {
         ...fields,
-        senderName: anonymous ? null : fields.senderName,
         photoUrl: photoKey ? getPhotoPublicUrl(photoKey) : null,
         appleMusicUrl: appleMusic ? buildAppleMusicUrl(appleMusic) : null,
         timeZone,
@@ -172,13 +168,14 @@ export async function createCard(input: CreateCardInput): Promise<ActionResult<{
       ok: true,
       copies: created.map((copy, i) => ({
         ...copy,
-        recipient: recipients[i] ?? null,
+        recipient: recipients[i - mine.length] ?? null,
         ownedByYou: copies[i].kind === "owned",
+        forYou: i < mine.length,
       })),
     };
   } catch (error) {
     console.error("Failed to create card", error);
-    return { ok: false, error: "We couldn't save your card. Please try again." };
+    return { ok: false, error: "We couldn't save your keepsake. Please try again." };
   }
 }
 

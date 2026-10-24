@@ -17,7 +17,8 @@ export function CreatedCopies({ copies }: { copies: CreatedCopyResult[] }) {
   const size = copies.length;
   const linkFor = (c: CreatedCopyResult) =>
     c.claimToken ? `${origin}/c/${c.cardId}?k=${c.claimToken}` : `${origin}/c/${c.cardId}`;
-  const claimable = copies.filter((c) => c.claimToken).length;
+  // Links to send (your own unclaimed copy, made signed out, is kept for you, not sent).
+  const claimable = copies.filter((c) => c.claimToken && !c.forYou).length;
 
   async function copy(text: string, message: string) {
     try {
@@ -34,7 +35,7 @@ export function CreatedCopies({ copies }: { copies: CreatedCopyResult[] }) {
         <div className="bg-clay/10 text-foreground rounded-xl p-3 text-sm">
           <p className="font-medium">{claimable === 1 ? "Send the link" : "Send each link"} privately.</p>
           <p className="text-muted-foreground mt-0.5 text-xs">
-            Whoever opens it first can keep the card, so send it only to the person it&apos;s for. Once it&apos;s
+            Whoever opens it first keeps it, so send it only to the person it&apos;s for. Once it&apos;s
             kept, the link is safe to share anywhere.
           </p>
         </div>
@@ -63,7 +64,7 @@ export function CreatedCopies({ copies }: { copies: CreatedCopyResult[] }) {
             <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs">
               {c.ownedByYou && "In your collection"}
               {c.recipient && `Sent to @${c.recipient.username} · waiting for them to accept`}
-              {c.claimToken && "Whoever opens this link can keep it"}
+              {c.claimToken && (c.forYou ? "Yours · sign in to keep it" : "Whoever opens this link can keep it")}
             </span>
             <span className="flex shrink-0 items-center gap-1">
               <Button

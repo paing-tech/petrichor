@@ -445,7 +445,7 @@ export function ListeningPlayer({
               aria-label={
                 part
                   ? "Play the whole song"
-                  : `Play the chosen part, ${formatTime(clip.start)} to ${formatTime(clip.end)}`
+                  : `Play the clip, ${formatTime(clip.start)} to ${formatTime(clip.end)}`
               }
               className={cn(CONTROL, "gap-2 px-3 py-1.5 text-sm text-white/70")}
             >
@@ -463,7 +463,7 @@ export function ListeningPlayer({
               seek(part?.start ?? 0);
               command("playVideo");
             }}
-            aria-label={part ? "Restart the part" : "Restart"}
+            aria-label={part ? "Restart the clip" : "Restart"}
             className={cn(CONTROL, "size-12")}
           >
             <SkipBackIcon className="size-7 fill-current" />

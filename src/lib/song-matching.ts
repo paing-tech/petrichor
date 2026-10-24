@@ -81,6 +81,22 @@ const normalize = (s: string) =>
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 
+/** Like normalize, but keeping what's in brackets: "봄여름가을겨울 (Still Life)" keeps "still life". */
+const normalizeLoose = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+
+/**
+ * Whether a video's title names the song: with brackets set aside (so "Song (Official Video)"
+ * matches "Song"), or with them kept, for songs whose English name is in brackets beside the
+ * original, such as BIGBANG's "봄여름가을겨울 (Still Life)".
+ */
+const titleNamesSong = (videoTitle: string, songTitle: string) =>
+  normalize(videoTitle).includes(normalize(songTitle)) ||
+  normalizeLoose(videoTitle).includes(normalizeLoose(songTitle));
+
 /** The first artist named on the card (before "&", ",", "feat."), for loose comparisons. */
 const leadArtist = (artist: string) => normalize(artist.split(/,|&| feat\.?| ft\.?| x /i)[0] ?? artist);
 
@@ -160,7 +176,7 @@ export async function lookUpYouTubeVideo(videoId: string, songTitle: string): Pr
     title: video.snippet.title,
     channel: video.snippet.channelTitle,
     embeddable: video.status.embeddable,
-    namesSong: normalize(video.snippet.title).includes(normalize(songTitle)),
+    namesSong: titleNamesSong(video.snippet.title, songTitle),
     durationSeconds: isoDurationSeconds(video.contentDetails.duration),
   };
 }
@@ -170,6 +186,9 @@ const YOUTUBE_DURATION_TOLERANCE_S = 5;
 /** Uploads that aren't the song as released, unless the song's own title says so. */
 const NOT_THE_RELEASE =
   /\b(live|cover|covers|karaoke|instrumental|remix|sped ?up|slowed|nightcore|reverb|8d|reaction|lyrics?|transition|mashup|acoustic|demo|tour|concert|livestream|fan ?made|tiktok)\b/i;
+
+/** How an artist titles their own music video: "Official (Music) Video", or "M/V" / "MV" (K-pop's). */
+const OFFICIAL_VIDEO = /official (music )?video|\bm\/?v\b/i;
 
 /** "PT4M1S" → 241. */
 function isoDurationSeconds(iso: string) {
@@ -219,7 +238,6 @@ async function searchYouTube(query: string, apiKey: string): Promise<YouTubeVide
 async function findOnYouTube(song: Song, apiKey: string) {
   const durationMs = await appleDurationMs(song.appleMusicUrl);
   const artist = leadArtist(song.artist).replace(/\s+/g, "");
-  const title = normalize(song.title);
   const titleAllows = (word: RegExp) => word.test(song.title);
 
   const channel = (video: YouTubeVideo) => normalize(video.snippet.channelTitle).replace(/\s+/g, "");
@@ -234,12 +252,12 @@ async function findOnYouTube(song: Song, apiKey: string) {
   const pick = (videos: YouTubeVideo[]) => {
     const candidates = videos
       .filter((video) => video.status.embeddable)
-      .filter((video) => normalize(video.snippet.title).includes(title))
+      .filter((video) => titleNamesSong(video.snippet.title, song.title))
       .filter((video) => !NOT_THE_RELEASE.test(video.snippet.title) || titleAllows(NOT_THE_RELEASE));
     // Uploads on the artist's VEVO channel are the label's own, whatever their title says.
     const officialVideo = candidates.find(
       (video) =>
-        isArtists(video) && (/official (music )?video/i.test(video.snippet.title) || channel(video) === `${artist}vevo`),
+        isArtists(video) && (OFFICIAL_VIDEO.test(video.snippet.title) || channel(video) === `${artist}vevo`),
     );
     const topicAudio = candidates.find((video) => isTopic(video) && sameLength(video));
     const officialAudio = candidates.find(

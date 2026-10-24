@@ -122,18 +122,20 @@ export const createCardSchema = cardFieldsSchema.extend({
   youtubeVideoId: z.string().regex(YOUTUBE_VIDEO_ID, "Invalid YouTube video").nullable().optional(),
   /** The part of the song to play (seconds), on the YouTube video it was chosen on. */
   clip: clipSchema.nullable().optional(),
-  editionSize: z
-    .number()
-    .int("Copies must be a whole number")
-    .min(1, "Make at least 1 copy")
-    .max(MAX_EDITION_SIZE, `You can make up to ${MAX_EDITION_SIZE} copies`),
-  /** "self": the creator keeps it. "others": recipients keep it, by account or claim link. */
-  audience: z.enum(["self", "others"]),
-  /** Leaves the signature off the card, whatever was typed. */
-  anonymous: z.boolean(),
-  /** Accounts to send copies to directly, in copy order ("others" only). */
+  // Who gets a copy; the edition is all of them, numbered in this order (you, people, links).
+  /** Copy 1 is the creator's. */
+  keepForMe: z.boolean(),
+  /** Accounts to send copies straight to (they accept first). */
   recipientUserIds: z.array(z.uuid()).max(MAX_EDITION_SIZE),
-});
+  /** Copies with a share link, kept by whoever opens it first. */
+  linkCopies: z.number().int().min(0).max(MAX_EDITION_SIZE),
+}).refine(
+  (input) => {
+    const copies = (input.keepForMe ? 1 : 0) + new Set(input.recipientUserIds).size + input.linkCopies;
+    return copies >= 1 && copies <= MAX_EDITION_SIZE;
+  },
+  { message: `A card goes to 1 to ${MAX_EDITION_SIZE} people`, path: ["linkCopies"] },
+);
 
 export type CreateCardInput = z.input<typeof createCardSchema>;
 

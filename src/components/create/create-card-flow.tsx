@@ -507,12 +507,12 @@ export function CreateCardFlow() {
   if (step === "review") {
     return (
       <div className="mx-auto flex w-full max-w-md flex-col items-center gap-8 px-4 pt-4 pb-16">
-        <div className="text-center">
+        {/* 16px to the card (the negative margin trims the column's 32px gap). */}
+        <div className="-mb-6 text-center">
           <h1 className="font-serif text-4xl tracking-tight">Looks good?</h1>
         </div>
         <FlipCard
           className="max-w-[340px]"
-          hint="Tap the card to see its back"
           front={<CollectibleCard card={previewCard} className="max-w-none" />}
           back={<CollectibleCard card={previewCard} face="back" className="max-w-none" />}
         />
@@ -578,11 +578,13 @@ export function CreateCardFlow() {
     <div className="mx-auto flex w-full max-w-lg flex-col">
       <div className="px-4 pt-4 sm:px-6">
         <div>
-          <div className="mx-auto w-full max-w-[240px] sm:max-w-[280px]">
+          <div className="mx-auto w-full max-w-[280px] sm:max-w-[320px]">
             <FlipCard
               side={previewSide}
-              // Taps on the card frame the photo instead; the switch below turns it over.
-              tapToFlip={false}
+              // Tap the card to turn it over, except on the photo step, where taps and drags on it
+              // frame the photo (and the photo is on the front anyway).
+              tapToFlip={formStep !== PHOTO_STEP}
+              onSideChange={(side) => setSideChoice({ side, step: formStep })}
               front={
                 <CollectibleCard
                   card={previewCard}
@@ -602,37 +604,17 @@ export function CreateCardFlow() {
               }
               back={<CollectibleCard card={previewCard} face="back" className="max-w-none" />}
             />
-            {/* Under the card: on the photo step, the photo's zoom (the photo is on the front, so
-                there's no side to choose); on the others, the Front / Back switch. */}
-            <div className="mt-3 flex min-h-9 justify-center">
-              {formStep === PHOTO_STEP ? (
-                photo && (
-                  <PhotoZoomControls
-                    imageWidth={photo.width}
-                    imageHeight={photo.height}
-                    view={photo.view}
-                    onChange={setPhotoView}
-                  />
-                )
-              ) : (
-                <div role="group" aria-label="Card side" className="bg-muted flex gap-1 rounded-full p-1 text-xs">
-                  {(["front", "back"] as const).map((side) => (
-                    <button
-                      key={side}
-                      type="button"
-                      aria-pressed={previewSide === side}
-                      onClick={() => setSideChoice({ side, step: formStep })}
-                      className={cn(
-                        "h-7 rounded-full px-3 font-medium capitalize transition-colors",
-                        previewSide === side ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      {side}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Under the card, on the photo step: the photo's zoom. */}
+            {formStep === PHOTO_STEP && photo && (
+              <div className="mt-3 flex justify-center">
+                <PhotoZoomControls
+                  imageWidth={photo.width}
+                  imageHeight={photo.height}
+                  view={photo.view}
+                  onChange={setPhotoView}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -648,26 +630,35 @@ export function CreateCardFlow() {
             setSideChoice({ side: BACK_FIELDS.includes(name) ? "back" : "front", step: formStep });
           }
         }}
-        className="flex flex-col gap-6 px-4 pt-6 pb-10 sm:px-6"
+        className="flex flex-col gap-6 px-4 pt-4 pb-10 sm:px-6"
       >
         {/* No visible title; the heading stays for screen readers and page structure. */}
         <h1 className="sr-only">Create a card</h1>
 
-        {/* Close and the step progress. */}
-        <div className="flex items-center pl-2 gap-3">
+        {/* Close and the step progress, 16px from the card above and from the step below (the
+            negative margin trims the form's 24px gap to 16). */}
+        <div className="-mb-2 flex items-center gap-3 pl-2">
           <Button asChild variant="ghost" size="icon-lg" className="-ml-1.5 shrink-0" aria-label="Close and go home">
             <Link href="/">
               <XIcon className="size-6" />
             </Link>
           </Button>
-          <span className="text-muted-foreground shrink-0 text-xs tabular-nums" aria-live="polite">
-            {formStep + 1} of {FORM_STEPS.length}
-          </span>
-          <div className="bg-muted h-1 flex-1 overflow-hidden rounded-full">
-            <div
-              className="bg-foreground h-full rounded-full transition-[width] duration-300"
-              style={{ width: `${((formStep + 1) / FORM_STEPS.length) * 100}%` }}
-            />
+          {/* One segment per step, filled up to this one. */}
+          <div
+            role="progressbar"
+            aria-label="Step"
+            aria-valuemin={1}
+            aria-valuemax={FORM_STEPS.length}
+            aria-valuenow={formStep + 1}
+            aria-valuetext={`Step ${formStep + 1} of ${FORM_STEPS.length}`}
+            className="flex flex-1 gap-1.5"
+          >
+            {FORM_STEPS.map((_, i) => (
+              <div
+                key={i}
+                className={cn("h-1 flex-1 rounded-full transition-colors duration-300", i <= formStep ? "bg-foreground" : "bg-muted")}
+              />
+            ))}
           </div>
         </div>
 

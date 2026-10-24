@@ -1,5 +1,5 @@
 import { CARD_FRONT_LAYOUT as L, CARD_RATIO, type CollectibleCardData } from "@/components/collectible-card";
-import { cardInk, DEFAULT_CARD_COLOR, EARTH_PHOTO_AREA, hexToRgb } from "@/lib/card-color";
+import { cardInk, DEFAULT_CARD_COLOR, hexToRgb, tonalPhotoArea } from "@/lib/card-color";
 
 // The card's share image (see the share-image route): drawn for Satori, which renders a subset
 // of CSS (flexbox, absolute positioning) with no stylesheet, so everything is inline styles, and
@@ -80,7 +80,7 @@ function CardFront({ card, width }: { card: CollectibleCardData; width: number }
             left: 0,
             width,
             height: px(L.photoHeight),
-            background: card.photoAreaColor ?? EARTH_PHOTO_AREA,
+            background: card.photoAreaColor ?? tonalPhotoArea(cardColor),
           }}
         />
       )}

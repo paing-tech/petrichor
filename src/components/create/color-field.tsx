@@ -33,7 +33,7 @@ export function ColorField({ id, label, value, swatches, hint, customFallback, o
 
   return (
     <div className="grid gap-2">
-      <p id={labelId} className="text-muted-foreground text-xs font-medium">
+      <p id={labelId} className="text-sm font-medium">
         {label}
       </p>
       <div role="radiogroup" aria-labelledby={labelId} className="flex flex-wrap items-center gap-2.5">

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowUpRightIcon, XIcon } from "lucide-react";
-import { EARTH_PHOTO_AREA } from "@/lib/card-color";
+import { DEFAULT_CARD_COLOR, tonalPhotoArea } from "@/lib/card-color";
 
 export type LibraryTrack = {
   cardId: string;
@@ -13,6 +13,7 @@ export type LibraryTrack = {
   moment: string | null;
   photoUrl: string | null;
   photoAreaColor: string | null;
+  cardColor: string | null;
   youtubeVideoId: string | null;
   /** The video's width ÷ height (null if unknown: 16:9 is assumed). */
   videoAspect: number | null;
@@ -51,7 +52,7 @@ export function MusicLibrary({ tracks }: { tracks: LibraryTrack[] }) {
                 {/* The keepsake's photo (or its photo area's colour). */}
                 <span
                   className="relative size-14 shrink-0 overflow-hidden rounded-md"
-                  style={{ background: track.photoAreaColor ?? EARTH_PHOTO_AREA }}
+                  style={{ background: track.photoAreaColor ?? tonalPhotoArea(track.cardColor ?? DEFAULT_CARD_COLOR) }}
                 >
                   {track.photoUrl && (
                     // eslint-disable-next-line @next/next/no-img-element

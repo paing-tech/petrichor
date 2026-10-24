@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { cardInk, DEFAULT_CARD_COLOR, EARTH_PHOTO_AREA, hexToRgb } from "@/lib/card-color";
+import { cardInk, DEFAULT_CARD_COLOR, hexToRgb, tonalPhotoArea } from "@/lib/card-color";
 import { cropImageStyle, type PhotoCrop } from "@/lib/photo-crop";
 import { cn } from "@/lib/utils";
 
@@ -252,7 +252,8 @@ function CardFront({
         <CardPhoto
           photoUrl={card.photoUrl}
           crop={card.photoCrop}
-          emptyFill={card.photoAreaColor ?? EARTH_PHOTO_AREA}
+          // Older cards may have their own photo-area color; others are toned from the card's.
+          emptyFill={card.photoAreaColor ?? tonalPhotoArea(cardColor)}
           alt={`Photo for ${card.songTitle}`}
           fadeColor={cardColor}
           overlay={photoOverlay}

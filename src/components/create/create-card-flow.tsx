@@ -16,12 +16,11 @@ import { toast } from "sonner";
 import { createCard, requestPhotoUpload, type CreatedCopyResult, type PickedYouTubeVideo } from "@/app/create/actions";
 import { AppleMusicEmbed } from "@/components/apple-music-embed";
 import { CollectibleCard, type CardFace } from "@/components/collectible-card";
-import { AudienceField, type Audience } from "@/components/create/audience-field";
+import type { Audience } from "@/components/create/audience-field";
 import { CreatedCopies } from "@/components/create/created-copies";
 import { EditionField, parseEditionSize } from "@/components/create/edition-field";
 import { PhotoAndColors } from "@/components/create/photo-and-colors";
-import { PhotoFramingLayer } from "@/components/create/photo-cropper";
-import { RecipientPicker } from "@/components/create/recipient-picker";
+import { PhotoFramingLayer, PhotoZoomControls } from "@/components/create/photo-cropper";
 import { useActionsAboveKeyboard } from "@/components/create/use-actions-above-keyboard";
 import { useIsNarrow } from "@/components/create/use-is-narrow";
 import { SongClipPicker, type ClipRange } from "@/components/create/song-clip-picker";
@@ -90,23 +89,21 @@ const FIELD_ORDER: FieldName[] = ["songTitle", "artistName", "message", "senderN
 const BACK_FIELDS: string[] = ["message", "senderName"];
 
 /**
- * Below lg the form is shown one step at a time under the card, so a step's field and
- * the keyboard fit on screen; the page scrolls normally. On lg+ every step is visible
- * as one form.
+ * The form, one step at a time under the card (on every screen), so a step's field and the
+ * keyboard fit on screen; the page scrolls normally. It opens on the song.
  */
 const FORM_STEPS: { fields: FieldName[]; optional: boolean }[] = [
-  { fields: [], optional: false }, // Who is this card for? (+ recipients)
   { fields: ["songTitle", "artistName"], optional: false },
-  { fields: ["message"], optional: true },
-  { fields: ["senderName", "moment"], optional: true },
-  { fields: [], optional: true }, // Photo & colors
+  { fields: ["message", "senderName"], optional: true }, // The back: note and signature
+  { fields: ["moment"], optional: true }, // The front: photo, card color, place or occasion
   { fields: [], optional: false }, // Copies
 ];
 const LAST_FORM_STEP = FORM_STEPS.length - 1;
-const PHOTO_STEP = 4;
+const SONG_STEP = 0;
+const NOTE_STEP = 1;
+const PHOTO_STEP = 2;
 const COPIES_STEP = LAST_FORM_STEP;
 const stepOfField = (field: FieldName) => FORM_STEPS.findIndex((s) => s.fields.includes(field));
-const isWideScreen = () => window.matchMedia("(min-width: 1024px)").matches;
 
 const subscribeNoop = () => () => {};
 
@@ -129,18 +126,19 @@ export function CreateCardFlow() {
   const [photoError, setPhotoError] = useState<string>();
   const [photoColors, setPhotoColors] = useState<string[]>([]);
   const [cardColor, setCardColor] = useState(DEFAULT_CARD_COLOR);
-  const [photoAreaColor, setPhotoAreaColor] = useState<string | null>(null);
   // The most recently picked file, so a slow palette extraction for an older photo is ignored.
   const latestPhotoFile = useRef<File | null>(null);
   const [step, setStep] = useState<Step>("edit");
   const [editionInput, setEditionInput] = useState("1");
   const [editionError, setEditionError] = useState<string>();
-  const [audience, setAudience] = useState<Audience>("self");
-  /** The visible step on narrow screens. */
+  // Who the copies go to. Its step is gone for now (cards are for the creator); sending to
+  // people is coming back as its own section, which will set these.
+  const [audience] = useState<Audience>("self");
+  /** The step on screen (one at a time, on every screen). */
   const [formStep, setFormStep] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
   const narrow = useIsNarrow();
-  // Which side the live preview shows: the back on the message step (narrow screens), else the
+  // Which side the live preview shows: the back on the message and signature steps, else the
   // front; focusing a field, or the Front / Back switch, turns it for the current step.
   const [sideChoice, setSideChoice] = useState<{ side: CardFace; step: number } | null>(null);
   const [anonymous, setAnonymous] = useState(false);
@@ -170,7 +168,6 @@ export function CreateCardFlow() {
   useEffect(() => {
     if (previousFormStep.current === formStep) return;
     previousFormStep.current = formStep;
-    if (isWideScreen()) return;
     document.querySelector<HTMLElement>(`[data-form-step="${formStep}"]`)?.focus({ preventScroll: true });
     window.scrollTo({ top: 0 });
   }, [formStep]);
@@ -195,7 +192,7 @@ export function CreateCardFlow() {
 
   /** Whether an optional step was left untouched (its button reads "Skip"). */
   function stepIsEmpty(index: number) {
-    if (index === PHOTO_STEP) return !photo && cardColor === DEFAULT_CARD_COLOR && photoAreaColor === null;
+    if (index === PHOTO_STEP) return !photo && cardColor === DEFAULT_CARD_COLOR && !values.moment.trim();
     return FORM_STEPS[index].fields.every((f) => !values[f].trim());
   }
 
@@ -308,8 +305,8 @@ export function CreateCardFlow() {
 
   function handlePreview(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    // Enter in a field on a narrow screen moves to the next step instead of submitting.
-    if (!isWideScreen() && formStep < LAST_FORM_STEP) {
+    // Enter in a field moves to the next step; on the last one it previews the card.
+    if (formStep < LAST_FORM_STEP) {
       nextFormStep();
       return;
     }
@@ -383,7 +380,8 @@ export function CreateCardFlow() {
         appleMusic,
         timeZone,
         cardColor,
-        photoAreaColor: photo ? null : photoAreaColor,
+        // One color per card now: a card without a photo tones its top from the card color.
+        photoAreaColor: null,
         editionSize,
         audience,
         anonymous: signatureHidden,
@@ -430,7 +428,6 @@ export function CreateCardFlow() {
     setFocusSearch(false);
     removePhoto();
     setCardColor(DEFAULT_CARD_COLOR);
-    setPhotoAreaColor(null);
     setEditionInput("1");
     setEditionError(undefined);
     setAnonymous(false);
@@ -454,7 +451,7 @@ export function CreateCardFlow() {
   const previewSide: CardFace =
     sideChoice && sideChoice.step === formStep
       ? sideChoice.side
-      : narrow && FORM_STEPS[formStep]?.fields.some((f) => BACK_FIELDS.includes(f))
+      : FORM_STEPS[formStep]?.fields.some((f) => BACK_FIELDS.includes(f))
         ? "back"
         : "front";
 
@@ -468,7 +465,6 @@ export function CreateCardFlow() {
     moment: values.moment.trim(),
     createdAt: today,
     cardColor,
-    photoAreaColor,
     editionNumber: 1,
     editionSize,
     cardId: copies?.[0]?.cardId ?? null,
@@ -601,12 +597,12 @@ export function CreateCardFlow() {
   }
 
   return (
-    // Narrow screens: card on top, the current step below; the page scrolls normally and
-    // Safari moves it up when the keyboard opens. lg+: form left, sticky card right.
-    <div className="mx-auto flex w-full max-w-6xl flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16 lg:px-6 lg:pt-10 lg:pb-16">
-      <div className="px-4 pt-4 sm:px-6 lg:col-start-2 lg:row-start-1 lg:p-0">
-        <div className="lg:sticky lg:top-8">
-          <div className="mx-auto w-full max-w-[240px] sm:max-w-[280px] lg:max-w-[340px]">
+    // On every screen: the card on top, the current step below; the page scrolls normally and
+    // Safari moves it up when the keyboard opens.
+    <div className="mx-auto flex w-full max-w-lg flex-col">
+      <div className="px-4 pt-4 sm:px-6">
+        <div>
+          <div className="mx-auto w-full max-w-[240px] sm:max-w-[280px]">
             <FlipCard
               side={previewSide}
               // Taps on the card frame the photo instead; the switch below turns it over.
@@ -615,10 +611,9 @@ export function CreateCardFlow() {
                 <CollectibleCard
                   card={previewCard}
                   className="max-w-none"
-                  // The photo is framed right here on the card: on the Photo & colors step on
-                  // narrow screens, and whenever there's a photo on wide ones.
+                  // The photo is framed right here on the card, on the Photo & colors step.
                   photoOverlay={
-                    photo && (narrow ? formStep === PHOTO_STEP : true) ? (
+                    photo && formStep === PHOTO_STEP ? (
                       <PhotoFramingLayer
                         imageWidth={photo.width}
                         imageHeight={photo.height}
@@ -631,23 +626,36 @@ export function CreateCardFlow() {
               }
               back={<CollectibleCard card={previewCard} face="back" className="max-w-none" />}
             />
-            <div className="mt-3 flex justify-center">
-              <div role="group" aria-label="Card side" className="bg-muted flex gap-1 rounded-full p-1 text-xs">
-                {(["front", "back"] as const).map((side) => (
-                  <button
-                    key={side}
-                    type="button"
-                    aria-pressed={previewSide === side}
-                    onClick={() => setSideChoice({ side, step: formStep })}
-                    className={cn(
-                      "h-7 rounded-full px-3 font-medium capitalize transition-colors",
-                      previewSide === side ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {side}
-                  </button>
-                ))}
-              </div>
+            {/* Under the card: on the photo step, the photo's zoom (the photo is on the front, so
+                there's no side to choose); on the others, the Front / Back switch. */}
+            <div className="mt-3 flex min-h-9 justify-center">
+              {formStep === PHOTO_STEP ? (
+                photo && (
+                  <PhotoZoomControls
+                    imageWidth={photo.width}
+                    imageHeight={photo.height}
+                    view={photo.view}
+                    onChange={setPhotoView}
+                  />
+                )
+              ) : (
+                <div role="group" aria-label="Card side" className="bg-muted flex gap-1 rounded-full p-1 text-xs">
+                  {(["front", "back"] as const).map((side) => (
+                    <button
+                      key={side}
+                      type="button"
+                      aria-pressed={previewSide === side}
+                      onClick={() => setSideChoice({ side, step: formStep })}
+                      className={cn(
+                        "h-7 rounded-full px-3 font-medium capitalize transition-colors",
+                        previewSide === side ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {side}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -664,22 +672,22 @@ export function CreateCardFlow() {
             setSideChoice({ side: BACK_FIELDS.includes(name) ? "back" : "front", step: formStep });
           }
         }}
-        className="flex flex-col gap-6 px-4 pt-6 pb-10 sm:px-6 lg:col-start-1 lg:row-start-1 lg:p-0"
+        className="flex flex-col gap-6 px-4 pt-6 pb-10 sm:px-6"
       >
         {/* No visible title; the heading stays for screen readers and page structure. */}
         <h1 className="sr-only">Create a card</h1>
 
-        {/* Close and, on narrow screens, step progress. */}
-        <div className="flex items-center gap-3">
-          <Button asChild variant="ghost" size="icon-sm" className="-ml-1.5 shrink-0" aria-label="Close and go home">
+        {/* Close and the step progress. */}
+        <div className="flex items-center pl-2 gap-3">
+          <Button asChild variant="ghost" size="icon-lg" className="-ml-1.5 shrink-0" aria-label="Close and go home">
             <Link href="/">
-              <XIcon />
+              <XIcon className="size-6" />
             </Link>
           </Button>
-          <span className="text-muted-foreground shrink-0 text-xs tabular-nums lg:hidden" aria-live="polite">
+          <span className="text-muted-foreground shrink-0 text-xs tabular-nums" aria-live="polite">
             {formStep + 1} of {FORM_STEPS.length}
           </span>
-          <div className="bg-muted h-1 flex-1 overflow-hidden rounded-full lg:hidden">
+          <div className="bg-muted h-1 flex-1 overflow-hidden rounded-full">
             <div
               className="bg-foreground h-full rounded-full transition-[width] duration-300"
               style={{ width: `${((formStep + 1) / FORM_STEPS.length) * 100}%` }}
@@ -687,25 +695,18 @@ export function CreateCardFlow() {
           </div>
         </div>
 
-        <FormStep index={0} current={formStep}>
-          <AudienceField value={audience} onChange={setAudience} />
-          {audience === "others" && (
-            <RecipientPicker max={editionSize} value={activeRecipients} onChange={setRecipients} />
-          )}
-        </FormStep>
-
-        <FormStep index={1} current={formStep}>
+        <FormStep index={SONG_STEP} current={formStep}>
           {songMode === "manual" ? (
-            <fieldset className="grid gap-5 sm:grid-cols-2">
+            <fieldset className="grid gap-5">
               <legend className="sr-only">Song</legend>
-              <TextField name="songTitle" label="Song title" required value={values.songTitle} error={errors.songTitle} onChange={handleChange("songTitle")} placeholder="Here Comes the Sun" />
-              <TextField name="artistName" label="Artist" required value={values.artistName} error={errors.artistName} onChange={handleChange("artistName")} placeholder="The Beatles" />
+              <TextField name="songTitle" label="Song title" required value={values.songTitle} error={errors.songTitle} onChange={handleChange("songTitle")} />
+              <TextField name="artistName" label="Artist" required value={values.artistName} error={errors.artistName} onChange={handleChange("artistName")} />
               <button
                 type="button"
                 onClick={() => changeSong("search")}
-                className="text-muted-foreground hover:text-foreground -mt-2 justify-self-start text-xs underline underline-offset-2 sm:col-span-2"
+                className="text-muted-foreground hover:text-foreground -mt-2 justify-self-start text-xs underline underline-offset-2"
               >
-                Search Apple Music instead
+                Search instead
               </button>
             </fieldset>
           ) : song ? (
@@ -714,19 +715,17 @@ export function CreateCardFlow() {
             <SongSearch
               inputId={SONG_SEARCH_ID}
               autoFocus={focusSearch}
-              error={errors.songTitle || errors.artistName ? "Search for a song and pick it from the list." : undefined}
+              error={errors.songTitle || errors.artistName ? "Choose a song to continue." : undefined}
               onSelect={handleSongSelect}
               onEnterManually={() => changeSong("manual")}
             />
           )}
         </FormStep>
 
-        <FormStep index={2} current={formStep}>
-          <TextField name="message" label="Personal message" hint="Written on the back of the card." multiline rows={5} value={values.message} error={errors.message} onChange={handleChange("message")} placeholder="Why this song reminds you of them" />
-        </FormStep>
-
-        <FormStep index={3} current={formStep}>
-          <div className="grid gap-5 sm:grid-cols-2">
+        {/* The back of the card: the note, signed beneath it. */}
+        <FormStep index={NOTE_STEP} current={formStep}>
+          <div className="grid gap-5">
+            <TextField name="message" label="Note" hint="Written on the back of the card." multiline rows={5} counterFrom={0.8} value={values.message} error={errors.message} onChange={handleChange("message")} />
             <div className="grid gap-2">
               <TextField
                 name="senderName"
@@ -734,7 +733,7 @@ export function CreateCardFlow() {
                 value={signatureHidden ? "" : values.senderName}
                 error={errors.senderName}
                 onChange={handleChange("senderName")}
-                placeholder={signatureHidden ? "Sent anonymously" : "How you'd like to sign it"}
+                placeholder={signatureHidden ? "Sent anonymously" : "Your name"}
                 disabled={signatureHidden}
               />
               {audience === "others" && (
@@ -749,7 +748,6 @@ export function CreateCardFlow() {
                 </label>
               )}
             </div>
-            <TextField name="moment" label="Moment" value={values.moment} error={errors.moment} onChange={handleChange("moment")} placeholder="Birthday party, graduation, a place…" />
           </div>
         </FormStep>
 
@@ -759,13 +757,11 @@ export function CreateCardFlow() {
             photoError={photoError}
             onPhotoSelect={handlePhotoSelect}
             onPhotoRemove={removePhoto}
-            onPhotoViewChange={setPhotoView}
             photoColors={photoColors}
-            photoAreaColor={photoAreaColor}
-            onPhotoAreaColorChange={setPhotoAreaColor}
             cardColor={cardColor}
             onCardColorChange={setCardColor}
           />
+          <TextField name="moment" label="Place or occasion" value={values.moment} error={errors.moment} onChange={handleChange("moment")} placeholder="Yangon, graduation, our first date..." />
         </FormStep>
 
         <FormStep index={COPIES_STEP} current={formStep}>
@@ -779,14 +775,14 @@ export function CreateCardFlow() {
           />
         </FormStep>
 
-        {/* Narrow screens: Back / Next right under the field, so it stays above the keyboard. */}
-        <div ref={stepActionsRef} className="flex gap-2 lg:hidden">
+        {/* Back / Next right under the field, so on a phone it stays above the keyboard. */}
+        <div ref={stepActionsRef} className="flex gap-2">
           {formStep > 0 && (
-            <Button type="button" variant="outline" size="lg" className="bg-background h-11 px-5" onClick={() => setFormStep((s) => s - 1)}>
+            <Button type="button" variant="outline" size="lg" className="bg-background px-5" onClick={() => setFormStep((s) => s - 1)}>
               <ArrowLeftIcon /> Back
             </Button>
           )}
-          <Button type="button" size="lg" className="h-11 flex-1" onClick={nextFormStep}>
+          <Button type="button" size="lg" className="flex-1" onClick={nextFormStep}>
             {formStep === LAST_FORM_STEP ? (
               <>
                 Preview card <ArrowRightIcon />
@@ -801,22 +797,21 @@ export function CreateCardFlow() {
           </Button>
         </div>
 
-        <Button type="submit" size="lg" className="h-11 max-lg:hidden sm:self-start sm:px-6">
-          Preview card <ArrowRightIcon />
-        </Button>
+        {/* Never shown: it lets Enter in a field submit the form (which moves to the next step). */}
+        <button type="submit" hidden aria-hidden tabIndex={-1} />
       </form>
     </div>
   );
 }
 
-/** One step of the form: the only one shown on narrow screens; all shown on lg+. */
+/** One step of the form, shown only while it's the current one. */
 function FormStep({ index, current, children }: { index: number; current: number; children: ReactNode }) {
   return (
     <div
       data-form-step={index}
       // Focusable (not tabbable) so a new step can take focus without opening the keyboard.
       tabIndex={-1}
-      className={cn("flex flex-col gap-6 outline-none", index !== current && "max-lg:hidden")}
+      className={cn("flex flex-col gap-6 outline-none", index !== current && "hidden")}
     >
       {children}
     </div>
@@ -835,12 +830,21 @@ type TextFieldProps = {
   hint?: string;
   className?: string;
   disabled?: boolean;
+  /**
+   * How full (0–1) the field gets before its character count appears. By default only once
+   * it's over the limit; long writing (the message) shows it as the limit nears.
+   */
+  counterFrom?: number;
   onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
 };
 
-function TextField({ name, label, value, error, required, multiline, rows, hint, className, disabled, ...inputProps }: TextFieldProps) {
+function TextField({ name, label, value, error, required, multiline, rows, hint, className, disabled, counterFrom, ...inputProps }: TextFieldProps) {
   const max = LIMITS[name];
-  const describedBy = `${name}-message`;
+  const over = value.length > max;
+  // Kept out of sight until it matters, so the form stays clean.
+  const showCount = over || (counterFrom !== undefined && value.length >= max * counterFrom);
+  const note = error ?? hint;
+  const describedBy = note || showCount ? `${name}-message` : undefined;
   const shared = {
     id: name,
     name,
@@ -854,21 +858,23 @@ function TextField({ name, label, value, error, required, multiline, rows, hint,
 
   return (
     <div className={cn("grid gap-2", className)}>
-      <Label htmlFor={name}>
-        {label}
-        {!required && <span className="text-muted-foreground font-normal">(optional)</span>}
-      </Label>
+      {/* No "(optional)": an optional step's button reads Skip until something's filled in. */}
+      <Label htmlFor={name}>{label}</Label>
       {multiline ? (
         <Textarea {...shared} rows={rows} onChange={inputProps.onChange} placeholder={inputProps.placeholder} className="bg-background resize-none" />
       ) : (
         <Input {...shared} {...inputProps} className="bg-background h-10" />
       )}
-      <div id={describedBy} className="flex justify-between gap-3 text-xs">
-        <span className={error ? "text-destructive" : "text-muted-foreground"}>{error ?? hint}</span>
-        <span className={value.length > max ? "text-destructive tabular-nums" : "text-muted-foreground tabular-nums"}>
-          {value.length}/{max}
-        </span>
-      </div>
+      {describedBy && (
+        <div id={describedBy} className="flex justify-between gap-3 text-xs">
+          <span className={error ? "text-destructive" : "text-muted-foreground"}>{note}</span>
+          {showCount && (
+            <span className={over ? "text-destructive tabular-nums" : "text-muted-foreground tabular-nums"}>
+              {value.length}/{max}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

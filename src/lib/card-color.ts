@@ -5,15 +5,11 @@ export const DEFAULT_CARD_COLOR = "#ffffff";
 export const PRESET_CARD_COLORS = [
   { name: "White", value: "#ffffff" },
   { name: "Black", value: "#000000" },
+  // Petrichor's sage (the home page card's green).
+  { name: "Sage", value: "#a3b18a" },
 ] as const;
 
 export const CARD_COLOR_PATTERN = /^#[0-9a-f]{6}$/;
-
-/** The default fill for the photo area when a card has no photo: a soft earth/sage gradient. */
-export const EARTH_PHOTO_AREA =
-  "radial-gradient(120% 80% at 20% 10%, #e7ece6 0%, transparent 60%), radial-gradient(90% 70% at 85% 30%, #c9d3cc 0%, transparent 65%), linear-gradient(165deg, #dfe4de 0%, #b9c4bb 55%, #a7b2a8 100%)";
-/** A representative solid color of the earth gradient, for contrast decisions and the picker's start color. */
-export const EARTH_PHOTO_AREA_TONE = "#b9c4bb";
 
 export type Rgb = [number, number, number];
 
@@ -36,6 +32,22 @@ function luminance(hex: string) {
 }
 
 const DARK_INK = "#171717";
+
+const mixRgb = (from: Rgb, to: Rgb, amount: number) =>
+  from.map((c, i) => c + (to[i] - c) * amount) as Rgb;
+
+/**
+ * The photo area of a card without a photo: the card's own color, as light falling on paper. A
+ * soft glow at the top left and a lighter top, easing into the card color itself before the
+ * photo's fade takes over (only ever lighter, so no darker band). Dark cards get a fainter glow.
+ */
+export function tonalPhotoArea(cardColor: string) {
+  const base = hexToRgb(cardColor);
+  const dark = luminance(cardColor) < 0.2;
+  const glow = mixRgb(base, [255, 255, 255], dark ? 0.07 : 0.22);
+  const top = mixRgb(base, [255, 255, 255], dark ? 0.03 : 0.1);
+  return `radial-gradient(110% 70% at 20% 0%, ${rgbToHex(glow)} 0%, transparent 60%), linear-gradient(170deg, ${rgbToHex(top)} 0%, ${rgbToHex(base)} 85%)`;
+}
 
 export type CardInk = {
   /** Title, message, signature, moment, date. */

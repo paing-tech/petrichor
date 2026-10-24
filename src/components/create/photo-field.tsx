@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, type ReactNode } from "react";
-import { ImagePlusIcon, XIcon } from "lucide-react";
+import { ImagePlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
@@ -16,13 +16,19 @@ type PhotoFieldProps = {
   children?: ReactNode;
 };
 
-export function PhotoField({ previewUrl, fileName, error, disabled, onSelect, onRemove, children }: PhotoFieldProps) {
+/**
+ * The photo, kept quiet: one "Add photo" button, and once there's a photo (shown and framed on
+ * the preview card above), just "Change photo" and "Remove" with its zoom.
+ */
+export function PhotoField({ previewUrl, error, disabled, onSelect, onRemove, children }: PhotoFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const pick = () => inputRef.current?.click();
 
   return (
-    <div className="grid grid-cols-1 gap-2">
-      <Label htmlFor="photo">
-        Photo <span className="text-muted-foreground font-normal">(optional)</span>
+    <div className="grid grid-cols-1 gap-3">
+      {/* The buttons say what this is; the label stays for screen readers. */}
+      <Label htmlFor="photo" className="sr-only">
+        Photo
       </Label>
       <input
         ref={inputRef}
@@ -41,33 +47,35 @@ export function PhotoField({ previewUrl, fileName, error, disabled, onSelect, on
         }}
       />
       {previewUrl ? (
-        <div className="bg-background flex items-center gap-3 rounded-lg border p-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={previewUrl} alt="" className="size-14 rounded-md object-cover" />
-          <span className="min-w-0 flex-1 truncate text-sm">{fileName}</span>
-          <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => inputRef.current?.click()}>
-            Replace
-          </Button>
-          <Button type="button" variant="ghost" size="icon-sm" disabled={disabled} onClick={onRemove} aria-label="Remove photo">
-            <XIcon />
-          </Button>
-        </div>
+        <>
+          <div className="flex items-center gap-4 text-sm">
+            <button type="button" disabled={disabled} onClick={pick} className="hover:text-foreground font-medium underline-offset-4 hover:underline">
+              Change photo
+            </button>
+            <button type="button" disabled={disabled} onClick={onRemove} className="text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">
+              Remove
+            </button>
+          </div>
+          {children}
+          {/* The card itself says how to frame it ("Drag to reposition"); only errors show here. */}
+          {error && (
+            <p id="photo-hint" className="text-destructive text-xs">
+              {error}
+            </p>
+          )}
+        </>
       ) : (
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => inputRef.current?.click()}
-          data-invalid={!!error || undefined}
-          className="border-input text-muted-foreground hover:border-ring hover:text-foreground focus-visible:ring-ring/50 data-invalid:border-destructive flex h-24 flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed bg-transparent text-sm transition-colors outline-none focus-visible:ring-3"
-        >
-          <ImagePlusIcon className="size-5" />
-          Add a photo
-        </button>
+        <>
+          <Button type="button" variant="outline" size="lg" className="bg-background w-full" disabled={disabled} onClick={pick} aria-invalid={!!error || undefined}>
+            <ImagePlusIcon /> Add photo
+          </Button>
+          {error && (
+            <p id="photo-hint" className="text-destructive text-xs">
+              {error}
+            </p>
+          )}
+        </>
       )}
-      <p id="photo-hint" className={error ? "text-destructive text-xs" : "text-muted-foreground text-xs"}>
-        {error ?? (previewUrl ? "Drag the photo on the card to frame it. It's saved in high quality." : "Any photo, any size. You'll frame it right on the card.")}
-      </p>
-      {children}
     </div>
   );
 }

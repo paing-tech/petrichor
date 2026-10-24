@@ -187,10 +187,9 @@ export function SongSearch({ inputId, error, autoFocus, onSelect, onEnterManuall
           </div>
         )}
       </div>
-      <div id={hintId} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
-        <span className={error ? "text-destructive" : "text-muted-foreground"}>
-          {error ?? "Results from Apple Music."}
-        </span>
+      {/* Only an error shows here (when there is one); then the way to type a song in. */}
+      <div id={hintId} className="flex flex-col items-start gap-1 text-xs">
+        {error && <span className="text-destructive">{error}</span>}
         <button
           type="button"
           onClick={onEnterManually}

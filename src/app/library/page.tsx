@@ -61,6 +61,7 @@ async function Library() {
         moment: card.moment,
         photoUrl: card.photoUrl,
         photoAreaColor: card.photoAreaColor,
+        cardColor: card.cardColor,
         youtubeVideoId: found.videoId,
         videoAspect: found.aspect,
       };

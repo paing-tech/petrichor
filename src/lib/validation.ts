@@ -61,7 +61,7 @@ export const cardFieldsSchema = z.object({
     `Message can be up to ${MESSAGE_MAX_LINES} lines`,
   ),
   senderName: optionalText("Your name", LIMITS.senderName),
-  moment: optionalText("Moment", LIMITS.moment),
+  moment: optionalText("Place or occasion", LIMITS.moment),
 });
 
 export type CardFieldsInput = z.input<typeof cardFieldsSchema>;

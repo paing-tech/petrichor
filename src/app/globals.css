@@ -208,6 +208,30 @@
   animation: marquee var(--marquee-duration, 6s) ease-in-out infinite alternate;
 }
 
+/* A slow glint across text (the "Keepsake created" heading): a lighter band of --twinkle sweeps
+   left to right, then rests. */
+@keyframes twinkle {
+  0% {
+    background-position: 100% 0;
+  }
+  60%,
+  100% {
+    background-position: 0% 0;
+  }
+}
+@utility animate-twinkle {
+  background-image: linear-gradient(
+    110deg,
+    var(--twinkle) 40%,
+    color-mix(in oklab, var(--twinkle), white 65%) 50%,
+    var(--twinkle) 60%
+  );
+  background-size: 250% 100%;
+  background-clip: text;
+  color: transparent;
+  animation: twinkle 5s ease-in-out infinite;
+}
+
 /* The home page's hero (src/app/page.tsx, which sets the --home-* measurements). The card sits a
    little above the centre (OPTICAL_LIFT), moving only as far as it must to keep her head below
    the header and the buttons on screen, and the artwork shrinks to fit short screens, so the

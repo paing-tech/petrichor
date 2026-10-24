@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, ArrowRightIcon, SparklesIcon, XIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createCard, requestPhotoUpload, type CreatedCopyResult, type PickedYouTubeVideo } from "@/app/create/actions";
 import { CollectibleCard, type CardFace } from "@/components/collectible-card";
@@ -398,25 +398,6 @@ export function CreateCardFlow() {
     });
   }
 
-  function startOver() {
-    setValues(EMPTY_VALUES);
-    setErrors({});
-    setValidateLive(false);
-    setSong(null);
-    setSongMode("search");
-    setFocusSearch(false);
-    removePhoto();
-    setCardColor(DEFAULT_CARD_COLOR);
-    setRecipients([]);
-    setKeepForMe(true);
-    setLinkCopies(0);
-    setYouTubePick(null);
-    setMatchedVideo(null);
-    setClip(null);
-    setCopies(null);
-    setFormStep(0);
-    goTo("edit");
-  }
 
   // The pasted video only counts for the song it was pasted for (the song can change on Edit).
   const songKey = `${song?.trackId ?? ""}|${values.songTitle.trim()}|${values.artistName.trim()}`;
@@ -452,53 +433,29 @@ export function CreateCardFlow() {
     const size = copies.length;
     const allYours = copies.every((c) => c.ownedByYou);
     const keepAfterSignIn = copies.some((c) => c.forYou && c.claimToken);
-    const heading = allYours
-      ? size > 1
-        ? `Your ${size} keepsakes are in your collection`
-        : "It's in your collection"
-      : keepAfterSignIn
-        ? size > 1
-          ? "Sign in to save your keepsakes"
-          : "Sign in to save your keepsake"
-        : size > 1
-          ? `Your ${size} keepsakes are ready`
-          : "Your keepsake is ready";
     return (
-      <div className="mx-auto flex w-full max-w-md flex-col items-center gap-8 px-4 pt-4 pb-16">
-        <div className="text-center">
-          <p className="text-clay mb-2 inline-flex items-center gap-1.5 text-sm font-medium">
-            <SparklesIcon className="size-4" /> {size > 1 ? "Edition created" : "Keepsake created"}
-          </p>
-          <h1 className="font-serif text-4xl tracking-tight">{heading}</h1>
-          <p className="text-muted-foreground mt-2 text-sm">
-            {keepAfterSignIn
-              ? "We've saved it on this device. Sign in and it moves into your collection, or save the link below to keep it later."
-              : allYours
-                ? "Share the link with anyone; the keepsake stays yours."
-                : "Each copy below shows where it stands and the link to send."}
-          </p>
-        </div>
+      // The card, its button and the links all 340px wide.
+      <div className="mx-auto flex w-full max-w-[372px] flex-col items-center gap-8 px-4 pt-4 pb-16">
+        <h1 className="motion-safe:animate-twinkle text-center font-serif text-4xl tracking-tight text-[#a3b18a] [--twinkle:#a3b18a]">
+          {size > 1 ? "Keepsakes created" : "Keepsake created"}
+        </h1>
         <FlipCard
-          className="max-w-[340px]"
-          hint="Tap the card to see its back"
           front={<CollectibleCard card={previewCard} className="max-w-none" />}
           back={<CollectibleCard card={previewCard} face="back" className="max-w-none" />}
         />
         {keepAfterSignIn && (
-          <Button asChild size="lg" className="h-11 w-full">
-            <Link href={signInPath("/keepsakes")}>
-              <SparklesIcon /> Sign in to keep {size > 1 ? "them" : "it"}
-            </Link>
+          <Button asChild size="lg" className="w-full">
+            <Link href={signInPath("/keepsakes")}>Sign in to keep {size > 1 ? "them" : "it"}</Link>
           </Button>
         )}
         {allYours && (
-          <Button asChild size="lg" variant="outline" className="h-11 w-full">
+          <Button asChild size="lg" variant="outline" className="w-full">
             <Link href="/keepsakes">Go to my keepsakes</Link>
           </Button>
         )}
         <CreatedCopies copies={copies} />
-        <Button variant="ghost" size="lg" className="h-10" onClick={startOver}>
-          Make another
+        <Button asChild variant="ghost" size="lg" className="-mt-3">
+          <Link href="/">Home</Link>
         </Button>
       </div>
     );

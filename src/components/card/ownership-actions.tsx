@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckIcon, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
+import { CheckIcon, Loader2Icon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { acceptDeliveryAction, claimCardAction, declineDeliveryAction } from "@/app/keepsakes/actions";
@@ -27,21 +27,16 @@ export function KeepCard({ cardId, token, state }: KeepCardProps) {
         ? signInPath(here)
         : `/onboarding?next=${encodeURIComponent(here)}`;
     return (
-      <KeepPanel>
-        <Button asChild size="lg" className="h-11 w-full">
-          <Link href={href}>
-            <SparklesIcon /> {state === "signed_out" ? "Sign in to keep this card" : "Choose a username to keep it"}
-          </Link>
-        </Button>
-      </KeepPanel>
+      <Button asChild size="lg" className="w-full">
+        <Link href={href}>{state === "signed_out" ? "Sign in to keep it" : "Choose a username to keep it"}</Link>
+      </Button>
     );
   }
 
   return (
-    <KeepPanel>
-      <Button
+    <Button
         size="lg"
-        className="h-11 w-full"
+        className="w-full"
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
@@ -57,18 +52,8 @@ export function KeepCard({ cardId, token, state }: KeepCardProps) {
           })
         }
       >
-        {pending ? <Loader2Icon className="animate-spin" /> : <SparklesIcon />} Keep this card
+        {pending && <Loader2Icon className="animate-spin" />} Keep it
       </Button>
-    </KeepPanel>
-  );
-}
-
-function KeepPanel({ children }: { children: ReactNode }) {
-  return (
-    <div className="bg-background w-full rounded-xl border p-4 text-center">
-      <p className="mb-3 text-sm">This card was made for you. Keep it in your collection, forever.</p>
-      {children}
-    </div>
   );
 }
 

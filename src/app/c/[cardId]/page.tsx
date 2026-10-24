@@ -95,17 +95,18 @@ async function CardView({ params, searchParams }: PageProps<"/c/[cardId]">) {
         </Suspense>
       </div>
 
-      <div className="contents [html[data-listening]_&]:hidden">
-        <Suspense fallback={null}>
-          <Ownership cardId={card.cardId} searchParams={searchParams} />
-        </Suspense>
-      </div>
-
       <div className="flex w-full flex-col">
         {/* The song's players are looked up per request (matches are stored as they're found);
             their place is held meanwhile. */}
         <Suspense fallback={<ListenPanelSkeleton />}>
           <Listen card={card} />
+        </Suspense>
+      </div>
+
+      {/* Keep / accept, under the players (and Spotify's, when it opens). */}
+      <div className="contents [html[data-listening]_&]:hidden">
+        <Suspense fallback={null}>
+          <Ownership cardId={card.cardId} searchParams={searchParams} />
         </Suspense>
       </div>
       {/* Sharing lives in the header, beside the account avatar. */}

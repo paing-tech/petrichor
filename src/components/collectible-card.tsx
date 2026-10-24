@@ -89,7 +89,7 @@ const PHOTO_FADE = Array.from({ length: FADE_STEPS + 1 }, (_, i) => {
   return [FADE_START + t * (FADE_END - FADE_START), ease(t)] as const;
 });
 /** The moment sits inside the fade, near the photo's foot, on the right, clear of the title. */
-const MOMENT_CENTER = PHOTO_HEIGHT * 0.92;
+const MOMENT_CENTER = PHOTO_HEIGHT * 0.9;
 /** Corner radius, in proportion to a trading card's (about 3 mm on 63 mm). */
 const CORNER_RADIUS = 19;
 const SIDE_PADDING = 28;

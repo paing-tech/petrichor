@@ -331,10 +331,11 @@ export function ListeningPlayer({
                       duration: 0.5,
                       ease: [0.22, 1, 0.36, 1],
                     }}
-                    // A sign-off right under the note: left, softer and a little smaller.
-                    className="font-hand mt-1.5 text-base text-white/60"
+                    // Signed as on the card's back: right under the note, on the right, in the
+                    // note's own size and ink.
+                    className="font-hand mt-1 text-right text-lg leading-snug"
                   >
-                    — {signature}
+                    {signature}
                   </motion.p>
                 )}
               </div>

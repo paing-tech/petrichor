@@ -12,7 +12,7 @@ import {
 import { AnimatePresence, cubicBezier, motion } from "motion/react";
 import { LoaderCircleIcon, MinusIcon, PlusIcon, SquareIcon } from "lucide-react";
 import { toast } from "sonner";
-import { updatePhotoCaption } from "@/app/collections/actions";
+import { updatePhotoCaption } from "@/app/photos/actions";
 import { AutoHide } from "@/components/collections/auto-hide";
 import {
   InfiniteMasonry,

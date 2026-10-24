@@ -1,4 +1,4 @@
-import { requestCollectionUploads } from "@/app/collections/actions";
+import { requestCollectionUploads } from "@/app/photos/actions";
 import { PHOTO_TYPES, type CollectionPhotoInput } from "@/lib/validation";
 
 /** Longest side of the preview shown while browsing, in px. */

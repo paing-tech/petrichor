@@ -18,7 +18,7 @@ export const metadata: Metadata = { title: "Collection", robots: { index: false 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** One collection, full screen: its photos on an endless wall. Only its owner can open it. */
-export default function CollectionPage({ params }: PageProps<"/collections/[collectionId]">) {
+export default function CollectionPage({ params }: PageProps<"/photos/[collectionId]">) {
   return (
     // Black while it loads; then the wall, in the colour chosen last (see WallSurface).
     <div className="fixed inset-0 z-50 overflow-hidden bg-[#000000]">
@@ -29,10 +29,10 @@ export default function CollectionPage({ params }: PageProps<"/collections/[coll
   );
 }
 
-async function Collection({ params }: Pick<PageProps<"/collections/[collectionId]">, "params">) {
+async function Collection({ params }: Pick<PageProps<"/photos/[collectionId]">, "params">) {
   const { collectionId } = await params;
   const account = await getAccount();
-  if (!account) redirect(signInPath(`/collections/${collectionId}`));
+  if (!account) redirect(signInPath(`/photos/${collectionId}`));
   if (!UUID_PATTERN.test(collectionId)) notFound();
   const collection = await getCollection(collectionId, account.user.id);
   if (!collection) notFound();
@@ -46,7 +46,7 @@ async function Collection({ params }: Pick<PageProps<"/collections/[collectionId
       <div className="pointer-events-none absolute inset-x-0 top-0 grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-[max(1rem,env(safe-area-inset-left))] pt-[max(1rem,env(safe-area-inset-top))]">
         <AutoHide className="justify-self-start">
           <Link
-            href="/"
+            href="/photos"
             aria-label="Back to collections"
             className="pointer-events-auto grid size-10 place-items-center rounded-full bg-(--wall-ink)/10 backdrop-blur transition-colors hover:bg-(--wall-ink)/20"
           >

@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ImagePlusIcon } from "lucide-react";
 import { toast } from "sonner";
-import { addCollectionPhotos } from "@/app/collections/actions";
+import { addCollectionPhotos } from "@/app/photos/actions";
 import { uploadCollectionPhotos } from "@/lib/collection-upload";
 
 /** Uploads more photos to the end of a collection. */

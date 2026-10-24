@@ -6,7 +6,7 @@ import { ArrowUpRightIcon, PlayIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ListeningPlayer } from "@/components/card/listening-player";
 import { MarqueeText } from "@/components/ui/marquee-text";
-import { setMessageShown } from "@/components/card/listening-store";
+import { useListeningMode } from "@/components/card/listening-store";
 
 // The card page's player, under the card: Spotify's player (full songs on desktop for
 // signed-in Premium listeners, previews otherwise) and a play button. Playing turns the page
@@ -49,21 +49,10 @@ export function ListenPanel({ sources }: { sources: ListenSources }) {
   }, [spotifyOpen]);
 
   // Listening mode: the page goes black (see globals.css and the card page), like the home page
-  // while its song plays, and so do the phone's browser bars.
+  // while its song plays.
+  useListeningMode(playing);
   useEffect(() => {
-    if (!playing) return;
-    document.documentElement.setAttribute("data-listening", "");
-    const theme = document.querySelector<HTMLMetaElement>(
-      'meta[name="theme-color"]',
-    );
-    const day = theme?.content;
-    if (theme) theme.content = "#000000";
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    return () => {
-      setMessageShown(false);
-      document.documentElement.removeAttribute("data-listening");
-      if (theme && day) theme.content = day;
-    };
+    if (playing) window.scrollTo({ top: 0, behavior: "smooth" });
   }, [playing]);
 
   // Nothing to play here: the song's own page on Apple Music, if there is one.

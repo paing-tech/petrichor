@@ -12,7 +12,7 @@ import { getAccount } from "@/lib/auth/account";
 import { signInPath } from "@/lib/auth/sign-in-path";
 import { listCollection, listCreated, listPendingDeliveries } from "@/lib/ownership";
 
-export const metadata: Metadata = { title: "My keepsakes", robots: { index: false } };
+export const metadata: Metadata = { title: "Keepsakes", robots: { index: false } };
 
 export default function KeepsakesPage() {
   return (
@@ -39,12 +39,33 @@ async function Keepsakes() {
   return (
     <>
       <ClaimSavedCards />
-      <div>
-        <h1 className="font-serif text-4xl tracking-tight">My keepsakes</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          {account.profile.displayName} · @{account.profile.username}
-        </p>
-      </div>
+      {/* The heading, and the collection right under it. */}
+      <section className="grid gap-6" aria-labelledby="keepsakes-heading">
+        <div>
+          <h1 id="keepsakes-heading" className="font-serif text-4xl tracking-tight">Keepsakes</h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {account.profile.displayName} · @{account.profile.username}
+          </p>
+        </div>
+        {collection.length === 0 ? (
+          <div className="text-muted-foreground rounded-2xl border border-dashed p-10 text-center text-sm">
+            Cards you keep will live here.{" "}
+            <Button asChild variant="link" className="h-auto p-0">
+              <Link href="/create">Make a card for yourself</Link>
+            </Button>
+          </div>
+        ) : (
+          <ul className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
+            {collection.map((card) => (
+              <li key={card.cardId}>
+                <Link href={`/c/${card.cardId}`} className="block transition-transform hover:-translate-y-0.5">
+                  <CollectibleCard card={card} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {pending.length > 0 && (
         <section className="grid gap-4">
@@ -76,27 +97,6 @@ async function Keepsakes() {
         </section>
       )}
 
-      <section className="grid gap-4">
-        <h2 className="text-lg font-medium">Your collection</h2>
-        {collection.length === 0 ? (
-          <div className="text-muted-foreground rounded-2xl border border-dashed p-10 text-center text-sm">
-            Cards you keep will live here.{" "}
-            <Button asChild variant="link" className="h-auto p-0">
-              <Link href="/create">Make a card for yourself</Link>
-            </Button>
-          </div>
-        ) : (
-          <ul className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
-            {collection.map((card) => (
-              <li key={card.cardId}>
-                <Link href={`/c/${card.cardId}`} className="block transition-transform hover:-translate-y-0.5">
-                  <CollectibleCard card={card} />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
 
       {created.length > 0 && (
         <section className="grid gap-4">

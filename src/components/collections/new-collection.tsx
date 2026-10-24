@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ImagePlusIcon, PlusIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
-import { createCollection } from "@/app/collections/actions";
+import { createCollection } from "@/app/photos/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,7 +58,7 @@ export function NewCollection({ startOpen = false }: { startOpen?: boolean }) {
       setStatus("Saving…");
       const result = await createCollection({ title: name, photos });
       if (!result.ok) throw new Error(result.error);
-      router.push(`/collections/${result.collectionId}`);
+      router.push(`/photos/${result.collectionId}`);
     } catch (error) {
       setStatus(null);
       toast.error(error instanceof Error ? error.message : "Something went wrong. Please try again.");

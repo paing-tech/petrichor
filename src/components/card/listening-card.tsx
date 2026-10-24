@@ -30,22 +30,13 @@ const GLIDE = { type: "spring", damping: 30, stiffness: 260 } as const;
  */
 export function ListeningCard({ className, children }: { className?: string; children: ReactNode }) {
   const listening = useListening();
-  const messageShown = useMessageShown();
   // Only read in the browser, once listening mode has put the player (and its slot) on screen.
   const slot = listening ? document.getElementById(LISTENING_CARD_SLOT) : null;
 
   if (slot) {
     return createPortal(
       <motion.div layoutId="listening-card" transition={GLIDE} className="w-full">
-        <FlipControlContext
-          value={{
-            side: messageShown ? "back" : "front",
-            onTap: () => setMessageShown(!messageShown),
-            label: messageShown ? "Hide the message" : "Show the message",
-          }}
-        >
-          {children}
-        </FlipControlContext>
+        <ListeningCardControl>{children}</ListeningCardControl>
       </motion.div>,
       slot,
     );
@@ -54,5 +45,21 @@ export function ListeningCard({ className, children }: { className?: string; chi
     <motion.div layoutId="listening-card" transition={GLIDE} className={cn("w-full", className)}>
       {children}
     </motion.div>
+  );
+}
+
+/** The small card in the player: tapping it shows its message beside it (and turns it over). */
+export function ListeningCardControl({ children }: { children: ReactNode }) {
+  const messageShown = useMessageShown();
+  return (
+    <FlipControlContext
+      value={{
+        side: messageShown ? "back" : "front",
+        onTap: () => setMessageShown(!messageShown),
+        label: messageShown ? "Hide the message" : "Show the message",
+      }}
+    >
+      {children}
+    </FlipControlContext>
   );
 }

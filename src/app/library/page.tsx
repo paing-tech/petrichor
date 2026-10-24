@@ -54,23 +54,24 @@ async function Library() {
         );
       }
       const found = await lookups.get(key)!;
+      const { clipVideoId, clipStart, clipEnd } = card;
       return {
-        cardId: card.cardId,
-        songTitle: card.songTitle,
-        artistName: card.artistName,
-        moment: card.moment,
-        photoUrl: card.photoUrl,
-        photoAreaColor: card.photoAreaColor,
-        cardColor: card.cardColor,
+        card,
         youtubeVideoId: found.videoId,
         videoAspect: found.aspect,
+        // The chosen part only applies on the video it was chosen on (times differ between videos).
+        clip:
+          found.videoId && clipVideoId === found.videoId && clipStart !== null && clipEnd !== null
+            ? { start: clipStart, end: clipEnd }
+            : null,
       };
     }),
   );
 
   return (
     <>
-      <div>
+      {/* Out of sight while a song plays over it. */}
+      <div className="[html[data-listening]_&]:invisible">
         <h1 className="font-serif text-4xl tracking-tight">Music Library</h1>
         <p className="mt-1 text-sm text-white/60">
           {tracks.length === 0

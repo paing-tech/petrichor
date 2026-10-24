@@ -45,7 +45,7 @@ export function AccountMenuClient({ displayName, username, avatarUrl }: AccountM
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link href="/keepsakes">
-            <SparklesIcon /> My keepsakes
+            <SparklesIcon /> Keepsakes
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>

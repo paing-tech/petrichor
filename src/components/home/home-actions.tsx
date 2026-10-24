@@ -17,7 +17,7 @@ export function HomeActions({ collectionHref }: HomeActionsProps) {
     <div className="grid w-full gap-3">
       <CreateButton />
       {collectionHref ? (
-        <Button asChild variant="outline" size="lg" className="bg-background">
+        <Button asChild variant="default" size="lg">
           <Link href={collectionHref}>My keepsakes</Link>
         </Button>
       ) : (
@@ -39,8 +39,7 @@ function CreateButton() {
 
 /**
  * While the session loads: the signed-out buttons, Sign in included, so nothing pops in later.
- * Signed-in visitors rarely see the home page (src/proxy.ts sends "/" to their collections),
- * so for them "My keepsakes" just takes Sign in's place.
+ * For signed-in visitors, "My keepsakes" then takes Sign in's place (same size, so nothing moves).
  */
 export function HomeActionsFallback() {
   return <HomeActions collectionHref={null} />;

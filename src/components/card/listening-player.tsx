@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from "react";
 import {
   ChevronDownIcon,
@@ -62,6 +63,7 @@ export function ListeningPlayer({
   message,
   signature,
   clip,
+  card,
   onClose,
 }: {
   videoId: string;
@@ -77,6 +79,8 @@ export function ListeningPlayer({
    * repeat, starts again) at its end, unless the listener switches to the whole song.
    */
   clip: { start: number; end: number } | null;
+  /** The small card beside the title, when it isn't moved in from the page (see ListeningCard). */
+  card?: ReactNode;
   onClose: () => void;
 }) {
   const messageShown = useMessageShown();
@@ -362,8 +366,10 @@ export function ListeningPlayer({
               </p>
             </motion.div>
           )}
-          {/* The keepsake card moves in here (see ListeningCard). */}
-          <div id={LISTENING_CARD_SLOT} className="w-28 shrink-0" />
+          {/* The keepsake card moves in here (see ListeningCard), or is given. */}
+          <div id={LISTENING_CARD_SLOT} className="w-28 shrink-0">
+            {card}
+          </div>
         </div>
 
         {/* Tap or drag to move through the song. */}

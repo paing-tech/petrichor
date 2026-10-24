@@ -9,10 +9,7 @@ import { listCollections } from "@/lib/collections";
 
 export const metadata: Metadata = { title: "Collections", robots: { index: false } };
 
-/**
- * The signed-in home page: the account's photo collections. Visiting "/" while signed in
- * shows this page (see src/proxy.ts).
- */
+/** The account's photo collections. */
 export default function CollectionsPage() {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pt-4 pb-16 sm:px-6">
@@ -25,8 +22,8 @@ export default function CollectionsPage() {
 
 async function Collections() {
   const account = await getAccount();
-  if (!account) redirect(signInPath("/"));
-  if (!account.profile) redirect("/onboarding?next=/");
+  if (!account) redirect(signInPath("/photos"));
+  if (!account.profile) redirect("/onboarding?next=/photos");
   const collections = await listCollections(account.user.id);
 
   return (
@@ -47,7 +44,7 @@ async function Collections() {
         <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4">
           {collections.map((collection) => (
             <li key={collection.id}>
-              <Link href={`/collections/${collection.id}`} className="group grid gap-2">
+              <Link href={`/photos/${collection.id}`} className="group grid gap-2">
                 <div className="bg-muted aspect-[4/5] overflow-hidden rounded-2xl">
                   {collection.cover && (
                     // eslint-disable-next-line @next/next/no-img-element

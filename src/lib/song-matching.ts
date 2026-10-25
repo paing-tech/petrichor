@@ -100,6 +100,17 @@ const titleNamesSong = (videoTitle: string, songTitle: string) =>
 /** The first artist named on the card (before "&", ",", "feat."), for loose comparisons. */
 const leadArtist = (artist: string) => normalize(artist.split(/,|&| feat\.?| ft\.?| x /i)[0] ?? artist);
 
+/** The first credited artist, as written: "The Weeknd & Lana Del Rey" → "The Weeknd". */
+const searchArtist = (artist: string) => artist.split(/,|&| feat\.?| ft\.?| x /i)[0]?.trim() || artist;
+
+/** The title without brackets or a "feat." tail: "Monody (feat. Laura Brehm)" → "Monody". */
+const searchTitle = (title: string) =>
+  title
+    .replace(/\(.*?\)|\[.*?\]/g, " ")
+    .replace(/\s(feat\.?|ft\.?)\s.*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim() || title;
+
 /** Apple Music's length for the track, to tell the right recording from remixes and live versions. */
 async function appleDurationMs(appleMusicUrl: string | null) {
   const match = appleMusicUrl ? APPLE_MUSIC_URL_PATTERN.exec(appleMusicUrl) : null;
@@ -131,7 +142,13 @@ async function spotifyAccessToken({ clientId, clientSecret }: { clientId: string
 /** The Spotify track for this song: same lead artist, and the same length when Apple's is known. */
 async function findOnSpotify(song: Song, credentials: { clientId: string; clientSecret: string }) {
   const [token, durationMs] = await Promise.all([spotifyAccessToken(credentials), appleDurationMs(song.appleMusicUrl)]);
-  const params = new URLSearchParams({ q: `track:${song.title} artist:${song.artist}`, type: "track", limit: "10" });
+  // Searched by the bare title and lead artist: Spotify lists featured artists as artists, so a
+  // title like "Monody (feat. Laura Brehm)" finds nothing (the matching below still checks both).
+  const params = new URLSearchParams({
+    q: `track:${searchTitle(song.title)} artist:${searchArtist(song.artist)}`,
+    type: "track",
+    limit: "10",
+  });
   const response = await fetch(`https://api.spotify.com/v1/search?${params}`, { headers: { Authorization: `Bearer ${token}` } });
   if (!response.ok) throw new Error(`Spotify search failed (${response.status})`);
   const body = (await response.json()) as {
